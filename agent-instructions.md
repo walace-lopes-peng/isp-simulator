@@ -39,12 +39,15 @@ The `links` and `nodes` arrays in `useISPStore.ts` drive the entire game. Traffi
 - The `zoomLevel` thresholds (25, 50, 75) dictating Layer 1 vs Layer 4 visibility.
 - Erasing `dist/` and `src/*.js` when Vita fails to update the `.tsx` UI.
 
-## Git Workflow
+## Git Workflow & PR Standards
 
-All feature/fix PRs target `dev` (or `releases`), never `main` directly. 
+All feature/fix PRs target `dev` (or `releases`), never `main` directly.
 
-- `feat/*` or `fix/*` -> merged into `dev`
-- `dev` -> merged into `main` at milestones for production deploy
+### PR Requirements:
+- **Mandatory Link**: Use `Closes #NUMBER` in the summary to link to the issue.
+- **Lean Descriptions**: If a template section is not relevant, skip it. **Never** use "N/A".
+- **Aesthetics**: Screenshots are NOT required. Focus on describing technical changes and architectural impact.
+- **Flow**: `feat/*` or `fix/*` -> merged into `dev` -> merged into `main` at milestones.
 
 ## Roadmap Context
 

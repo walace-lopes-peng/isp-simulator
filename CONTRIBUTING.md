@@ -38,18 +38,21 @@ Every PR approval must meet minimum quality standards to protect the Graph Topol
 
 ### Rules
 
-1. **Mandatory Body** — Every approval MUST state exactly what was tested in the simulation. Empty approvals will be rejected.
+1. **Mandatory Issue Reference** — Every Pull Request MUST include the issue it addresses using the `Closes #NUMBER` syntax in the summary.
    
-2. **Inline Comments** — When discussing code architecture, point to specific lines using inline GitHub comments.
+2. **Leanness & Accuracy** — Do not use placeholders like "N/A". If a section of the PR template is not relevant to your changes, simply remove it.
+   
+3. **Architectural Focus** — Screenshots are NOT required and are considered less relevant than technical context. Focus your description on the "Why" and the architectural impact.
 
-3. **Structured Feedback for Change Requests** — Organize feedback into clear sections:
+4. **Mandatory Body** — Every approval MUST state exactly what was tested in the simulation. Empty approvals will be rejected.
+   
+5. **Inline Comments** — When discussing code architecture, point to specific lines using inline GitHub comments.
+
+6. **Structured Feedback for Change Requests** — Organize feedback into clear sections:
    - **Blockers** — Violations of the separation of concerns (e.g., placing traffic logic in React).
-   - **Warnings** — Non-blocking issues (e.g., hardcoded CSS instead of Tailwind tokens).
    - **Praise** — Acknowledge elegant graph iterations.
 
-4. **Proportional Scrutiny for Large PRs** — PRs modifying core `useISPStore` loops or spanning many files require line-by-line verification.
-
-5. **QA Checklist Enforcement** — The reviewer must personally verify the items marked by the author in the PR checklist (e.g., "Tested BFS isolation").
+7. **QA Checklist Enforcement** — The reviewer must personally verify the items marked by the author in the PR checklist (e.g., "Tested BFS isolation").
 
 6. **Cross Validation** — The author cannot be the sole approver. If the Tech Lead opens a PR, another peer must validate the architectural constraints before merging.
 
