@@ -36,6 +36,7 @@ interface ISPStore {
   logs: string[];
   zoomLevel: number;
   selectedNodeId: string | null;
+  isLinking: boolean;
   
   // Actions
   tick: () => void;
@@ -44,17 +45,18 @@ interface ISPStore {
   setEra: (era: Era) => void;
   addLog: (msg: string, isCritical?: boolean) => void;
   setZoom: (level: number) => void;
-  startTick: () => void;
   selectNode: (id: string | null) => void;
   connectNodes: (sourceId: string, targetId: string) => void;
+  toggleLinking: () => void;
 }
 
 export const useISPStore = create<ISPStore>((set, get) => ({
   money: 5000,
   currentEra: '70s',
   totalData: 0,
-  zoomLevel: 1,
+  zoomLevel: 10,
   selectedNodeId: null,
+  isLinking: false,
   logs: ['[SYSTEM] Graph Topology Online. Connect nodes to Core to start revenue.'],
   links: [],
   nodes: [
@@ -95,40 +97,35 @@ export const useISPStore = create<ISPStore>((set, get) => ({
         }
       }
 
-      // 2. Sim Loop: Node Traffic Drift (Only for reachable nodes)
+      // 2. Sim Loop: Node Traffic Drift
       const updatedNodes = state.nodes.map(node => {
         if (!reachableIds.has(node.id)) return { ...node, traffic: 0 };
-        
-        // Target traffic is based on bandwidth and a random factor
-        const targetScaling = node.layer === 1 ? 0.1 : 0.5; // Core has lower relative load than consumers
+        const targetScaling = node.layer === 1 ? 0.1 : 0.5;
         const targetTraffic = node.bandwidth * (targetScaling + Math.random() * 0.3);
         const drift = (targetTraffic - node.traffic) * 0.15;
         return { ...node, traffic: Math.max(10, Math.min(node.traffic + drift, node.bandwidth * 1.5)) };
       });
 
-      // 3. Revenue for Active Tier (Excluding Core)
+      // 3. Revenue
       const activeTier = state.zoomLevel <= 25 ? 1 : state.zoomLevel <= 50 ? 2 : state.zoomLevel <= 75 ? 3 : 4;
       const activeNodes = updatedNodes.filter(n => n.layer === activeTier && n.layer > 1 && reachableIds.has(n.id));
       const rawRevenue = activeNodes.reduce((sum, n) => sum + n.traffic, 0);
       const hasOverload = activeNodes.some(n => n.traffic > n.bandwidth);
       const revenue = Math.floor(hasOverload ? rawRevenue * 0.4 : rawRevenue * 0.8);
 
-      // 4. Global Stats
+      // 4. Update Stats
       const totalLoad = updatedNodes.reduce((sum, n) => sum + n.traffic, 0);
       const newTotalData = state.totalData + totalLoad;
-
-      // 5. Era shifting
       let nextEra = state.currentEra;
       if (newTotalData > 500000) nextEra = 'modern';
       else if (newTotalData > 50000) nextEra = '90s';
 
-      // 6. Logs & Buffers (Only log if reachable nodes exist beyond core)
       const timestamp = new Date().toLocaleTimeString();
       let newLogs = state.logs;
       if (revenue > 0 && Math.random() > 0.8) {
-        newLogs = [`[${timestamp}] Revenue: +$${revenue} (Active Tier ${activeTier}: ${activeNodes.length} Nodes)`, ...state.logs].slice(0, 20);
+        newLogs = [`[${timestamp}] Revenue: +$${revenue} (Focus: Tier ${activeTier})`, ...state.logs].slice(0, 20);
       } else if (reachableIds.size === 1 && Math.random() > 0.95) {
-        newLogs = [`[${timestamp}] ALERT: Network isolated. Connect to Core.`, ...state.logs].slice(0, 20);
+        newLogs = [`[${timestamp}] ! ISOLATED: Fiber connectivity required.`, ...state.logs].slice(0, 20);
       }
 
       return {
@@ -141,28 +138,31 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     });
   },
 
-  startTick: () => {}, // Deprecated, moved to App.tsx useEffect
-
   connectNodes: (srcId, tgtId) => set((state) => {
-    const src = state.nodes.find(n => n.id === srcId);
-    const tgt = state.nodes.find(n => n.id === tgtId);
-    if (!src || !tgt || srcId === tgtId) return state;
+    // Explicit string conversion to prevent number/string mismatch
+    const sId = String(srcId);
+    const tId = String(tgtId);
+    
+    const src = state.nodes.find(n => String(n.id) === sId);
+    const tgt = state.nodes.find(n => String(n.id) === tId);
+    
+    if (!src || !tgt || sId === tId) return state;
 
-    if (state.links.some(l => (l.sourceId === srcId && l.targetId === tgtId) || (l.sourceId === tgtId && l.targetId === srcId))) {
-      return { ...state, logs: [`[ERROR] Link already exists.`, ...state.logs].slice(0, 20) };
+    if (state.links.some(l => (l.sourceId === sId && l.targetId === tId) || (l.sourceId === tId && l.targetId === sId))) {
+      return { ...state, isLinking: false, logs: [`[ERROR] Redundant link bypassed.`, ...state.logs].slice(0, 15) };
     }
 
     const dist = Math.sqrt(Math.pow(src.x - tgt.x, 2) + Math.pow(src.y - tgt.y, 2));
     const cost = Math.floor(dist * 10);
     
     if (state.money < cost) {
-      return { ...state, logs: [`[ERROR] Insufficient capital ($${cost})`, ...state.logs].slice(0, 20) };
+      return { ...state, isLinking: false, logs: [`[ERROR] Low credit: $${cost} required.`, ...state.logs].slice(0, 15) };
     }
 
     const newLink: ISPLink = {
       id: `link-${Date.now()}`,
-      sourceId: srcId,
-      targetId: tgtId,
+      sourceId: sId,
+      targetId: tId,
       bandwidth: 1000,
       type: 'fiber'
     };
@@ -170,28 +170,23 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     return {
       money: state.money - cost,
       links: [...state.links, newLink],
-      logs: [`[LINK] Established fiber (-$${cost})`, ...state.logs].slice(0, 20)
+      isLinking: false,
+      logs: [`[LINK] Established fiber (-$${cost})`, ...state.logs].slice(0, 15)
     };
   }),
 
+  toggleLinking: () => set(state => ({ isLinking: !state.isLinking })),
   upgradeNode: (id) => set((state) => {
     const node = state.nodes.find(n => n.id === id);
     if (!node) return state;
-    
     const cost = Math.floor(50 * Math.pow(1.15, node.level));
     if (state.money < cost) return state;
-
     return {
       money: state.money - cost,
-      nodes: state.nodes.map(n => n.id === id ? { 
-        ...n, 
-        level: n.level + 1, 
-        bandwidth: Math.floor(n.bandwidth * 1.4) 
-      } : n),
-      logs: [`[SUCCESS] ${node.name} optimized to LVL ${node.level + 1}.`, ...state.logs].slice(0, 20)
+      nodes: state.nodes.map(n => n.id === id ? { ...n, level: n.level + 1, bandwidth: Math.floor(n.bandwidth * 1.4) } : n),
+      logs: [`[SUCCESS] ${node.name} optimized to LVL ${node.level + 1}.`, ...state.logs].slice(0, 15)
     };
   }),
-
   selectNode: (id) => set({ selectedNodeId: id }),
   setZoom: (level) => set({ zoomLevel: level }),
   addLog: (msg, isCritical = false) => set((state) => ({
