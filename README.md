@@ -19,6 +19,19 @@
 
 A React + Zustand browser-based game simulating the evolution of an Internet Service Provider from local networks to global infrastructure.
 
+## Project Type
+
+ISP Simulator is a **state-driven network simulation engine** with a React-based visualization layer.
+
+**Core systems:**
+- **Graph topology** (BFS connectivity)
+- **Traffic simulation**
+- **Centralized state** (`useISPStore`)
+- **Frame-based update loop**
+
+> [!IMPORTANT]
+> **UI is a projection of state, not a source of logic.** All simulation math must reside in the store.
+
 ## 🚀 Quick Start
 
 1. Install dependencies: `npm install`
