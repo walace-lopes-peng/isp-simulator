@@ -1,6 +1,6 @@
 # 🏃 SPRINT BOARD
 
-> Last updated: Tue, 24 Mar 2026 19:23:25 GMT (UTC)
+> Last updated: Tue, 24 Mar 2026 19:24:11 GMT (UTC)
 
 ## 🚨 Open Blockers
 
@@ -9,12 +9,6 @@
 | 📌 Issue | #10 | [[UX/Gameplay] Intuitive Connective Mechanics & Core Utility](https://github.com/walace-lopes-peng/isp-simulator/issues/10) | `feat`, `P0-blocker`, `v1-blocker`, `topology-engine`, `events` |
 | 📌 Issue | #7 | [[Feature] UI Overhaul: Real Geographical Map Interface](https://github.com/walace-lopes-peng/isp-simulator/issues/7) | `feat`, `P0-blocker`, `v1-blocker`, `ui`, `ai-agent`, `network-nodes` |
 | 📌 Issue | #2 | [[Bug] [Logic] Revenue Black Hole at Layer 1 Focus](https://github.com/walace-lopes-peng/isp-simulator/issues/2) | `fix`, `P0-blocker`, `v1-blocker`, `store`, `state-risk`, `economy` |
-
-## ⏳ Awaiting Review
-
-| Type | #ID | Task/PR Title | Status/Problem |
-| :--- | :--- | :--- | :--- |
-| 📦 PR | #22 | [chore: implement formal project governance and PR standards](https://github.com/walace-lopes-peng/isp-simulator/pull/22) | ⏳ Awaiting Review |
 
 ## 📌 Backlog
 
