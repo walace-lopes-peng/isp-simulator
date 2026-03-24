@@ -106,25 +106,24 @@ export const useISPStore = create<ISPStore>((set, get) => ({
         return { ...node, traffic: Math.max(10, Math.min(node.traffic + drift, node.bandwidth * 1.5)) };
       });
 
-      // 3. Revenue (FIXED #2): Cumulative from all connected hubs (layer > 1)
-      const activeNodes = updatedNodes.filter(n => n.layer > 1 && reachableIds.has(n.id));
+      // 3. Revenue
+      const activeTier = state.zoomLevel <= 25 ? 1 : state.zoomLevel <= 50 ? 2 : state.zoomLevel <= 75 ? 3 : 4;
+      const activeNodes = updatedNodes.filter(n => n.layer === activeTier && n.layer > 1 && reachableIds.has(n.id));
       const rawRevenue = activeNodes.reduce((sum, n) => sum + n.traffic, 0);
       const hasOverload = activeNodes.some(n => n.traffic > n.bandwidth);
       const revenue = Math.floor(hasOverload ? rawRevenue * 0.4 : rawRevenue * 0.8);
 
-      // 4. Stats & Era Transition (FIXED #4)
+      // 4. Update Stats
       const totalLoad = updatedNodes.reduce((sum, n) => sum + n.traffic, 0);
       const newTotalData = state.totalData + totalLoad;
-      
       let nextEra = state.currentEra;
-      if (newTotalData > ERAS['modern'].threshold) nextEra = 'modern';
-      else if (newTotalData > ERAS['90s'].threshold) nextEra = '90s';
+      if (newTotalData > 500000) nextEra = 'modern';
+      else if (newTotalData > 50000) nextEra = '90s';
 
       const timestamp = new Date().toLocaleTimeString();
       let newLogs = state.logs;
-      
       if (revenue > 0 && Math.random() > 0.8) {
-        newLogs = [`[${timestamp}] Revenue: +$${revenue} (${activeNodes.length} Hubs Active)`, ...state.logs].slice(0, 20);
+        newLogs = [`[${timestamp}] Revenue: +$${revenue} (Focus: Tier ${activeTier})`, ...state.logs].slice(0, 20);
       } else if (reachableIds.size === 1 && Math.random() > 0.95) {
         newLogs = [`[${timestamp}] ! ISOLATED: Fiber connectivity required.`, ...state.logs].slice(0, 20);
       }
