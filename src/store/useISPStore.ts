@@ -71,85 +71,87 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     { id: 'l4-1', name: 'Satellite Uplink', bandwidth: 2000, traffic: 0, level: 1, layer: 4, x: 700, y: 600 },
   ],
 
-  startTick: () => {
-    setInterval(() => {
-      set((state) => {
-        // 1. BFS for Reachability from Core (Layer 1)
-        const core = state.nodes.find(n => n.layer === 1);
-        const reachableIds = new Set<string>();
-        if (core) {
-          const queue = [core.id];
-          reachableIds.add(core.id);
-          while (queue.length > 0) {
-            const currentId = queue.shift()!;
-            const neighbors = state.links
-              .filter(l => l.sourceId === currentId || l.targetId === currentId)
-              .map(l => l.sourceId === currentId ? l.targetId : l.sourceId);
-            
-            for (const neighborId of neighbors) {
-              if (!reachableIds.has(neighborId)) {
-                reachableIds.add(neighborId);
-                queue.push(neighborId);
-              }
+  tick: () => {
+    set((state) => {
+      // 1. BFS for Reachability from Core (Layer 1)
+      const core = state.nodes.find(n => n.layer === 1);
+      const reachableIds = new Set<string>();
+      if (core) {
+        const queue = [core.id];
+        reachableIds.add(core.id);
+        while (queue.length > 0) {
+          const currentId = queue.shift()!;
+          const neighbors = state.links
+            .filter(l => l.sourceId === currentId || l.targetId === currentId)
+            .map(l => l.sourceId === currentId ? l.targetId : l.sourceId);
+          
+          for (const neighborId of neighbors) {
+            if (!reachableIds.has(neighborId)) {
+              reachableIds.add(neighborId);
+              queue.push(neighborId);
             }
           }
         }
+      }
 
-        // 2. Sim Loop: Node Traffic Drift (Only for reachable nodes)
-        const updatedNodes = state.nodes.map(node => {
-          if (!reachableIds.has(node.id)) return { ...node, traffic: 0 };
-          
-          const targetTraffic = node.bandwidth * (0.3 + Math.random() * 0.4); // Random demand based on BW
-          const drift = (targetTraffic - node.traffic) * 0.1;
-          return { ...node, traffic: Math.max(10, Math.min(node.traffic + drift, node.bandwidth * 2)) };
-        });
-
-        // 3. Revenue for Active Layer (Semantic Zoom affects revenue focus)
-        const activeNodes = updatedNodes.filter(n => n.layer === (state.zoomLevel <= 25 ? 1 : state.zoomLevel <= 50 ? 2 : state.zoomLevel <= 75 ? 3 : 4));
-        const rawRevenue = activeNodes.reduce((sum, n) => sum + n.traffic, 0);
-        const hasOverload = activeNodes.some(n => n.traffic > n.bandwidth);
-        const revenue = Math.floor(hasOverload ? rawRevenue * 0.5 : rawRevenue);
-
-        // 4. Global Stats
-        const totalLoad = updatedNodes.reduce((sum, n) => sum + n.traffic, 0);
-        const newTotalData = state.totalData + totalLoad;
-
-        // 5. Era Shifting
-        let nextEra = state.currentEra;
-        if (newTotalData > 500000) nextEra = 'modern';
-        else if (newTotalData > 50000) nextEra = '90s';
-
-        // 6. Revenue Logs
-        const timestamp = new Date().toLocaleTimeString();
-        const logEntry = `[${timestamp}] Revenue: +$${revenue} (Reachable: ${reachableIds.size}/${state.nodes.length})`;
-        const newLogs = revenue > 0 ? [logEntry, ...state.logs].slice(0, 20) : state.logs;
-
-        return {
-          nodes: updatedNodes,
-          money: state.money + revenue,
-          totalData: newTotalData,
-          currentEra: nextEra,
-          logs: newLogs
-        };
+      // 2. Sim Loop: Node Traffic Drift (Only for reachable nodes)
+      const updatedNodes = state.nodes.map(node => {
+        if (!reachableIds.has(node.id)) return { ...node, traffic: 0 };
+        
+        const targetTraffic = node.bandwidth * (0.3 + Math.random() * 0.4);
+        const drift = (targetTraffic - node.traffic) * 0.1;
+        return { ...node, traffic: Math.max(10, Math.min(node.traffic + drift, node.bandwidth * 1.8)) };
       });
-    }, 1000);
+
+      // 3. Revenue for Active Tier
+      const activeTier = state.zoomLevel <= 25 ? 1 : state.zoomLevel <= 50 ? 2 : state.zoomLevel <= 75 ? 3 : 4;
+      const activeNodes = updatedNodes.filter(n => n.layer === activeTier);
+      const rawRevenue = activeNodes.reduce((sum, n) => sum + n.traffic, 0);
+      const hasOverload = activeNodes.some(n => n.traffic > n.bandwidth);
+      const revenue = Math.floor(hasOverload ? rawRevenue * 0.5 : rawRevenue);
+
+      // 4. Global Stats
+      const totalLoad = updatedNodes.reduce((sum, n) => sum + n.traffic, 0);
+      const newTotalData = state.totalData + totalLoad;
+
+      // 5. Era shifting
+      let nextEra = state.currentEra;
+      if (newTotalData > 500000) nextEra = 'modern';
+      else if (newTotalData > 50000) nextEra = '90s';
+
+      // 6. Logs & Buffers
+      const timestamp = new Date().toLocaleTimeString();
+      let newLogs = state.logs;
+      if (revenue > 0 && Math.random() > 0.7) {
+        newLogs = [`[${timestamp}] Revenue: +$${revenue} (Active: ${reachableIds.size - 1} Nodes)`, ...state.logs].slice(0, 20);
+      }
+
+      return {
+        nodes: updatedNodes,
+        money: state.money + revenue,
+        totalData: newTotalData,
+        currentEra: nextEra,
+        logs: newLogs
+      };
+    });
   },
+
+  startTick: () => {}, // Deprecated, moved to App.tsx useEffect
 
   connectNodes: (srcId, tgtId) => set((state) => {
     const src = state.nodes.find(n => n.id === srcId);
     const tgt = state.nodes.find(n => n.id === tgtId);
     if (!src || !tgt || srcId === tgtId) return state;
 
-    // Prevent duplicate links
     if (state.links.some(l => (l.sourceId === srcId && l.targetId === tgtId) || (l.sourceId === tgtId && l.targetId === srcId))) {
-      return { ...state, logs: [`[ERROR] Link already exists between ${src.name} & ${tgt.name}`, ...state.logs].slice(0, 20) };
+      return { ...state, logs: [`[ERROR] Link already exists.`, ...state.logs].slice(0, 20) };
     }
 
     const dist = Math.sqrt(Math.pow(src.x - tgt.x, 2) + Math.pow(src.y - tgt.y, 2));
     const cost = Math.floor(dist * 10);
     
     if (state.money < cost) {
-      return { ...state, logs: [`[ERROR] Insufficient capital for link ($${cost})`, ...state.logs].slice(0, 20) };
+      return { ...state, logs: [`[ERROR] Insufficient capital ($${cost})`, ...state.logs].slice(0, 20) };
     }
 
     const newLink: ISPLink = {
@@ -163,49 +165,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     return {
       money: state.money - cost,
       links: [...state.links, newLink],
-      logs: [`[LINK] Established fiber between ${src.name} & ${tgt.name} (-$${cost})`, ...state.logs].slice(0, 20)
-    };
-  }),
-
-  setZoom: (level) => set({ zoomLevel: level }),
-
-  addLog: (msg, isCritical = false) => set((state) => ({
-    logs: [`[${new Date().toLocaleTimeString()}] ${isCritical ? '!!! ' : ''}${msg}`, ...state.logs].slice(0, 15)
-  })),
-
-  tick: () => set((state) => {
-    // 1. Calculate Traffic Fluctuations
-    const updatedNodes = state.nodes.map(node => {
-      const drift = Math.floor(Math.random() * (node.level * 15)) - (node.level * 5);
-      const newTraffic = Math.max(0, Math.min(node.traffic + drift, node.bandwidth * 1.5));
-      return { ...node, traffic: newTraffic };
-    });
-
-    // 2. Revenue & Penalties
-    const totalTraffic = updatedNodes.reduce((sum, n) => sum + n.traffic, 0);
-    const totalBandwidth = updatedNodes.reduce((sum, n) => sum + n.bandwidth, 0);
-    const hasCongestion = totalTraffic > totalBandwidth;
-    const profit = hasCongestion ? totalTraffic * 0.5 : totalTraffic;
-    
-    // 3. Accumulate Data & Evolution
-    const newTotalData = state.totalData + totalTraffic;
-    let nextEra = state.currentEra;
-    const eraConfig = ERAS[state.currentEra];
-    if (eraConfig.next && newTotalData >= ERAS[eraConfig.next].threshold) {
-      nextEra = eraConfig.next;
-    }
-
-    const newLogs = [...state.logs];
-    if (hasCongestion && Math.random() > 0.9) {
-      newLogs.unshift(`[${new Date().toLocaleTimeString()}] !!! CRITICAL: Global network congestion.`);
-    }
-
-    return {
-      nodes: updatedNodes,
-      money: state.money + Math.floor(profit * 0.1), // Adjusted multiplier
-      totalData: newTotalData,
-      currentEra: nextEra,
-      logs: newLogs.slice(0, 15)
+      logs: [`[LINK] Established fiber (-$${cost})`, ...state.logs].slice(0, 20)
     };
   }),
 
@@ -223,11 +183,15 @@ export const useISPStore = create<ISPStore>((set, get) => ({
         level: n.level + 1, 
         bandwidth: Math.floor(n.bandwidth * 1.4) 
       } : n),
-      logs: [`[SUCCESS] ${node.name} optimized to Level ${node.level + 1}.`, ...state.logs].slice(0, 20)
+      logs: [`[SUCCESS] ${node.name} optimized to LVL ${node.level + 1}.`, ...state.logs].slice(0, 20)
     };
   }),
 
   selectNode: (id) => set({ selectedNodeId: id }),
+  setZoom: (level) => set({ zoomLevel: level }),
+  addLog: (msg, isCritical = false) => set((state) => ({
+    logs: [`[${new Date().toLocaleTimeString()}] ${isCritical ? '!!! ' : ''}${msg}`, ...state.logs].slice(0, 20)
+  })),
   addNode: (node) => set((state) => ({ nodes: [...state.nodes, node] })),
   setEra: (era) => set({ currentEra: era }),
 }));
