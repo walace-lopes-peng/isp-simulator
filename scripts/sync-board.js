@@ -1,7 +1,7 @@
 import fs from 'fs';
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const REPO = process.env.GITHUB_REPOSITORY; // e.g., "owner/repo"
+const REPO = process.env.GITHUB_REPOSITORY;
 const API_URL = `https://api.github.com/repos/${REPO}`;
 
 async function fetchAll(path) {
@@ -17,34 +17,40 @@ async function fetchAll(path) {
   return response.json();
 }
 
-async function getPRReviews(prNumber) {
+async function getPRReviewStatus(prNumber) {
   const reviews = await fetchAll(`/pulls/${prNumber}/reviews`);
-  return reviews;
+  if (reviews.some(r => r.state === 'CHANGES_REQUESTED')) return 'BLOCKED';
+  if (reviews.some(r => r.state === 'APPROVED')) return 'READY';
+  return 'PENDING';
 }
 
 async function run() {
   try {
     console.log(`Fetching issues and PRs for ${REPO}...`);
     
-    const issues = await fetchAll('/issues?state=open&per_page=100');
+    // Fetch all open items (GitHub includes both issues and PRs in this API)
+    const items = await fetchAll('/issues?state=open&per_page=100');
     
+    // Sort deterministically by number descending (idempotency)
+    items.sort((a, b) => b.number - a.number);
+
     const blockers = [];
     const inProgress = [];
     const backlog = [];
     const prsReady = [];
     const prsAwaiting = [];
 
-    for (const item of issues) {
+    for (const item of items) {
       const isPR = !!item.pull_request;
-      const labels = item.labels.map(l => l.name);
+      const labels = item.labels ? item.labels.map(l => l.name) : [];
       
       if (isPR) {
-        const reviews = await getPRReviews(item.number);
-        const isApproved = reviews.some(r => r.state === 'APPROVED');
-        
-        if (isApproved) {
+        const status = await getPRReviewStatus(item.number);
+        if (status === 'READY') {
           prsReady.push(item);
         } else {
+          // Both PENDING and BLOCKED go here for now, marked in the table
+          item.reviewStatus = status;
           prsAwaiting.push(item);
         }
       } else {
@@ -59,18 +65,28 @@ async function run() {
     }
 
     let markdown = `# 🏃 SPRINT BOARD\n\n`;
-    markdown += `Last updated: ${new Date().toISOString()}\n\n`;
+    markdown += `> Last updated: ${new Date().toUTCString()} (UTC)\n\n`;
 
-    const renderTable = (title, items) => {
-      if (items.length === 0) return '';
+    const renderTable = (title, itemsList) => {
+      if (itemsList.length === 0) return '';
       let section = `## ${title}\n\n`;
       section += `| Type | #ID | Task/PR Title | Status/Problem |\n`;
       section += `| :--- | :--- | :--- | :--- |\n`;
-      items.forEach(item => {
-        const type = item.pull_request ? '📦 PR' : '📌 Issue';
-        const labels = item.labels.map(l => l.name).join(', ');
-        const status = labels || 'No blockers identified';
-        section += `| ${type} | #${item.number} | [${item.title}](${item.html_url}) | ${status} |\n`;
+      itemsList.forEach(item => {
+        const typeIcon = item.pull_request ? '📦' : '📌';
+        const typeText = item.pull_request ? 'PR' : 'Issue';
+        
+        let status = 'No blockers identified';
+        if (item.pull_request) {
+          if (item.reviewStatus === 'BLOCKED') status = '❌ Changes Requested';
+          else if (item.reviewStatus === 'READY') status = '✅ Approved';
+          else status = '⏳ Awaiting Review';
+        } else {
+          const labels = item.labels.map(l => `\`${l.name}\``).join(', ');
+          status = labels || '📌 Backlog';
+        }
+
+        section += `| ${typeIcon} ${typeText} | #${item.number} | [${item.title.replace(/\|/g, '\\|')}](${item.html_url}) | ${status} |\n`;
       });
       section += '\n';
       return section;
@@ -83,7 +99,7 @@ async function run() {
     markdown += renderTable('📌 Backlog', backlog);
 
     fs.writeFileSync('SPRINT.md', markdown);
-    console.log('SPRINT.md generated successfully!');
+    console.log('SPRINT.md generated successfully and deterministically!');
 
   } catch (error) {
     console.error('Error syncing board:', error);

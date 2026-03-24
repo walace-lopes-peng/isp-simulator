@@ -12,8 +12,11 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
     permissions:
       contents: write
+      issues: read
+      pull-requests: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
