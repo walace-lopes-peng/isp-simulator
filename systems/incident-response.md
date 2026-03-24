@@ -1,23 +1,40 @@
-# Incident Response & Debugging Protocol
+---
+name: incident-response
+description: Workflow for debugging build failures, "missing map" issues, and graph topology freezes.
+---
 
-When the ISP Simulator enters a crash state or specific features fail drastically (e.g., "The nodes are not connecting"), follow these steps:
+# Incident Response Workflow
 
-## Level 1: The Build Artifact Shadow
-**Symptom**: The UI simply reverts to an old state, components vanish (like `LogisticMap` turning dark), or you see no console errors despite correct `.tsx` code.
-**Fix**: 
-1. The TypeScript compiler (`tsc`) might have compiled `.js` files alongside `.tsx` files in `src/`. Vite prioritizes `.js` if mapping overlaps.
-2. Run a deep wipe: `Get-ChildItem src/ -Include *.js, *.js.map -Recurse | Remove-Item -Force`
-3. Clear `dist/`.
-4. Restart the Dev Server.
+When the ISP Simulator enters a crash state or specific features fail drastically (e.g., "The nodes are not connecting"), execute the following step-by-step terminal and logic checks:
 
-## Level 2: Graph Connectivity Failure
-**Symptom**: Clicking nodes registers, but `links` array is not populated, or capital deducts without rendering.
-**Fix**:
-1. Check ID type matching (`String` vs `Number`). A classic `link.sourceId === node.id` will silently fail if types mismatch.
-2. Verify explicit state writes in `connectNodes`. Ensure that the state payload includes: `links: [...state.links, newLink]`.
+### 1. Limpar Sombras de Build (The TSC Trap)
 
-## Level 3: Traffic Propagation Freezes
-**Symptom**: Network is connected, but nodes report 0 throughput. Graph is "ISOLATED".
-**Fix**:
-1. Inspect the BFS Reachability algorithm in `useISPStore.ts`.
-2. Trace the path from Core (Layer 1). If Core drops off the active nodes array (due to semantic zoom logic filtering early), reachability collapses. Ensure Core ID is always mapped correctly before iteration.
+**Sintoma:** O Vite renderiza uma versão antiga, a tela fica preta, ou não há erro no console mesmo alterando arquivos `.tsx`.
+
+> Isso ocorre porque o TypeScript (`tsc`) compilou artefatos `.js` na pasta `src/` que o Vite tenta servir prioritariamente.
+
+**Execute os comandos abaixo para limpar o projeto:**
+
+// turbo-all
+
+```powershell
+Remove-Item -Recurse -Force dist
+Get-ChildItem src/ -Include *.js, *.js.map, *.d.ts, *.d.ts.map -Recurse | Remove-Item -Force
+npm run dev
+```
+
+### 2. Validar Falha de Conectividade (Graph Topology)
+
+**Sintoma:** Ao clicar em dois nós, o botão 'ESTABLISH LINK' desliga mas o SVG não desenha o cabo, e o `$cost` não desconta.
+
+1. Inspecione o action `connectNodes` no Zustang.
+2. Certifique-se de que os IDs estão sofrendo cast para `String()`: `const sId = String(srcId);`.
+3. Verifique se o loop `state.links.some(...)` não está bloqueando conexões válidas por erro de tipagem.
+
+### 3. Validar Falha de Reachability (BFS Isolado)
+
+**Sintoma:** Cabos renderizam, mas o Load se mantém em 0, e a UI mostra "ISOLATED".
+
+1. Localize a constante `reachableIds` no `tick()`.
+2. Verifique se o Core Node (Layer 1) está presente na varredura. Se o Zoom Level estiver cortando a array original, o Core desaparece e o BFS trava.
+3. Se o `const core = state.nodes.find(n => n.layer === 1);` for nulo, a rede cai imediatamente.

@@ -1,21 +1,35 @@
 ---
-description: Tech Lead Code Review Standards
+name: code-review
+description: Code Review Standards for Pull Requests, based on Gitflow and QA requirements.
 ---
-# Code Review Standards
 
-As the Tech Lead, enforce the following rules when reviewing PRs or validating changes:
+# Code Review Protocol
 
-## 1. Architectural Coupling
-- 🔴 REJECT any PR that mixes game logic (traffic calculations, cost formulas) into React components.
-- 🟢 APPROVE PRs that cleanly dispatch store actions (e.g., `upgradeNode(node.id)`) from the UI.
+> **Before starting:** Ensure the PR targets the `dev` branch, not `main`.
 
-## 2. Performance & Interval Safety
-- Check for rogue `setInterval`, `setTimeout`, or un-debounced event listeners.
-- The simulation loop must trigger from a single root `setInterval`/`useEffect` calling `tick()` (usually `App.tsx`). Multiple timers will desync the game.
+Toda aprovação de PR deve seguir padrões mínimos de qualidade. Reviews genéricas (ex: "looks good") não são aceitáveis.
 
-## 3. Typings and Contracts
-- Look closely at ID types. Graph linking issues often stem from confusing `String(id)` with `Number(id)`. Ensure uniform ID types (`string` preferred, e.g., `l1-0`, `link-timestamp`).
+## 1. Fluxo de Branches
+- **Funcionalidades**: Prefixo `feat/`
+- **Correções**: Prefixo `fix/`
+- **Destino Base**: Todos os PRs devem mirar a branch `dev` (não `main`).
 
-## 4. UI Cleanliness
-- Review SVG elements for proper standard props (e.g., `strokeWidth`, `strokeDasharray`).
-- Warn against custom CSS classes when a Tailwind equivalent exists, unless absolutely necessary for complex `@keyframes`.
+## 2. Regras de Revisão (Tech Lead)
+
+### A. Corpo Obrigatório
+Toda aprovação DEVE declarar o que foi testado no simulador (ex: "Testei a compra de nós, o BFS e a dedução de custo").
+
+### B. Feedback Estruturado
+Ao solicitar alterações, organize o feedback em:
+- **Bloqueadores**: Regras do Kernel quebradas (ex: lógica dentro do React).
+- **Avisos**: Tailwind fora do padrão da era.
+- **Acertos**: O que ficou bom na topologia.
+
+### C. Acoplamento Arquitetural
+- 🔴 REJECT any PR that mixes game logic (traffic calculations) into React components.
+- 🟢 APPROVE PRs that cleanly dispatch `useISPStore` actions.
+
+### D. Checklist de QA Visual e de Performance
+- O PR não introduziu múltiplos `setInterval`?
+- As classes do Tailwind (ex. `animate-pulse`) não estão causando lag no SVG?
+- O autor do PR marcou a caixa de "Testei o BFS de reachability"? Se sim, verifique cruzado.

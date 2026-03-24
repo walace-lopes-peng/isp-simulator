@@ -1,25 +1,46 @@
 ---
-description: Feature Development Guidelines for the ISP Simulator
+name: feature-dev
+description: Implement new mechanics, UI updates, or game rules for the ISP Simulator. Use when the user requests a new feature mapped to the ROADMAP.
 ---
-# Feature Development Workflow
 
-When implementing new features for the ISP Simulator, you must follow this strict sequence:
+# Feature Development Protocol
 
-1. **State Definition First**: 
-   - Open `src/store/useISPStore.ts`.
-   - Update the relevant interface (`ISPStore`, `ISPNode`, or `ISPLink`).
-   - Provide fallback states to avoid breaking backwards compatibility with existing saves or live instances.
+Use this skill when the user wants to add a new game element. The output should ensure strict separation of concerns and maintain the Graph Topology invariants.
 
-2. **Actions & Pure Logic**:
-   - Write the Zustand action.
-   - If the feature involves graph updates (like adding cables, nodes, or hubs), you must account for `x, y` mapping and BFS reachability calculations.
-   - Use `Array.map`, `Set`, and strictly pure functions.
+## Inputs to confirm from context
+Infer these when possible. Ask only if the missing detail would materially change the result.
 
-3. **Visual Representation (React)**:
-   - Identify which component needs the new state slice.
-   - Fetch exactly what you need cleanly using `const { item } = useISPStore();`.
-   - Wire the UI exclusively using Tailwind CSS tokens (`bg-slate-900`, `text-emerald-500`, etc).
+- Is this purely visual (Tailwind) or logic-driven (Zustand)?
+- Does this interact with the BFS reachability algorithm?
+- Does it require a new state slice in `useISPStore.ts`?
 
-4. **Verify Thematic Constraints**:
-   - Ensure you are honoring the `.theme-70s`, `.theme-90s`, and `.theme-modern` global modifiers.
-   - DO NOT hardcode colors that clash with visual epochs.
+## Phase 1: State Definition First
+Always begin feature development at the store level.
+
+1. Open `src/store/useISPStore.ts`.
+2. Update the relevant TS interfaces (`ISPStore`, `ISPNode`, or `ISPLink`).
+3. Define the initial fallback states for backwards compatibility.
+
+## Phase 2: Actions & Pure Logic
+Write the logic without touching the UI.
+
+1. Create the Zustand action.
+2. If it affects traffic routing, update the BFS loop in `tick()`.
+3. Use `Set`, `Array.map`, and pure functions. Never use DOM selectors here.
+
+## Phase 3: Visual Representation (React)
+Wire the logic to the visual layer.
+
+1. Identify the component in `App.tsx`.
+2. Read the state precisely: `const { newState } = useISPStore();`
+3. Wire the UI exclusively using Tailwind tokens (`bg-slate-900`, etc).
+
+## Phase 4: Verify Thematic Constraints
+
+- Ensure the feature honors `.theme-70s`, `.theme-90s`, and `.theme-modern` class names applied at the root container.
+- DO NOT hardcode colors (like `bg-red-500` instead of a thematic variable) if it clashes with the visual epoch.
+
+## Fallback behavior
+If the new feature completely breaks the `LogisticMap` (e.g., blank screen):
+- Revert the `useISPStore.ts` logic to the last working snapshot.
+- State clearly to the user which algorithm failed (e.g., "The BFS queue stalled due to an invalid link ID").

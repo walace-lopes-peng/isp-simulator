@@ -46,17 +46,8 @@ const TopBar = () => {
 };
 
 const Sidebar = () => {
-  const { selectedNodeId, nodes, links, upgradeNode, money, selectNode, connectNodes } = useISPStore();
-  const [linkMode, setLinkMode] = React.useState(false);
+  const { selectedNodeId, nodes, links, upgradeNode, money, selectNode, connectNodes, isLinking, toggleLinking } = useISPStore();
   const node = nodes.find(n => n.id === selectedNodeId);
-
-  useEffect(() => {
-    if (linkMode) {
-      document.body.classList.add('link-mode-active');
-    } else {
-      document.body.classList.remove('link-mode-active');
-    }
-  }, [linkMode]);
 
   if (!node) return (
     <div className="w-[220px] h-full border-l border-white/10 p-6 bg-black/20 backdrop-blur-sm flex flex-col justify-center items-center text-center glass-panel">
@@ -81,7 +72,7 @@ const Sidebar = () => {
             {isReachable ? 'CONNECTED // ONLINE' : 'ISOLATED // NO_SIGNAL'}
           </span>
         </div>
-        <button onClick={() => { selectNode(null); setLinkMode(false); }} className="text-slate-600 hover:text-white text-xs">×</button>
+        <button onClick={() => { selectNode(null); if (isLinking) toggleLinking(); }} className="text-slate-600 hover:text-white text-xs">×</button>
       </div>
 
       <div className="space-y-6 flex-1">
@@ -107,12 +98,12 @@ const Sidebar = () => {
         </div>
 
         <button 
-          onClick={() => setLinkMode(!linkMode)}
+          onClick={toggleLinking}
           className={`w-full py-2 rounded border font-black text-[9px] uppercase tracking-widest transition-all
-            ${linkMode ? 'bg-amber-500 text-black border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.3)]' : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'}
+            ${isLinking ? 'bg-amber-500 text-black border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.3)]' : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'}
           `}
         >
-          {linkMode ? 'linking active...' : 'establish link'}
+          {isLinking ? 'linking active...' : 'establish link'}
         </button>
       </div>
 
@@ -143,7 +134,7 @@ const LogPanel = () => {
     <div className="h-[120px] w-full border-t border-white/10 bg-black/60 p-4 font-mono overflow-y-auto glass-panel" ref={scrollRef}>
       <div className="space-y-1">
         {logs.map((log, i) => (
-          <div key={i} className={`text-[10px] ${log.includes('!!!') || log.includes('ERROR') ? 'text-red-400' : i === 0 ? 'text-emerald-400' : 'text-slate-500'}`}>
+          <div key={i} className={`text-[10px] ${log.includes('!!!') || log.includes('ERROR') || log.includes('ISOLATED') ? 'text-red-400' : i === 0 ? 'text-emerald-400' : 'text-slate-500'}`}>
             <span className="mr-2 text-slate-700">{'>'}</span>
             {log}
           </div>
@@ -156,7 +147,7 @@ const LogPanel = () => {
 // --- LOGISTIC MAP CORE ---
 
 const LogisticMap = () => {
-  const { nodes, links, zoomLevel, selectNode, selectedNodeId, connectNodes, setZoom } = useISPStore();
+  const { nodes, links, zoomLevel, selectNode, selectedNodeId, connectNodes, setZoom, isLinking } = useISPStore();
   const center = { x: 400, y: 400 };
   const ringRadii = [80, 180, 280, 380];
 
@@ -183,12 +174,12 @@ const LogisticMap = () => {
       `}</style>
       
       <div className="absolute top-4 left-6 z-50 p-3 bg-black/40 backdrop-blur rounded-lg border border-white/5">
-        <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest block mb-2">Network Focus // {zoomLevel}%</label>
+        <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest block mb-1">Network Focus // {zoomLevel}%</label>
         <input 
           type="range" min="0" max="100" step="1"
           value={zoomLevel}
           onChange={(e) => setZoom(parseInt(e.target.value))}
-          className="w-48 accent-emerald-500 bg-slate-800 h-1.5 rounded-full cursor-pointer"
+          className="w-48 accent-emerald-500 bg-slate-800 h-1 rounded-full cursor-pointer"
         />
         <div className="flex justify-between text-[7px] font-mono text-slate-600 mt-2 uppercase tracking-tighter">
           <span>Local</span>
@@ -244,8 +235,7 @@ const LogisticMap = () => {
 
                     return (
                       <g key={node.id} className="cursor-pointer" onClick={() => {
-                        const isLinkMode = document.body.classList.contains('link-mode-active');
-                        if (isLinkMode && selectedNodeId && selectedNodeId !== node.id) {
+                        if (isLinking && selectedNodeId && selectedNodeId !== node.id) {
                           connectNodes(selectedNodeId, node.id);
                         } else {
                           selectNode(node.id);

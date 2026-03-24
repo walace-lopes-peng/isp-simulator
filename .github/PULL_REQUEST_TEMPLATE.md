@@ -1,16 +1,32 @@
-### Description Let's keep the ISP engine running smoothly. Briefly describe your changes:
+# Description Let's keep the ISP engine running smoothly.
 
-[Write a clear summary of your fix, refactor, or feature]
+[Feature/Fix]: [Short description]
 
-### Tech Lead Checklist (Do not merge if unchecked)
+Resolve a Issue #[Number], que bloqueava [qualquer contexto]. 
 
-- [ ] Architectural Decoupling: This code contains zero game-state logic inside React UI components.
-- [ ] Tailwind Adherence: Changes fully respect the era-based (`.theme-70s`, etc) Tailwind color palettes.
-- [ ] Safe Execution: My changes do not pollute the `setInterval` rendering loop.
-- [ ] Graph Integrity: Node coordinates and BFS propagation paths are unharmed.
+Closes #[Number]
+Unblocks #[Number]
 
-### Associated Issue
-Resolves #
+## Context
 
-### Proof of Functionality (Screenshots/Logs)
-[Insert "Establish Link" or "Semantic Zoom" screenshots if affecting the Logistic Map]
+[Por que essa alteração é necessária? O que ela resolve? Exemplo: "O sistema de zoom cortava o Core Node da visibilidade do BFS."]
+
+## What was Changed
+
+### [Nome do Arquivo 1]
+- **[O que mudou e porquê]**: [Detalhes da alteração lógica ou visual, citando o Zustand ou Tailwind.]
+
+### [Nome do Arquivo 2]
+- **[O que mudou e porquê]**: [Detalhes.]
+
+## QA Checklist
+Validado manualmente no simulador local (Vite/React):
+
+- [ ] Lógica foi inserida puramente no `useISPStore.ts`, sem estado local complexo no React.
+- [ ] Nós isolados registram "0" tráfego corretamente.
+- [ ] `connectNodes` e algoritmos topológicos continuam calculando com casting de tipagem seguro `String(id)`.
+- [ ] Componente visual utiliza apenas Tailwind dentro do padrão das eras (`theme-70s`, etc).
+- [ ] O deploy/build local via `npm run build` passa sem erros.
+
+## Impacto no Ship Path
+[Como isso avança o Roadmap? É um bloqueador resolvido do MVP? Prepara terreno para eventos aleatórios e Tech Tree?]
