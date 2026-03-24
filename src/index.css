@@ -1,0 +1,181 @@
+@import "tailwindcss";
+
+/* Base Overrides */
+html, body {
+  @apply bg-[#020617] text-slate-300 font-sans overflow-hidden select-none;
+}
+
+/* Layout System */
+.control-bar {
+  @apply h-16 border-b border-slate-800 bg-slate-900/50 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-50;
+}
+
+.main-panel {
+  @apply p-6 overflow-y-auto;
+}
+
+.side-panel {
+  @apply w-80 border-l border-slate-800 bg-slate-900/30 backdrop-blur-sm flex flex-col h-full overflow-hidden;
+}
+
+/* Network Node: System Module */
+.system-module {
+  @apply bg-slate-900/40 border border-slate-800 p-5 rounded-lg transition-all duration-300 relative overflow-hidden flex flex-col gap-4;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.system-module:hover {
+  @apply border-slate-700 bg-slate-900/60 scale-[1.01];
+}
+
+/* Node Status Variants */
+.module-stable { border-left: 4px solid rgba(16, 185, 129, 0.5); }
+.module-stressed { border-left: 4px solid rgba(245, 158, 11, 0.5); box-shadow: 0 0 15px -5px rgba(245, 158, 11, 0.2); }
+.module-critical { 
+  border-left: 4px solid #ef4444; 
+  box-shadow: 0 0 20px -5px rgba(239, 68, 68, 0.4);
+  animation: pulse-red 2s infinite;
+}
+
+/* Progress Bars */
+.load-track {
+  @apply w-full h-1.5 bg-slate-800 rounded-full overflow-hidden relative;
+}
+.load-fill {
+  @apply h-full transition-all duration-500 ease-out;
+}
+
+/* Stats Display */
+.stat-value {
+  @apply font-mono font-bold text-slate-100;
+}
+.stat-label {
+  @apply text-[10px] uppercase tracking-tighter text-slate-500 font-bold;
+}
+
+/* Log Style */
+.log-entry {
+  @apply text-xs font-mono py-1 px-4 border-b border-white/5 last:border-0 transition-opacity;
+}
+
+/* Animations */
+@keyframes pulse-red {
+  0%, 100% { opacity: 1; border-color: #ef4444; }
+  50% { opacity: 0.8; border-color: #991b1b; }
+}
+
+/* Utility: Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { 
+  background-color: #1e293b; 
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #334155; }
+
+/* Era-specific themes */
+.theme-70s .system-module { border-radius: 0; border-color: rgba(6, 78, 59, 0.5); background-color: #000; }
+.theme-70s .control-bar { background-color: #000; border-color: #064e3b; }
+.theme-70s .side-panel { background-color: #000; border-color: #064e3b; }
+
+/* Logistic Map System */
+.map-canvas {
+  @apply relative w-full h-full bg-[#020617] overflow-hidden flex items-center justify-center;
+  background-image: 
+    radial-gradient(circle at center, rgba(30, 41, 59, 0.2) 0%, transparent 70%),
+    linear-gradient(rgba(15, 23, 42, 0.5) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.5) 1px, transparent 1px);
+  background-size: 100% 100%, 40px 40px, 40px 40px;
+}
+
+.map-ring {
+  @apply absolute border rounded-full border-slate-800/30 transition-all duration-700 ease-in-out pointer-events-none;
+}
+
+.ring-label {
+  @apply absolute text-[9px] font-black tracking-[0.3em] uppercase text-slate-600 opacity-40;
+}
+
+.node-point {
+  @apply absolute w-3 h-3 rounded-full border-2 border-slate-900 shadow-lg transition-all duration-500 cursor-pointer;
+}
+
+.node-point:hover {
+  @apply scale-150 z-50;
+}
+
+.flow-line {
+  @apply transition-all duration-700 opacity-20 pointer-events-none;
+  stroke-dasharray: 5;
+  animation: flow-move 10s linear infinite;
+}
+
+@keyframes flow-move {
+  from { stroke-dashoffset: 100; }
+  to { stroke-dashoffset: 0; }
+}
+
+/* Visibility based on zoom level */
+.layer-hidden { @apply opacity-0 scale-90 pointer-events-none; }
+.layer-visible { @apply opacity-100 scale-100; }
+.layer-dimmed { @apply opacity-20 grayscale scale-95; }
+
+/* --- THEME SYSTEM --- */
+
+/* 70s: Green CRT Mono */
+.theme-70s {
+  background-color: #0a0a00 !important;
+  color: #33ff33 !important;
+  font-family: 'Courier New', Courier, monospace !important;
+}
+.theme-70s::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    rgba(18, 16, 16, 0) 0,
+    rgba(18, 16, 16, 0.1) 50%,
+    rgba(18, 16, 16, 0) 100%
+  );
+  background-size: 100% 4px;
+  pointer-events: none;
+  z-index: 100;
+}
+.theme-70s .node-circle {
+  fill: #0a0a00 !important;
+  stroke: #33ff33 !important;
+  stroke-width: 2px !important;
+}
+
+/* 90s: Windows Classic / Navy */
+.theme-90s {
+  background-color: #c0c0c0 !important;
+  color: #000080 !important;
+  font-family: 'Times New Roman', Times, serif !important;
+}
+.theme-90s .node-circle {
+  fill: #c0c0c0 !important;
+  stroke: #808080 !important;
+  stroke-width: 1px !important;
+  filter: drop-shadow(2px 2px 0px #fff) drop-shadow(-1px -1px 0px #404040);
+}
+.theme-90s div, .theme-90s nav, .theme-90s footer {
+  border-color: #808080 !important;
+}
+
+/* Modern: Cyber / Glass */
+.theme-modern {
+  background-color: #0a0c10 !important;
+  color: #00f2ff !important;
+  font-family: 'Inter', sans-serif !important;
+}
+.theme-modern .node-circle {
+  fill: #00f2ff !important;
+  filter: drop-shadow(0 0 8px #00f2ff) !important;
+}
+.theme-modern .glass-panel {
+  background: rgba(15, 23, 42, 0.6) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+

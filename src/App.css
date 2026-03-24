@@ -1,0 +1,82 @@
+/* App.css */
+:root {
+  --bg-color: #0f172a;
+  --text-color: #f8fafc;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-family: sans-serif;
+  min-height: 100vh;
+}
+
+.app-container {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 3rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 1rem;
+}
+
+.stats {
+  display: flex;
+  gap: 2rem;
+  font-weight: bold;
+}
+
+.era-selector {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.node-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-bottom: 4rem;
+}
+
+.demo-hint {
+  margin-top: 4rem;
+  padding-top: 2rem;
+  border-top: 1px dashed rgba(255, 255, 255, 0.2);
+}
+
+.comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.comparison-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Era variations for the background */
+.app-container.era-70s {
+  background-color: #000;
+  color: #00ff00;
+}
+
+.app-container.era-90s {
+  background-color: #008080; /* Teal Win95 background */
+  color: #000;
+}
+
+.app-container.era-modern {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+}

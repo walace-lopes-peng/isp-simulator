@@ -1,0 +1,178 @@
+/* NetworkNode.css */
+
+.network-node {
+  padding: 1.5rem;
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition: all 0.3s ease;
+  user-select: none;
+}
+
+/* 70s Era: Terminal Style */
+.era-70s {
+  background-color: #001100;
+  border: 2px solid #00ff00;
+  color: #00ff00;
+  font-family: 'Courier New', Courier, monospace;
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.2);
+  text-transform: uppercase;
+  position: relative;
+  overflow: hidden;
+}
+
+.era-70s::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: repeating-linear-gradient(
+    rgba(18, 16, 16, 0) 0,
+    rgba(0, 0, 0, 0.1) 50%,
+    rgba(18, 16, 16, 0) 100%
+  );
+  background-size: 100% 4px;
+  pointer-events: none;
+}
+
+.era-70s .load-bar-container {
+  border: 1px solid #00ff00;
+  height: 20px;
+  background: #002200;
+}
+
+.era-70s .load-bar-fill {
+  background-color: #00ff00;
+}
+
+.era-70s button {
+  background: #00ff00;
+  color: #000;
+  border: none;
+  padding: 0.5rem;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+/* 90s Era: Windows 95 Style */
+.era-90s {
+  background-color: #c0c0c0;
+  border-top: 2px solid #fff;
+  border-left: 2px solid #fff;
+  border-right: 2px solid #808080;
+  border-bottom: 2px solid #808080;
+  color: #000;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.era-90s .node-title {
+  background: linear-gradient(90deg, #000080, #0821d3);
+  color: #fff;
+  padding: 2px 4px;
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.era-90s .load-bar-container {
+  border-top: 2px solid #808080;
+  border-left: 2px solid #808080;
+  border-right: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  height: 24px;
+  background: #fff;
+  padding: 2px;
+}
+
+.era-90s .load-bar-fill {
+  background-color: #000080;
+}
+
+.era-90s button {
+  background-color: #c0c0c0;
+  border-top: 2px solid #fff;
+  border-left: 2px solid #fff;
+  border-right: 2px solid #808080;
+  border-bottom: 2px solid #808080;
+  padding: 0.4rem 1rem;
+  cursor: pointer;
+}
+
+.era-90s button:active {
+  border-top: 2px solid #808080;
+  border-left: 2px solid #808080;
+  border-right: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  padding: 0.5rem 0.9rem 0.3rem 1.1rem;
+}
+
+/* Modern Era: Glassmorphism */
+.era-modern {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  color: #fff;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+}
+
+.era-modern .load-bar-container {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  height: 12px;
+  overflow: hidden;
+}
+
+.era-modern .load-bar-fill {
+  background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(79, 172, 254, 0.5);
+}
+
+.era-modern button {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 0.6rem 1rem;
+  color: white;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: all 0.2s ease;
+}
+
+.era-modern button:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+/* Shared components */
+.load-bar-container {
+  width: 100%;
+  position: relative;
+}
+
+.load-bar-fill {
+  height: 100%;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.node-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+}
+
+.status-warning {
+  color: #ff4444;
+  font-weight: bold;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0% { opacity: 1; }
+  50% { opacity: 0.3; }
+  100% { opacity: 1; }
+}
