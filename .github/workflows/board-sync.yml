@@ -1,6 +1,8 @@
 name: Sprint Board Sync
 
 on:
+  push:
+    branches: [dev]
   issues:
     types: [opened, edited, labeled, unlabeled, closed, reopened]
   pull_request:
