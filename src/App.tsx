@@ -158,7 +158,7 @@ const LogisticMap = () => {
   };
 
   return (
-    <div className="flex-1 relative bg-slate-950 flex flex-col min-h-0 min-w-0">
+    <div className="flex-1 relative flex flex-col min-h-0 min-w-0">
       <style>{`
         @keyframes pulse-steady { 0%, 100% { opacity: 1; r: 4; } 50% { opacity: 0.7; r: 5; } }
         @keyframes pulse-fast { 0%, 100% { opacity: 1; r: 4; } 50% { opacity: 0.5; r: 6; } }
@@ -192,9 +192,13 @@ const LogisticMap = () => {
       <div className="flex-1 flex items-center justify-center p-4">
         <svg viewBox="0 0 800 800" className="w-full h-full aspect-square drop-shadow-2xl overflow-visible">
           {/* Visual Guides */}
-          {ringRadii.map((radius, i) => (
-            <circle key={i} cx={center.x} cy={center.y} r={radius} fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth={maxTier === i + 1 ? 2 : 1} strokeDasharray={i > 2 ? "10,10" : "0"} />
-          ))}
+          <rect width="100%" height="100%" fill="#040d1a" />
+          <circle cx="50%" cy="50%" r="30%" fill="#0a2040" opacity="0.6" />
+          
+          <ellipse cx="50%" cy="52%" rx="12%" ry="5%" fill="none" stroke="#1D9E75" opacity="0.9" strokeWidth="1.5" />
+          <ellipse cx="50%" cy="54%" rx="28%" ry="11%" fill="none" stroke="#1D9E75" opacity="0.7" strokeWidth="1" />
+          <ellipse cx="50%" cy="56%" rx="44%" ry="17%" fill="none" stroke="#ffffff" opacity="0.15" strokeWidth="0.8" strokeDasharray="4,4" />
+          <ellipse cx="50%" cy="58%" rx="60%" ry="23%" fill="none" stroke="#ffffff" opacity="0.08" strokeWidth="0.8" strokeDasharray="4,4" />
 
           {/* Physical Cables */}
           {links.map(link => {
