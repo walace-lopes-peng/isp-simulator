@@ -1,6 +1,8 @@
 ## 📝 Summary
 [Provide a brief description of the changes and the problem they solve.]
 
+**Closes #[ISSUE_NUMBER]**
+
 ---
 
 ## 🏗️ Architectural Context
@@ -26,11 +28,6 @@
 - [ ] **Loop Integrity**: Verified that the 1s `tick()` remains stable.
 - [ ] **Graph Topology**: Verified node connectivity and BFS reachability.
 - [ ] **No Console Errors**: Verified in browser devtools.
-
----
-
-## 📸 Screenshots / Recordings
-[Attach visual proof of UI changes or simulation state here.]
 
 ---
 
