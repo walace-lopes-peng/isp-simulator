@@ -31,6 +31,7 @@ This repository follows a clean, modular structure. Key systems are isolated in 
 
 - **[Project Blueprint](.gemini/antigravity/brain/a4bb2621-873e-44f9-a349-d9aff5436f00/project_blueprint.md)**: Read our full architectural blueprint, refactoring plan, and coding standards.
 - **[Git Workflow](.gemini/antigravity/brain/a4bb2621-873e-44f9-a349-d9aff5436f00/git_workflow.md)**: Explore our branch strategies and commit conventions.
+- **[Project Governance](CONTRIBUTING.md)**: Review our formal contribution standards, PR requirements, and Tech Lead review protocols.
 
 ### Folder Structure Overview
 - `src/components/`: Reusable, simple UI elements.
@@ -127,8 +128,8 @@ Vite serves the built files locally so you can verify the production bundle.
 
 ### Version Control
 - **Branching model**: `main` (stable), `dev` (integration), feature branches (`feat/*`).
-- **Pull requests**: Require review, passing tests, and linting before merge.
-- **Commit messages**: Follow Conventional Commits (`feat:`, `fix:`, `chore:`).
+- **Pull requests**: Require strict review against the [Contribution Guide](CONTRIBUTING.md), including passing simulation tests and architectural isolation.
+- **Commit messages**: Must follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:`).
 
 ---
 
