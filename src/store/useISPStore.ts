@@ -76,6 +76,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
       // 1. BFS for Reachability from Core (Layer 1)
       const core = state.nodes.find(n => n.layer === 1);
       const reachableIds = new Set<string>();
+      
       if (core) {
         const queue = [core.id];
         reachableIds.add(core.id);
@@ -98,17 +99,19 @@ export const useISPStore = create<ISPStore>((set, get) => ({
       const updatedNodes = state.nodes.map(node => {
         if (!reachableIds.has(node.id)) return { ...node, traffic: 0 };
         
-        const targetTraffic = node.bandwidth * (0.3 + Math.random() * 0.4);
-        const drift = (targetTraffic - node.traffic) * 0.1;
-        return { ...node, traffic: Math.max(10, Math.min(node.traffic + drift, node.bandwidth * 1.8)) };
+        // Target traffic is based on bandwidth and a random factor
+        const targetScaling = node.layer === 1 ? 0.1 : 0.5; // Core has lower relative load than consumers
+        const targetTraffic = node.bandwidth * (targetScaling + Math.random() * 0.3);
+        const drift = (targetTraffic - node.traffic) * 0.15;
+        return { ...node, traffic: Math.max(10, Math.min(node.traffic + drift, node.bandwidth * 1.5)) };
       });
 
-      // 3. Revenue for Active Tier
+      // 3. Revenue for Active Tier (Excluding Core)
       const activeTier = state.zoomLevel <= 25 ? 1 : state.zoomLevel <= 50 ? 2 : state.zoomLevel <= 75 ? 3 : 4;
-      const activeNodes = updatedNodes.filter(n => n.layer === activeTier);
+      const activeNodes = updatedNodes.filter(n => n.layer === activeTier && n.layer > 1 && reachableIds.has(n.id));
       const rawRevenue = activeNodes.reduce((sum, n) => sum + n.traffic, 0);
       const hasOverload = activeNodes.some(n => n.traffic > n.bandwidth);
-      const revenue = Math.floor(hasOverload ? rawRevenue * 0.5 : rawRevenue);
+      const revenue = Math.floor(hasOverload ? rawRevenue * 0.4 : rawRevenue * 0.8);
 
       // 4. Global Stats
       const totalLoad = updatedNodes.reduce((sum, n) => sum + n.traffic, 0);
@@ -119,11 +122,13 @@ export const useISPStore = create<ISPStore>((set, get) => ({
       if (newTotalData > 500000) nextEra = 'modern';
       else if (newTotalData > 50000) nextEra = '90s';
 
-      // 6. Logs & Buffers
+      // 6. Logs & Buffers (Only log if reachable nodes exist beyond core)
       const timestamp = new Date().toLocaleTimeString();
       let newLogs = state.logs;
-      if (revenue > 0 && Math.random() > 0.7) {
-        newLogs = [`[${timestamp}] Revenue: +$${revenue} (Active: ${reachableIds.size - 1} Nodes)`, ...state.logs].slice(0, 20);
+      if (revenue > 0 && Math.random() > 0.8) {
+        newLogs = [`[${timestamp}] Revenue: +$${revenue} (Active Tier ${activeTier}: ${activeNodes.length} Nodes)`, ...state.logs].slice(0, 20);
+      } else if (reachableIds.size === 1 && Math.random() > 0.95) {
+        newLogs = [`[${timestamp}] ALERT: Network isolated. Connect to Core.`, ...state.logs].slice(0, 20);
       }
 
       return {
