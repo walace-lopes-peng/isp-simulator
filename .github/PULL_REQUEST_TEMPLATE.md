@@ -1,32 +1,35 @@
-# Description Let's keep the ISP engine running smoothly.
+## 📝 Summary
+[Provide a brief description of the changes and the problem they solve.]
 
-[Feature/Fix]: [Short description]
+**Closes #[ISSUE_NUMBER]**
 
-Resolve a Issue #[Number], que bloqueava [qualquer contexto]. 
+---
 
-Closes #[Number]
-Unblocks #[Number]
+## 🏗️ Architectural Context
+- **Affected Systems**: (e.g., Store, UI, Topology Engine)
+- **State Invariants**: [Confirm that no state logic has been leaked into the UI layer.]
+- **Performance Impact**: [Note if `requestAnimationFrame` ticks or BFS iterations were modified.]
 
-## Context
+---
 
-[Por que essa alteração é necessária? O que ela resolve? Exemplo: "O sistema de zoom cortava o Core Node da visibilidade do BFS."]
+## ✅ Checklist
 
-## What was Changed
+### 1. Consistency & Standards
+- [ ] **Branching**: Follows `feat/`, `fix/`, `refactor/`, or `docs/` convention.
+- [ ] **Commits**: Follows [Conventional Commits](https://www.conventionalcommits.org/).
+- [ ] **Base Target**: Targets the `dev` branch (not `main`).
 
-### [Nome do Arquivo 1]
-- **[O que mudou e porquê]**: [Detalhes da alteração lógica ou visual, citando o Zustand ou Tailwind.]
+### 2. Implementation Quality
+- [ ] **Isolation**: No business logic in React components.
+- [ ] **Typing**: TypeScript interfaces updated and strict.
+- [ ] **Styling**: Uses Tailwind CSS tokens (no hardcoded colors).
 
-### [Nome do Arquivo 2]
-- **[O que mudou e porquê]**: [Detalhes.]
+### 3. Simulation & QA
+- [ ] **Loop Integrity**: Verified that the 1s `tick()` remains stable.
+- [ ] **Graph Topology**: Verified node connectivity and BFS reachability.
+- [ ] **No Console Errors**: Verified in browser devtools.
 
-## QA Checklist
-Validado manualmente no simulador local (Vite/React):
+---
 
-- [ ] Lógica foi inserida puramente no `useISPStore.ts`, sem estado local complexo no React.
-- [ ] Nós isolados registram "0" tráfego corretamente.
-- [ ] `connectNodes` e algoritmos topológicos continuam calculando com casting de tipagem seguro `String(id)`.
-- [ ] Componente visual utiliza apenas Tailwind dentro do padrão das eras (`theme-70s`, etc).
-- [ ] O deploy/build local via `npm run build` passa sem erros.
-
-## Impacto no Ship Path
-[Como isso avança o Roadmap? É um bloqueador resolvido do MVP? Prepara terreno para eventos aleatórios e Tech Tree?]
+## 📝 Tech Lead Review Notes
+[Special instructions or context for the reviewer regarding architectural decisions.]
