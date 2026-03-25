@@ -1,6 +1,6 @@
 # 🏃 SPRINT BOARD
 
-> Last updated: Wed, 25 Mar 2026 05:37:51 GMT (UTC)
+> Last updated: Wed, 25 Mar 2026 05:53:49 GMT (UTC)
 
 ## 🚨 Critical Path (Blockers)
 
@@ -40,6 +40,7 @@
 
 | Type | #ID | Task/PR Title | Status/Problem |
 | :--- | :--- | :--- | :--- |
+| 📌 Issue | #50 | [[EPIC][FEAT] Implementation of Scenario Engine & 'Cyber-Iron Curtain' Expansion](https://github.com/walace-lopes-peng/isp-simulator/issues/50) | `architecture`, `feat`, `P2-medium`, `immersion`, `epic` |
 | 📌 Issue | #48 | [[UX] Signal Pulse & Range Visualization](https://github.com/walace-lopes-peng/isp-simulator/issues/48) | `immersion`, `vfx`, `ux` |
 | 📌 Issue | #47 | [[FEAT] Era-Specific System Overlays (OS Immersion)](https://github.com/walace-lopes-peng/isp-simulator/issues/47) | `feat`, `ui`, `immersion` |
 | 📌 Issue | #45 | [[UX] Interactive Linking Flow (Visual Feedback)](https://github.com/walace-lopes-peng/isp-simulator/issues/45) | `ui`, `vfx`, `ux` |
@@ -59,4 +60,10 @@
 | :--- | :--- | :--- | :--- |
 | 📦 PR | #25 | [chore: implement formal project governance and PR standards](https://github.com/walace-lopes-peng/isp-simulator/pull/25) | ⏳ Awaiting Review |
 | 📦 PR | #24 | [fix: resolve revenue black hole and era transition thresholds](https://github.com/walace-lopes-peng/isp-simulator/pull/24) | ⏳ Awaiting Review |
+
+## 📌 Future Expansion (Backlog)
+
+| Type | #ID | Task/PR Title | Status/Problem |
+| :--- | :--- | :--- | :--- |
+| 📌 Issue | #49 | [docs: initialize Project North Star and Strategic Blueprint](https://github.com/walace-lopes-peng/isp-simulator/issues/49) | `documentation`, `architecture`, `P1-high` |
 
