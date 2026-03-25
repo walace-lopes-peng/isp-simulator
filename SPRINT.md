@@ -1,6 +1,6 @@
 # 🏃 SPRINT BOARD
 
-> Last updated: Wed, 25 Mar 2026 05:18:19 GMT (UTC)
+> Last updated: Wed, 25 Mar 2026 05:21:23 GMT (UTC)
 
 ## 🚨 Open Blockers
 
@@ -21,6 +21,11 @@
 
 | Type | #ID | Task/PR Title | Status/Problem |
 | :--- | :--- | :--- | :--- |
+| 📌 Issue | #44 | [[FEAT] Developer Debug Suite (Cheat Menu)](https://github.com/walace-lopes-peng/isp-simulator/issues/44) | `feat`, `logic`, `dev-tools` |
+| 📌 Issue | #43 | [[BUG] Phantom Green Circle & Visual Artifacts](https://github.com/walace-lopes-peng/isp-simulator/issues/43) | `bug`, `ui`, `vfx` |
+| 📌 Issue | #42 | [[UX] UI Layout Overhaul (Map Obstruction)](https://github.com/walace-lopes-peng/isp-simulator/issues/42) | `ui`, `immersion`, `ux` |
+| 📌 Issue | #41 | [[UX/BUG] Node Disappearance on Range/Zoom](https://github.com/walace-lopes-peng/isp-simulator/issues/41) | `bug`, `ui`, `ux` |
+| 📌 Issue | #40 | [[BUG] Link Path Misplacement (Zustand/SVG Sync)](https://github.com/walace-lopes-peng/isp-simulator/issues/40) | `bug`, `logic`, `vfx` |
 | 📌 Issue | #38 | [[LOGIC] Dynamic Routing & Pathfinding (Realistic Links)](https://github.com/walace-lopes-peng/isp-simulator/issues/38) | `simulation`, `logic`, `vfx` |
 | 📌 Issue | #37 | [[FEAT] Proximity-Based Fog of War](https://github.com/walace-lopes-peng/isp-simulator/issues/37) | `simulation`, `logic`, `ux` |
 | 📌 Issue | #36 | [[UX] Physical Node Representation (Realistic Assets)](https://github.com/walace-lopes-peng/isp-simulator/issues/36) | `ui`, `immersion`, `vfx` |
