@@ -17,7 +17,7 @@ jobs:
     if: github.actor != 'github-actions[bot]'
     permissions:
       contents: write
-      issues: read
+      issues: write
       pull-requests: read
     steps:
       - name: Checkout
@@ -31,6 +31,7 @@ jobs:
       - name: Run Sync Script
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SPRINT_ISSUE_ID: 27
         run: node scripts/sync-board.js
 
       - name: Commit and Push
