@@ -173,7 +173,12 @@ html, body {
 }
 
 .theme-90s .glass-panel {
-  @apply win95-outset !important;
+  border: 2px solid !important;
+  border-top-color: #ffffff !important;
+  border-left-color: #ffffff !important;
+  border-bottom-color: #404040 !important;
+  border-right-color: #404040 !important;
+  background-color: #c0c0c0 !important;
   backdrop-filter: none !important;
 }
 
