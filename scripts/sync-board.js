@@ -9,6 +9,7 @@ async function fetchAll(path) {
     headers: {
       Authorization: `token ${GITHUB_TOKEN}`,
       Accept: 'application/vnd.github.v3+json',
+      'User-Agent': 'ISP-Simulator-Bot'
     },
   });
   if (!response.ok) {
@@ -100,6 +101,27 @@ async function run() {
 
     fs.writeFileSync('SPRINT.md', markdown);
     console.log('SPRINT.md generated successfully and deterministically!');
+
+    if (process.env.SPRINT_ISSUE_ID) {
+      console.log(`Updating Sprint Board Issue #${process.env.SPRINT_ISSUE_ID}...`);
+      const updateResponse = await fetch(`${API_URL}/issues/${process.env.SPRINT_ISSUE_ID}`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `token ${GITHUB_TOKEN}`,
+          Accept: 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json',
+          'User-Agent': 'ISP-Simulator-Bot'
+        },
+        body: JSON.stringify({ body: markdown }),
+      });
+      if (!updateResponse.ok) {
+        console.error(`Failed to update issue: ${updateResponse.status} ${updateResponse.statusText}`);
+        const errorBody = await updateResponse.text();
+        console.error(`Error details: ${errorBody}`);
+      } else {
+        console.log('Sprint Board Issue updated successfully!');
+      }
+    }
 
   } catch (error) {
     console.error('Error syncing board:', error);

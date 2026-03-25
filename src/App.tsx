@@ -111,10 +111,10 @@ const Sidebar = () => {
         onClick={() => upgradeNode(node.id)}
         disabled={money < cost}
         className={`w-full py-3 rounded border font-black text-[10px] uppercase tracking-widest transition-all
-          ${money >= cost ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.1)]' : 'bg-white/5 border-white/5 text-slate-700 cursor-not-allowed'}
+          ${money >= cost ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20 shadow-[0_0:10px_rgba(16,185,129,0.1)]' : 'bg-white/5 border-white/5 text-slate-700 cursor-not-allowed opacity-50'}
         `}
       >
-        Upgrade // ${cost.toLocaleString()}
+        {money >= cost ? `Upgrade // $${cost.toLocaleString()}` : `Insufficient Funds // $${cost.toLocaleString()}`}
       </button>
     </div>
   );
@@ -152,13 +152,63 @@ const LogisticMap = () => {
   const ringRadii = [80, 180, 280, 380];
 
   const maxTier = zoomLevel <= 25 ? 1 : zoomLevel <= 50 ? 2 : zoomLevel <= 75 ? 3 : 4;
+  const { money, addNode, addLog } = useISPStore();
 
   const getLoadColor = (load: number) => {
-    return load >= 1.0 ? '#ef4444' : load > 0.8 ? '#fbbf24' : '#22d3ee';
+    if (load >= 0.9) return '#ef4444'; // Red
+    if (load >= 0.5) return '#fbbf24'; // Amber
+    return '#10b981'; // Green (Emerald-500 equivalent)
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    const delta = e.deltaY;
+    const newZoom = Math.max(0, Math.min(100, zoomLevel - delta / 5));
+    setZoom(newZoom);
+  };
+
+  const handleMapClick = (e: React.MouseEvent<SVGSVGElement>) => {
+    // If we're clicking a node, stopPropagation should prevent this
+    const svg = e.currentTarget;
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX;
+    pt.y = e.clientY;
+    const svgP = pt.matrixTransform(svg.getScreenCTM()?.inverse());
+    
+    // Simple build logic: if clicking empty space, suggest building
+    if (!selectedNodeId) {
+        const cost = 500;
+        const coverageRange = 250;
+        const isWithinRange = nodes.some(n => {
+            const d = Math.sqrt(Math.pow(n.x - svgP.x, 2) + Math.pow(n.y - svgP.y, 2));
+            return d < coverageRange && (n.traffic > 0 || n.id === '0');
+        });
+
+        if (!isWithinRange && nodes.length > 0) {
+            addLog("Area outside network coverage range", true);
+            return;
+        }
+
+        if (money >= cost) {
+            const newNode = {
+                id: `node-${Date.now()}`,
+                name: `New Hub ${nodes.length}`,
+                bandwidth: 50,
+                traffic: 0,
+                level: 1,
+                layer: maxTier,
+                x: Math.round(svgP.x),
+                y: Math.round(svgP.y)
+            };
+            addNode(newNode);
+            addLog(`Built new node at [${newNode.x}, ${newNode.y}]`, false);
+        } else {
+            addLog(`Insufficient funds to build new node ($${cost} required)`, true);
+        }
+    }
   };
 
   return (
-    <div className="flex-1 relative flex flex-col min-h-0 min-w-0">
+    <div className="flex-1 relative flex flex-col min-h-0 min-w-0" onWheel={handleWheel}>
       <style>{`
         @keyframes pulse-steady { 0%, 100% { opacity: 1; r: 4; } 50% { opacity: 0.7; r: 5; } }
         @keyframes pulse-fast { 0%, 100% { opacity: 1; r: 4; } 50% { opacity: 0.5; r: 6; } }
@@ -171,10 +221,19 @@ const LogisticMap = () => {
         .node-healthy { animation: pulse-steady 2s infinite ease-in-out; stroke: #22d3ee; }
         .node-saturated { animation: pulse-fast 1s infinite ease-in-out; stroke: #fbbf24; }
         .node-critical { animation: glitch-flicker 0.4s infinite linear; stroke: #ef4444; }
+        
+        @keyframes dash {
+          to {
+            stroke-dashoffset: -20;
+          }
+        }
+        .link-flow {
+          animation: dash 1s linear infinite;
+        }
       `}</style>
       
       <div className="absolute top-4 left-6 z-50 p-3 bg-black/40 backdrop-blur rounded-lg border border-white/5">
-        <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest block mb-1">Network Focus // {zoomLevel}%</label>
+        <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest block mb-1">Network Focus // {Math.round(zoomLevel)}%</label>
         <input 
           type="range" min="0" max="100" step="1"
           value={zoomLevel}
@@ -190,15 +249,28 @@ const LogisticMap = () => {
       </div>
 
       <div className="flex-1 flex items-center justify-center p-4">
-        <svg viewBox="0 0 800 800" className="w-full h-full aspect-square drop-shadow-2xl overflow-visible">
-          {/* Visual Guides */}
-          <rect width="100%" height="100%" fill="#040d1a" />
-          <circle cx="50%" cy="50%" r="30%" fill="#0a2040" opacity="0.6" />
+        <svg 
+          viewBox="0 0 800 800" 
+          preserveAspectRatio="xMidYMid slice" 
+          className="w-full h-full max-h-[80vh] aspect-square drop-shadow-2xl overflow-visible rounded-lg border border-white/5 shadow-inner bg-[#040d1a]"
+          onClick={handleMapClick}
+        >
+          {/* Geographical Map Layer */}
+          <defs>
+            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="0.5"/>
+            </pattern>
+            <filter id="glow">
+               <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+               <feMerge>
+                   <feMergeNode in="coloredBlur"/>
+                   <feMergeNode in="SourceGraphic"/>
+               </feMerge>
+            </filter>
+          </defs>
           
-          <ellipse cx="50%" cy="52%" rx="12%" ry="5%" fill="none" stroke="#1D9E75" opacity="0.9" strokeWidth="1.5" />
-          <ellipse cx="50%" cy="54%" rx="28%" ry="11%" fill="none" stroke="#1D9E75" opacity="0.7" strokeWidth="1" />
-          <ellipse cx="50%" cy="56%" rx="44%" ry="17%" fill="none" stroke="#ffffff" opacity="0.15" strokeWidth="0.8" strokeDasharray="4,4" />
-          <ellipse cx="50%" cy="58%" rx="60%" ry="23%" fill="none" stroke="#ffffff" opacity="0.08" strokeWidth="0.8" strokeDasharray="4,4" />
+          <image href="/assets/world-map.png" width="800" height="800" opacity="0.5" preserveAspectRatio="xMidYMid slice" />
+          <rect width="800" height="800" fill="url(#grid)" pointerEvents="none" />
 
           {/* Physical Cables */}
           {links.map(link => {
@@ -208,16 +280,32 @@ const LogisticMap = () => {
 
             const load = (tgt.traffic / tgt.bandwidth);
             const strokeColor = getLoadColor(load);
+            
+            // Curved path calculation
+            const midX = (src.x + tgt.x) / 2;
+            const midY = (src.y + tgt.y) / 2;
+            const dx = tgt.x - src.x;
+            const dy = tgt.y - src.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            // Offset for curve perpendicular to the line
+            const offset = dist * 0.15;
+            const angle = Math.atan2(dy, dx);
+            const controlX = midX + offset * Math.cos(angle - Math.PI / 2);
+            const controlY = midY + offset * Math.sin(angle - Math.PI / 2);
+
+            const strokeWidth = 1 + (link.bandwidth / 1000) * 1.5;
 
             return (
-              <line 
+              <path 
                 key={link.id}
-                x1={src.x} y1={src.y} x2={tgt.x} y2={tgt.y}
-                className="transition-all duration-1000"
+                d={`M ${src.x} ${src.y} Q ${controlX} ${controlY} ${tgt.x} ${tgt.y}`}
+                fill="none"
+                className="transition-all duration-1000 opacity-60 link-flow"
                 stroke={strokeColor}
-                strokeWidth="2"
-                strokeOpacity="0.4"
-                strokeDasharray={link.targetId.includes('l4') || zoomLevel > 75 ? "4,4" : "0"}
+                strokeWidth={strokeWidth}
+                filter="url(#glow)"
+                strokeDasharray="5,5"
               />
             );
           })}
@@ -227,59 +315,52 @@ const LogisticMap = () => {
             const layerNodes = nodes.filter(n => n.layer === layerNum);
             const isVisible = layerNum <= maxTier;
 
-            if (isVisible) {
-              return (
-                <g key={`layer-${layerNum}`} className="animate-in fade-in duration-700">
-                  {layerNodes.map((node) => {
-                    const load = node.traffic / node.bandwidth;
-                    const stateClass = load >= 1.0 ? 'node-critical' : load > 0.8 ? 'node-saturated' : 'node-healthy';
-                    const isSelected = selectedNodeId === node.id;
-                    const r = layerNum === 1 ? (zoomLevel <= 25 ? 18 : 10) : 6;
-                    const isOffline = node.traffic === 0 && node.layer !== 1;
+            if (!isVisible) return null; // CLEANUP: Removed aggregate node logic
 
-                    return (
-                      <g key={node.id} className="cursor-pointer" onClick={() => {
-                        if (isLinking && selectedNodeId && selectedNodeId !== node.id) {
-                          connectNodes(selectedNodeId, node.id);
-                        } else {
-                          selectNode(node.id);
-                        }
-                      }}>
-                        {isSelected && <circle cx={node.x} cy={node.y} r={r + 8} className="fill-emerald-500/10 animate-ping" />}
-                        <circle 
-                          cx={node.x} cy={node.y} r={r}
-                          className={`node-circle transition-all duration-300 stroke-2 fill-slate-900 ${isOffline ? 'stroke-slate-700 opacity-30 shadow-none' : stateClass} ${isSelected ? 'stroke-white scale-110' : ''}`}
-                        />
-                        <text 
-                          x={node.x + (r + 4)} y={node.y + 4} 
-                          className={`text-[8px] font-mono select-none pointer-events-none uppercase transition-all ${isOffline ? 'opacity-20 translate-x-1' : 'fill-slate-500'}`}
-                        >
-                          {layerNum === 3 ? "NETWORK HUB" : node.name.split(' ')[0]}
-                        </text>
-                      </g>
-                    );
-                  })}
-                </g>
-              );
-            } else {
-              // Aggregate Node for Hidden Layer
-              const avgLoad = layerNodes.reduce((acc, n) => acc + (n.traffic / n.bandwidth), 0) / (layerNodes.length || 1);
-              const radius = ringRadii[layerNum - 1];
-              const nx = center.x + radius! * Math.cos((-90 * Math.PI) / 180);
-              const ny = center.y + radius! * Math.sin((-90 * Math.PI) / 180);
+            return (
+              <g key={`layer-${layerNum}`} className="animate-in fade-in duration-700">
+                {layerNodes.map((node) => {
+                  const load = node.traffic / node.bandwidth;
+                   const stateClass = load >= 1.0 ? 'node-critical' : load > 0.8 ? 'node-saturated' : 'node-healthy';
+                   const isSelected = selectedNodeId === node.id;
+                   
+                   // Dynamic Radius based on zoomLevel and layer
+                   const baseR = layerNum === 1 ? 12 : 8;
+                   const zoomScale = 0.4 + (zoomLevel / 100) * 0.6; // Smaller at Global (0), Larger at Local (100)
+                   const r = baseR * zoomScale;
+                   
+                   const isOffline = node.traffic === 0 && node.id !== '0';
 
-              return (
-                <g key={`aggregate-${layerNum}`} className="opacity-40 animate-out fade-out duration-300">
-                  <circle cx={nx} cy={ny} r="20" className="stroke-[1px] fill-black/40" stroke={getLoadColor(avgLoad)} strokeDasharray="3,3" />
-                  <text x={nx} y={ny + 4} textAnchor="middle" className="text-[10px] font-mono fill-slate-400 font-bold">
-                    {layerNodes.length}
-                  </text>
-                </g>
-              );
-            }
+                   return (
+                     <g key={node.id} className="cursor-pointer" onClick={(e) => {
+                       e.stopPropagation();
+                       if (isLinking && selectedNodeId && selectedNodeId !== node.id) {
+                         connectNodes(selectedNodeId, node.id);
+                       } else {
+                         selectNode(node.id);
+                       }
+                     }}>
+                      {isSelected && <circle cx={node.x} cy={node.y} r={r + 6} className="fill-none stroke-emerald-500/40 stroke-1 animate-[ping_3s_infinite]" />}
+                      <circle 
+                        cx={node.x} cy={node.y} r={r}
+                        className={`node-circle transition-all duration-300 stroke-2 fill-slate-900 ${isOffline ? 'stroke-slate-700 opacity-40' : stateClass} ${isSelected ? 'stroke-white scale-110' : ''}`}
+                      />
+                      <text 
+                        x={node.x} y={node.y + r + 12} 
+                        textAnchor="middle"
+                        className={`text-[8px] font-black font-mono select-none pointer-events-none uppercase transition-all backdrop-blur-sm ${isOffline ? 'opacity-20' : 'fill-slate-300'}`}
+                      >
+                        {node.name}
+                      </text>
+                    </g>
+                  );
+                })}
+              </g>
+            );
           })}
 
-          <rect x={center.x - 12} y={center.y - 12} width="24" height="24" rx="6" className="fill-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)] animate-pulse" />
+          {/* Central Processor Hub (Visual Only) */}
+          <rect x={383} y={248} width="24" height="24" rx="4" className="fill-emerald-500/20 stroke-emerald-500/40 stroke-1 animate-pulse pointer-events-none" />
         </svg>
       </div>
     </div>

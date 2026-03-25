@@ -61,22 +61,22 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   links: [],
   nodes: [
     // Layer 1: Local (Core)
-    { id: 'l1-0', name: 'Core Gateway', bandwidth: 100, traffic: 0, level: 1, layer: 1, x: 400, y: 400 },
+    { id: '0', name: 'Core Gateway', bandwidth: 100, traffic: 0, level: 1, layer: 1, x: 395, y: 260, region: 'EMEA' },
     // Layer 2: Regional
-    { id: 'l2-0', name: 'Neighborhood Hub A', bandwidth: 200, traffic: 0, level: 1, layer: 2, x: 300, y: 300 },
-    { id: 'l2-1', name: 'Neighborhood Hub B', bandwidth: 200, traffic: 0, level: 1, layer: 2, x: 500, y: 300 },
+    { id: 'l2-0', name: 'West Coast Hub', bandwidth: 200, traffic: 0, level: 1, layer: 2, x: 110, y: 280, region: 'AMER' },
+    { id: 'l2-1', name: 'East Coast Hub', bandwidth: 200, traffic: 0, level: 1, layer: 2, x: 220, y: 280, region: 'AMER' },
     // Layer 3: National
-    { id: 'l3-0', name: 'Metropolitan Backbone', bandwidth: 1000, traffic: 0, level: 1, layer: 3, x: 200, y: 400 },
-    { id: 'l3-1', name: 'Regional Exchange', bandwidth: 1000, traffic: 0, level: 1, layer: 3, x: 600, y: 400 },
+    { id: 'l3-0', name: 'Sampa Hub', bandwidth: 1000, traffic: 0, level: 1, layer: 3, x: 265, y: 590, region: 'AMER' },
+    { id: 'l3-1', name: 'Tokyo Exchange', bandwidth: 1000, traffic: 0, level: 1, layer: 3, x: 715, y: 290, region: 'APAC' },
     // Layer 4: Global
-    { id: 'l4-0', name: 'Transatlantic Cable', bandwidth: 5000, traffic: 0, level: 1, layer: 4, x: 100, y: 600 },
-    { id: 'l4-1', name: 'Satellite Uplink', bandwidth: 2000, traffic: 0, level: 1, layer: 4, x: 700, y: 600 },
+    { id: 'l4-0', name: 'Transatlantic Cable', bandwidth: 5000, traffic: 0, level: 1, layer: 4, x: 300, y: 310, region: 'EMEA' },
+    { id: 'l4-1', name: 'Pacific Link', bandwidth: 2000, traffic: 0, level: 1, layer: 4, x: 730, y: 610, region: 'APAC' },
   ],
 
   tick: () => {
     set((state) => {
-      // 1. BFS for Reachability from Core (Layer 1)
-      const core = state.nodes.find(n => n.layer === 1);
+      // 1. BFS for Reachability from Core (ID '0')
+      const core = state.nodes.find(n => n.id === '0');
       const reachableIds = new Set<string>();
       
       if (core) {
@@ -96,6 +96,11 @@ export const useISPStore = create<ISPStore>((set, get) => ({
           }
         }
       }
+
+      // Check for new disconnections for logging
+      const newlyDisconnected = state.nodes.filter(n => !reachableIds.has(n.id) && n.id !== '0');
+      // Note: We could track previous state to only log when it *becomes* disconnected, 
+      // but for now let's just ensure nodes not reachable are greyed/inactive in UI and yield no revenue.
 
       // 2. Sim Loop: Node Traffic Drift
       const updatedNodes = state.nodes.map(node => {
@@ -121,11 +126,20 @@ export const useISPStore = create<ISPStore>((set, get) => ({
       else if (newTotalData > 50000) nextEra = '90s';
 
       const timestamp = new Date().toLocaleTimeString();
-      let newLogs = state.logs;
+      let newLogs = [...state.logs];
+      
+      // Log newly disconnected nodes (simplified check)
+      updatedNodes.forEach(node => {
+        const wasReachable = state.nodes.find(n => n.id === node.id)?.traffic !== 0 || node.layer === 1; // approximation
+        if (!reachableIds.has(node.id) && wasReachable && node.id !== '0' && Math.random() > 0.9) {
+           newLogs = [`[${timestamp}] ! Node [${node.name}] disconnected from Core`, ...newLogs].slice(0, 20);
+        }
+      });
+
       if (revenue > 0 && Math.random() > 0.8) {
-        newLogs = [`[${timestamp}] Revenue: +$${revenue} (Focus: Tier ${activeTier})`, ...state.logs].slice(0, 20);
+        newLogs = [`[${timestamp}] Revenue: +$${revenue} (Focus: Tier ${activeTier})`, ...newLogs].slice(0, 20);
       } else if (reachableIds.size === 1 && Math.random() > 0.95) {
-        newLogs = [`[${timestamp}] ! ISOLATED: Fiber connectivity required.`, ...state.logs].slice(0, 20);
+        newLogs = [`[${timestamp}] ! ISOLATED: Fiber connectivity required.`, ...newLogs].slice(0, 20);
       }
 
       return {
@@ -153,7 +167,9 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     }
 
     const dist = Math.sqrt(Math.pow(src.x - tgt.x, 2) + Math.pow(src.y - tgt.y, 2));
-    const cost = Math.floor(dist * 10);
+    const baseCost = 100;
+    const distanceMultiplier = 1.5;
+    const cost = Math.floor(baseCost + (dist * distanceMultiplier));
     
     if (state.money < cost) {
       return { ...state, isLinking: false, logs: [`[ERROR] Low credit: $${cost} required.`, ...state.logs].slice(0, 15) };
