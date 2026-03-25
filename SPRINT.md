@@ -1,6 +1,6 @@
 # 🏃 SPRINT BOARD
 
-> Last updated: Wed, 25 Mar 2026 03:41:38 GMT (UTC)
+> Last updated: Wed, 25 Mar 2026 05:18:19 GMT (UTC)
 
 ## 🚨 Open Blockers
 
@@ -21,9 +21,18 @@
 
 | Type | #ID | Task/PR Title | Status/Problem |
 | :--- | :--- | :--- | :--- |
+| 📌 Issue | #38 | [[LOGIC] Dynamic Routing & Pathfinding (Realistic Links)](https://github.com/walace-lopes-peng/isp-simulator/issues/38) | `simulation`, `logic`, `vfx` |
+| 📌 Issue | #37 | [[FEAT] Proximity-Based Fog of War](https://github.com/walace-lopes-peng/isp-simulator/issues/37) | `simulation`, `logic`, `ux` |
+| 📌 Issue | #36 | [[UX] Physical Node Representation (Realistic Assets)](https://github.com/walace-lopes-peng/isp-simulator/issues/36) | `ui`, `immersion`, `vfx` |
+| 📌 Issue | #35 | [[ARCH] Local-to-Global Semantic Layering](https://github.com/walace-lopes-peng/isp-simulator/issues/35) | `ui`, `immersion`, `arch` |
+| 📌 Issue | #34 | [[UX] Physical Node Representation (Realistic Assets)](https://github.com/walace-lopes-peng/isp-simulator/issues/34) | `ui`, `immersion`, `vfx` |
+| 📌 Issue | #33 | [[ARCH] Local-to-Global Semantic Layering](https://github.com/walace-lopes-peng/isp-simulator/issues/33) | `ui`, `immersion`, `arch` |
+| 📌 Issue | #32 | [feat: Historical News Ticker & Incident Alerts](https://github.com/walace-lopes-peng/isp-simulator/issues/32) | `ui`, `immersion`, `narrative` |
+| 📌 Issue | #31 | [ux: Procedural Audio Feedback Loop](https://github.com/walace-lopes-peng/isp-simulator/issues/31) | `immersion`, `audio`, `vfx` |
+| 📌 Issue | #30 | [feat: Living World - Random Incident System](https://github.com/walace-lopes-peng/isp-simulator/issues/30) | `simulation`, `logic`, `difficulty` |
+| 📌 Issue | #29 | [ux: Era-Specific Visual Overlays & Post-Processing](https://github.com/walace-lopes-peng/isp-simulator/issues/29) | `ui`, `immersion`, `shaders` |
 | 📌 Issue | #27 | [🏃 SPRINT BOARD](https://github.com/walace-lopes-peng/isp-simulator/issues/27) | 📌 Backlog |
 | 📌 Issue | #19 | [chore: implement project governance and contributing standards](https://github.com/walace-lopes-peng/isp-simulator/issues/19) | `docs`, `chore`, `P1-high`, `v1-blocker`, `config` |
-| 📌 Issue | #18 | [[INFRA] Sprint Board Automation](https://github.com/walace-lopes-peng/isp-simulator/issues/18) | `feat`, `P1-high`, `build`, `ai-agent` |
 | 📌 Issue | #17 | [Implementar Navegação de Escala Macro e Micro (Zoom)](https://github.com/walace-lopes-peng/isp-simulator/issues/17) | `feat`, `topology-engine`, `ui`, `performance` |
 | 📌 Issue | #16 | [Construir Motor de Temas Históricos Baseado em Era](https://github.com/walace-lopes-peng/isp-simulator/issues/16) | `feat`, `v1-polish`, `ui-theme`, `events` |
 | 📌 Issue | #15 | [Desenvolver Sistema Lógico de Fluxo de Dados (Traffic Logic)](https://github.com/walace-lopes-peng/isp-simulator/issues/15) | `feat`, `P2-medium`, `topology-engine`, `simulation`, `traffic` |
