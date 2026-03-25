@@ -131,20 +131,66 @@ html, body {
   stroke-width: 2px !important;
 }
 
+/* --- WINDOWS 95 UTILITIES --- */
+.win95-outset {
+  border: 2px solid;
+  border-top-color: #ffffff;
+  border-left-color: #ffffff;
+  border-bottom-color: #404040;
+  border-right-color: #404040;
+  background-color: #c0c0c0;
+}
+
+.win95-inset {
+  border: 2px solid;
+  border-top-color: #404040;
+  border-left-color: #404040;
+  border-bottom-color: #ffffff;
+  border-right-color: #ffffff;
+  background-color: #c0c0c0;
+}
+
+.win95-header {
+  background: #000080;
+  color: white;
+  padding: 2px 4px;
+}
+
+@keyframes construction-flash {
+  0%, 100% { background-color: #facc15; color: black; }
+  50% { background-color: #000000; color: #facc15; }
+}
+
+.win95-linking-flash {
+  animation: construction-flash 0.8s steps(1) infinite;
+}
+
 /* 90s: Windows Classic / Navy */
 .theme-90s {
   background-color: #c0c0c0 !important;
-  color: #000080 !important;
-  font-family: 'Times New Roman', Times, serif !important;
+  color: #000000 !important;
+  font-family: 'Courier New', Courier, monospace !important;
 }
+
+.theme-90s .glass-panel {
+  border: 2px solid !important;
+  border-top-color: #ffffff !important;
+  border-left-color: #ffffff !important;
+  border-bottom-color: #404040 !important;
+  border-right-color: #404040 !important;
+  background-color: #c0c0c0 !important;
+  backdrop-filter: none !important;
+}
+
 .theme-90s .node-circle {
   fill: #c0c0c0 !important;
-  stroke: #808080 !important;
+  stroke: #000 !important;
   stroke-width: 1px !important;
-  filter: drop-shadow(2px 2px 0px #fff) drop-shadow(-1px -1px 0px #404040);
 }
-.theme-90s div, .theme-90s nav, .theme-90s footer {
-  border-color: #808080 !important;
+
+.theme-90s .node-circle.isSelected {
+  stroke: #000080 !important;
+  stroke-width: 2px !important;
 }
 
 /* Modern: Cyber / Glass */

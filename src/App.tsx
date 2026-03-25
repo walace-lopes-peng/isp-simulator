@@ -13,11 +13,11 @@ const TopBar = () => {
   const statusColor = loadRatio >= 1.0 ? 'text-red-500' : loadRatio > 0.8 ? 'text-amber-500' : 'text-emerald-500';
 
   return (
-    <div className="h-14 w-full flex items-center justify-between px-6 border-b border-white/10 bg-black/40 backdrop-blur-md fixed top-0 z-50 glass-panel">
+    <div className={`h-14 w-full flex items-center justify-between px-6 border-b border-white/10 ${currentEra === '90s' ? 'win95-outset' : 'bg-black/40 backdrop-blur-md'} fixed top-0 z-50 glass-panel`}>
       <div className="flex items-center gap-8">
-        <div>
-          <h1 className="text-xs font-black tracking-widest text-emerald-500 uppercase">Logistic Map // Core</h1>
-          <p className="text-[8px] font-mono text-slate-500">SYSTEM_REVENUE_ACTIVE</p>
+        <div className={currentEra === '90s' ? 'win95-header' : ''}>
+          <h1 className={`text-xs font-black tracking-widest uppercase ${currentEra === '90s' ? 'text-white' : 'text-emerald-500'}`}>Logistic Map // Core</h1>
+          <p className={`text-[8px] font-mono ${currentEra === '90s' ? 'text-white/70' : 'text-slate-500'}`}>SYSTEM_REVENUE_ACTIVE</p>
         </div>
         <div className="h-8 w-px bg-white/5" />
         <div className="flex gap-6 items-center">
@@ -46,7 +46,7 @@ const TopBar = () => {
 };
 
 const Sidebar = () => {
-  const { selectedNodeId, nodes, links, upgradeNode, money, selectNode, connectNodes, isLinking, toggleLinking } = useISPStore();
+  const { selectedNodeId, nodes, links, upgradeNode, money, selectNode, connectNodes, isLinking, toggleLinking, currentEra } = useISPStore();
   const node = nodes.find(n => n.id === selectedNodeId);
 
   if (!node) return (
@@ -99,8 +99,8 @@ const Sidebar = () => {
 
         <button 
           onClick={toggleLinking}
-          className={`w-full py-2 rounded border font-black text-[9px] uppercase tracking-widest transition-all
-            ${isLinking ? 'bg-amber-500 text-black border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.3)]' : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'}
+          className={`w-full py-2 border font-black text-[9px] uppercase tracking-widest transition-all
+            ${currentEra === '90s' ? (isLinking ? 'win95-linking-flash' : 'win95-outset text-black') : (isLinking ? 'bg-amber-500 text-black border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.3)]' : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10')}
           `}
         >
           {isLinking ? 'linking active...' : 'establish link'}
@@ -147,7 +147,7 @@ const LogPanel = () => {
 // --- LOGISTIC MAP CORE ---
 
 const LogisticMap = () => {
-  const { nodes, links, zoomLevel, selectNode, selectedNodeId, connectNodes, setZoom, isLinking } = useISPStore();
+  const { nodes, links, zoomLevel, selectNode, selectedNodeId, connectNodes, setZoom, isLinking, currentEra } = useISPStore();
   const center = { x: 400, y: 400 };
   const ringRadii = [80, 180, 280, 380];
 
@@ -222,6 +222,11 @@ const LogisticMap = () => {
         .node-saturated { animation: pulse-fast 1s infinite ease-in-out; stroke: #fbbf24; }
         .node-critical { animation: glitch-flicker 0.4s infinite linear; stroke: #ef4444; }
         
+        .node-circle {
+          transform-box: fill-box;
+          transform-origin: center;
+        }
+        
         @keyframes dash {
           to {
             stroke-dashoffset: -20;
@@ -281,14 +286,18 @@ const LogisticMap = () => {
             const load = (tgt.traffic / tgt.bandwidth);
             const strokeColor = getLoadColor(load);
             
-            // Curved path calculation
-            const midX = (src.x + tgt.x) / 2;
-            const midY = (src.y + tgt.y) / 2;
-            const dx = tgt.x - src.x;
-            const dy = tgt.y - src.y;
+            // REFIX: Ensure links anchor at exact integer coordinates of the node center
+            const x1 = Math.floor(src.x);
+            const y1 = Math.floor(src.y);
+            const x2 = Math.floor(tgt.x);
+            const y2 = Math.floor(tgt.y);
+
+            const midX = (x1 + x2) / 2;
+            const midY = (y1 + y2) / 2;
+            const dx = x2 - x1;
+            const dy = y2 - y1;
             const dist = Math.sqrt(dx * dx + dy * dy);
             
-            // Offset for curve perpendicular to the line
             const offset = dist * 0.15;
             const angle = Math.atan2(dy, dx);
             const controlX = midX + offset * Math.cos(angle - Math.PI / 2);
@@ -299,13 +308,13 @@ const LogisticMap = () => {
             return (
               <path 
                 key={link.id}
-                d={`M ${src.x} ${src.y} Q ${controlX} ${controlY} ${tgt.x} ${tgt.y}`}
+                d={`M ${x1} ${y1} Q ${controlX} ${controlY} ${x2} ${y2}`}
                 fill="none"
                 className="transition-all duration-1000 opacity-60 link-flow"
                 stroke={strokeColor}
                 strokeWidth={strokeWidth}
-                filter="url(#glow)"
-                strokeDasharray="5,5"
+                filter={currentEra === 'modern' ? "url(#glow)" : "none"}
+                strokeDasharray={currentEra === '70s' ? "2,2" : "5,5"}
               />
             );
           })}

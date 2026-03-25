@@ -32,9 +32,23 @@ async function run() {
     // Fetch all open items (GitHub includes both issues and PRs in this API)
     const items = await fetchAll('/issues?state=open&per_page=100');
     
-    // Sort deterministically by number descending (idempotency)
-    items.sort((a, b) => b.number - a.number);
+    // Smart Priority Sync: Weight calculation
+    items.forEach(item => {
+      const labels = item.labels ? item.labels.map(l => l.name) : [];
+      item.weight = 0;
+      if (labels.some(l => ['blueprint', 'north-star', 'foundation', 'store', 'logic'].includes(l))) {
+        item.weight = 10;
+      } else if (labels.some(l => ['ui', 'immersion', 'dev-tools'].includes(l))) {
+        item.weight = 5;
+      } else if (labels.some(l => ['vfx', 'audio'].includes(l))) {
+        item.weight = 1;
+      }
+    });
 
+    // Sort deterministically by weight descending, then number descending (idempotency)
+    items.sort((a, b) => b.weight - a.weight || b.number - a.number);
+
+    const strategicCore = [];
     const blockers = [];
     const milestoneKernel = [];
     const milestoneGarage = [];
@@ -44,6 +58,9 @@ async function run() {
     const prsAwaiting = [];
 
     for (const item of items) {
+      // Exclude the Sprint Board issue itself from the backlog
+      if (item.number === parseInt(process.env.SPRINT_ISSUE_ID)) continue;
+
       const isPR = !!item.pull_request;
       const labels = item.labels ? item.labels.map(l => l.name) : [];
       
@@ -57,7 +74,9 @@ async function run() {
           prsAwaiting.push(item);
         }
       } else {
-        if (labels.includes('P0-blocker') || labels.includes('v1-blocker') || labels.includes('bug')) {
+        if (labels.includes('blueprint') || labels.includes('north-star')) {
+          strategicCore.push(item);
+        } else if (labels.includes('P0-blocker') || labels.includes('v1-blocker') || labels.includes('bug')) {
           blockers.push(item);
         } else if (labels.includes('in-progress')) {
           inProgress.push(item);
@@ -73,6 +92,11 @@ async function run() {
 
     let markdown = `# 🏃 SPRINT BOARD\n\n`;
     markdown += `> Last updated: ${new Date().toUTCString()} (UTC)\n\n`;
+
+    const hasBlueprintBlocker = items.some(item => item.number === 49 && !item.pull_request);
+    if (hasBlueprintBlocker) {
+      markdown += `> ⚠️ **CRITICAL: Project logic is unanchored. Finish the Blueprint first.**\n\n`;
+    }
 
     const renderTable = (title, itemsList) => {
       if (itemsList.length === 0) return '';
@@ -99,6 +123,7 @@ async function run() {
       return section;
     };
 
+    markdown += renderTable('🎯 Strategic Core', strategicCore);
     markdown += renderTable('🚨 Critical Path (Blockers)', blockers);
     markdown += renderTable('⚙️ In Progress', inProgress);
     markdown += renderTable('🏗️ Phase 1: The Kernel', milestoneKernel);
