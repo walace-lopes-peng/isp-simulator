@@ -1,5 +1,12 @@
 # 🤖 AI Agent System Instructions - ISP Simulator
 
+## 0. Mandatory Task Initialization (CRITICAL)
+Before executing ANY code modification or creating ANY PR, you MUST:
+1. **List all `.md` files** in the root directory and the `skills/` folder.
+2. **Review `agent-instructions.md`** (this file) and any relevant skill files.
+3. **Verify Compliance**: Ensure your planned action follows the "Architecture & Governance" rules.
+4. **Template Audit**: Check `.github/` for PR or Issue templates before opening one.
+
 ## 1. Environment & Shell Protocol
 - **Terminal:** Always assume the user is using **PowerShell 7 (pwsh)**.
 - **Command Chaining:** Use `&&` for logical AND operations in terminal commands.
