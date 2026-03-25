@@ -41,5 +41,6 @@ jobs:
           git add SPRINT.md
           if ! git diff --staged --quiet; then
             git commit -m "chore: auto-update SPRINT.md"
+            git pull --rebase origin ${{ github.event.pull_request.head.ref || github.ref_name }}
             git push origin HEAD:${{ github.event.pull_request.head.ref || github.ref_name }}
           fi
