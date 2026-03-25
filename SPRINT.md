@@ -1,6 +1,6 @@
 # 🏃 SPRINT BOARD
 
-> Last updated: Wed, 25 Mar 2026 05:21:47 GMT (UTC)
+> Last updated: Wed, 25 Mar 2026 05:22:56 GMT (UTC)
 
 ## 🚨 Open Blockers
 
@@ -25,7 +25,7 @@
 | 📌 Issue | #47 | [[FEAT] Era-Specific System Overlays (OS Immersion)](https://github.com/walace-lopes-peng/isp-simulator/issues/47) | `feat`, `ui`, `immersion` |
 | 📌 Issue | #46 | [[BUG] UI Formatting: Scientific Notation Fix](https://github.com/walace-lopes-peng/isp-simulator/issues/46) | `bug`, `ui`, `ux` |
 | 📌 Issue | #45 | [[UX] Interactive Linking Flow (Visual Feedback)](https://github.com/walace-lopes-peng/isp-simulator/issues/45) | `ui`, `vfx`, `ux` |
-| 📌 Issue | #44 | [[FEAT] Developer Debug Suite (Cheat Menu)](https://github.com/walace-lopes-peng/isp-simulator/issues/44) | `feat`, `logic`, `dev-tools` |
+| 📌 Issue | #44 | [[FEAT] Developer Debug Suite (Cheat Menu)](https://github.com/walace-lopes-peng/isp-simulator/issues/44) | `feat`, `test`, `logic`, `dev-tools` |
 | 📌 Issue | #43 | [[BUG] Phantom Green Circle & Visual Artifacts](https://github.com/walace-lopes-peng/isp-simulator/issues/43) | `bug`, `ui`, `vfx` |
 | 📌 Issue | #42 | [[UX] UI Layout Overhaul (Map Obstruction)](https://github.com/walace-lopes-peng/isp-simulator/issues/42) | `ui`, `immersion`, `ux` |
 | 📌 Issue | #41 | [[UX/BUG] Node Disappearance on Range/Zoom](https://github.com/walace-lopes-peng/isp-simulator/issues/41) | `bug`, `ui`, `ux` |
