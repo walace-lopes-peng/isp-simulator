@@ -1,6 +1,6 @@
 # 🏃 SPRINT BOARD
 
-> Last updated: Tue, 24 Mar 2026 19:34:17 GMT (UTC)
+> Last updated: Wed, 25 Mar 2026 03:41:38 GMT (UTC)
 
 ## 🚨 Open Blockers
 
@@ -21,6 +21,7 @@
 
 | Type | #ID | Task/PR Title | Status/Problem |
 | :--- | :--- | :--- | :--- |
+| 📌 Issue | #27 | [🏃 SPRINT BOARD](https://github.com/walace-lopes-peng/isp-simulator/issues/27) | 📌 Backlog |
 | 📌 Issue | #19 | [chore: implement project governance and contributing standards](https://github.com/walace-lopes-peng/isp-simulator/issues/19) | `docs`, `chore`, `P1-high`, `v1-blocker`, `config` |
 | 📌 Issue | #18 | [[INFRA] Sprint Board Automation](https://github.com/walace-lopes-peng/isp-simulator/issues/18) | `feat`, `P1-high`, `build`, `ai-agent` |
 | 📌 Issue | #17 | [Implementar Navegação de Escala Macro e Micro (Zoom)](https://github.com/walace-lopes-peng/isp-simulator/issues/17) | `feat`, `topology-engine`, `ui`, `performance` |
