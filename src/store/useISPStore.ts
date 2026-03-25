@@ -61,16 +61,16 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   links: [],
   nodes: [
     // Layer 1: Local (Core)
-    { id: 'l1-0', name: 'Core Gateway', bandwidth: 100, traffic: 0, level: 1, layer: 1, x: 380, y: 240, region: 'EMEA' },
+    { id: 'l1-0', name: 'Core Gateway', bandwidth: 100, traffic: 0, level: 1, layer: 1, x: 395, y: 260, region: 'EMEA' },
     // Layer 2: Regional
-    { id: 'l2-0', name: 'West Coast Hub', bandwidth: 200, traffic: 0, level: 1, layer: 2, x: 140, y: 260, region: 'AMER' },
-    { id: 'l2-1', name: 'East Coast Hub', bandwidth: 200, traffic: 0, level: 1, layer: 2, x: 230, y: 260, region: 'AMER' },
+    { id: 'l2-0', name: 'West Coast Hub', bandwidth: 200, traffic: 0, level: 1, layer: 2, x: 110, y: 280, region: 'AMER' },
+    { id: 'l2-1', name: 'East Coast Hub', bandwidth: 200, traffic: 0, level: 1, layer: 2, x: 220, y: 280, region: 'AMER' },
     // Layer 3: National
-    { id: 'l3-0', name: 'LATAM Backbone', bandwidth: 1000, traffic: 0, level: 1, layer: 3, x: 280, y: 560, region: 'AMER' },
-    { id: 'l3-1', name: 'Asian Exchange', bandwidth: 1000, traffic: 0, level: 1, layer: 3, x: 680, y: 300, region: 'APAC' },
+    { id: 'l3-0', name: 'Sampa Hub', bandwidth: 1000, traffic: 0, level: 1, layer: 3, x: 265, y: 590, region: 'AMER' },
+    { id: 'l3-1', name: 'Tokyo Exchange', bandwidth: 1000, traffic: 0, level: 1, layer: 3, x: 715, y: 290, region: 'APAC' },
     // Layer 4: Global
-    { id: 'l4-0', name: 'Transatlantic Cable', bandwidth: 5000, traffic: 0, level: 1, layer: 4, x: 310, y: 310, region: 'EMEA' },
-    { id: 'l4-1', name: 'Pacific Link', bandwidth: 2000, traffic: 0, level: 1, layer: 4, x: 700, y: 600, region: 'APAC' },
+    { id: 'l4-0', name: 'Transatlantic Cable', bandwidth: 5000, traffic: 0, level: 1, layer: 4, x: 300, y: 310, region: 'EMEA' },
+    { id: 'l4-1', name: 'Pacific Link', bandwidth: 2000, traffic: 0, level: 1, layer: 4, x: 730, y: 610, region: 'APAC' },
   ],
 
   tick: () => {
