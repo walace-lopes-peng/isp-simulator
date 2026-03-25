@@ -190,17 +190,23 @@ const LogisticMap = () => {
       </div>
 
       <div className="flex-1 flex items-center justify-center p-4">
-        <svg viewBox="0 0 800 800" className="w-full h-full aspect-square drop-shadow-2xl overflow-visible rounded-lg border border-white/5 shadow-inner">
+        <svg viewBox="0 0 800 800" preserveAspectRatio="xMidYMid slice" className="w-full h-full max-h-[80vh] aspect-square drop-shadow-2xl overflow-visible rounded-lg border border-white/5 shadow-inner bg-[#040d1a]">
           {/* Geographical Map Layer */}
           <defs>
             <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
               <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="0.5"/>
             </pattern>
+            <filter id="glow">
+               <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+               <feMerge>
+                   <feMergeNode in="coloredBlur"/>
+                   <feMergeNode in="SourceGraphic"/>
+               </feMerge>
+            </filter>
           </defs>
           
-          <rect width="800" height="800" fill="#040d1a" />
-          <image href="/assets/world-map.png" width="800" height="800" opacity="0.6" />
-          <rect width="800" height="800" fill="url(#grid)" />
+          <image href="/assets/world-map.png" width="800" height="800" opacity="0.5" preserveAspectRatio="xMidYMid slice" />
+          <rect width="800" height="800" fill="url(#grid)" pointerEvents="none" />
 
           {/* Physical Cables */}
           {links.map(link => {
@@ -215,10 +221,10 @@ const LogisticMap = () => {
               <line 
                 key={link.id}
                 x1={src.x} y1={src.y} x2={tgt.x} y2={tgt.y}
-                className="transition-all duration-1000"
+                className="transition-all duration-1000 opacity-60"
                 stroke={strokeColor}
-                strokeWidth="2"
-                strokeOpacity="0.4"
+                strokeWidth="1.5"
+                filter="url(#glow)"
                 strokeDasharray={link.targetId.includes('l4') || zoomLevel > 75 ? "4,4" : "0"}
               />
             );
@@ -229,59 +235,47 @@ const LogisticMap = () => {
             const layerNodes = nodes.filter(n => n.layer === layerNum);
             const isVisible = layerNum <= maxTier;
 
-            if (isVisible) {
-              return (
-                <g key={`layer-${layerNum}`} className="animate-in fade-in duration-700">
-                  {layerNodes.map((node) => {
-                    const load = node.traffic / node.bandwidth;
-                    const stateClass = load >= 1.0 ? 'node-critical' : load > 0.8 ? 'node-saturated' : 'node-healthy';
-                    const isSelected = selectedNodeId === node.id;
-                    const r = layerNum === 1 ? (zoomLevel <= 25 ? 18 : 10) : 6;
-                    const isOffline = node.traffic === 0 && node.layer !== 1;
+            if (!isVisible) return null; // CLEANUP: Removed aggregate node logic
 
-                    return (
-                      <g key={node.id} className="cursor-pointer" onClick={() => {
-                        if (isLinking && selectedNodeId && selectedNodeId !== node.id) {
-                          connectNodes(selectedNodeId, node.id);
-                        } else {
-                          selectNode(node.id);
-                        }
-                      }}>
-                        {isSelected && <circle cx={node.x} cy={node.y} r={r + 8} className="fill-emerald-500/10 animate-ping" />}
-                        <circle 
-                          cx={node.x} cy={node.y} r={r}
-                          className={`node-circle transition-all duration-300 stroke-2 fill-slate-900 ${isOffline ? 'stroke-slate-700 opacity-30 shadow-none' : stateClass} ${isSelected ? 'stroke-white scale-110' : ''}`}
-                        />
-                        <text 
-                          x={node.x + (r + 4)} y={node.y + 4} 
-                          className={`text-[8px] font-mono select-none pointer-events-none uppercase transition-all ${isOffline ? 'opacity-20 translate-x-1' : 'fill-slate-500'}`}
-                        >
-                          {layerNum === 3 ? "NETWORK HUB" : node.name.split(' ')[0]}
-                        </text>
-                      </g>
-                    );
-                  })}
-                </g>
-              );
-            } else {
-              // Aggregate Node for Hidden Layer
-              const avgLoad = layerNodes.reduce((acc, n) => acc + (n.traffic / n.bandwidth), 0) / (layerNodes.length || 1);
-              const radius = ringRadii[layerNum - 1];
-              const nx = center.x + radius! * Math.cos((-90 * Math.PI) / 180);
-              const ny = center.y + radius! * Math.sin((-90 * Math.PI) / 180);
+            return (
+              <g key={`layer-${layerNum}`} className="animate-in fade-in duration-700">
+                {layerNodes.map((node) => {
+                  const load = node.traffic / node.bandwidth;
+                  const stateClass = load >= 1.0 ? 'node-critical' : load > 0.8 ? 'node-saturated' : 'node-healthy';
+                  const isSelected = selectedNodeId === node.id;
+                  const r = layerNum === 1 ? (zoomLevel <= 25 ? 12 : 8) : 5;
+                  const isOffline = node.traffic === 0 && node.layer !== 1;
 
-              return (
-                <g key={`aggregate-${layerNum}`} className="opacity-40 animate-out fade-out duration-300">
-                  <circle cx={nx} cy={ny} r="20" className="stroke-[1px] fill-black/40" stroke={getLoadColor(avgLoad)} strokeDasharray="3,3" />
-                  <text x={nx} y={ny + 4} textAnchor="middle" className="text-[10px] font-mono fill-slate-400 font-bold">
-                    {layerNodes.length}
-                  </text>
-                </g>
-              );
-            }
+                  return (
+                    <g key={node.id} className="cursor-pointer" onClick={() => {
+                      if (isLinking && selectedNodeId && selectedNodeId !== node.id) {
+                        connectNodes(selectedNodeId, node.id);
+                      } else {
+                        selectNode(node.id);
+                      }
+                    }}>
+                      {isSelected && <circle cx={node.x} cy={node.y} r={r + 6} className="fill-none stroke-emerald-500/40 stroke-1 animate-[ping_3s_infinite]" />}
+                      <circle 
+                        cx={node.x} cy={node.y} r={r}
+                        className={`node-circle transition-all duration-300 stroke-2 fill-slate-900 ${isOffline ? 'stroke-slate-700 opacity-40' : stateClass} ${isSelected ? 'stroke-white scale-110' : ''}`}
+                      />
+                      <text 
+                        x={node.x} y={node.y + r + 12} 
+                        textAnchor="middle"
+                        className={`text-[8px] font-black font-mono select-none pointer-events-none uppercase transition-all backdrop-blur-sm ${isOffline ? 'opacity-20' : 'fill-slate-300'}`}
+                      >
+                        {node.name}
+                      </text>
+                    </g>
+                  );
+                })}
+              </g>
+            );
           })}
 
-          <rect x={center.x - 12} y={center.y - 12} width="24" height="24" rx="6" className="fill-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)] animate-pulse" />
+          {/* Central Processor Hub (Visual Only) */}
+          <rect x={383} y={248} width="24" height="24" rx="4" className="fill-emerald-500/20 stroke-emerald-500/40 stroke-1 animate-pulse pointer-events-none" />
+        </svg>
         </svg>
       </div>
     </div>
