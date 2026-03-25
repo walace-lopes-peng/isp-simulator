@@ -9,6 +9,7 @@ async function fetchAll(path) {
     headers: {
       Authorization: `token ${GITHUB_TOKEN}`,
       Accept: 'application/vnd.github.v3+json',
+      'User-Agent': 'ISP-Simulator-Bot'
     },
   });
   if (!response.ok) {
@@ -109,6 +110,7 @@ async function run() {
           Authorization: `token ${GITHUB_TOKEN}`,
           Accept: 'application/vnd.github.v3+json',
           'Content-Type': 'application/json',
+          'User-Agent': 'ISP-Simulator-Bot'
         },
         body: JSON.stringify({ body: markdown }),
       });
