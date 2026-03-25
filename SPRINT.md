@@ -1,6 +1,6 @@
 # 🏃 SPRINT BOARD
 
-> Last updated: Wed, 25 Mar 2026 05:28:02 GMT (UTC)
+> Last updated: Wed, 25 Mar 2026 05:28:57 GMT (UTC)
 
 ## 🚨 Critical Path (Blockers)
 
@@ -65,5 +65,4 @@
 | Type | #ID | Task/PR Title | Status/Problem |
 | :--- | :--- | :--- | :--- |
 | 📌 Issue | #27 | [🏃 SPRINT BOARD](https://github.com/walace-lopes-peng/isp-simulator/issues/27) | 📌 Backlog |
-| 📌 Issue | #12 | [[Chore] Project Automation & Sprint Board Setup](https://github.com/walace-lopes-peng/isp-simulator/issues/12) | `chore`, `P2-medium`, `v1-feature`, `config` |
 
