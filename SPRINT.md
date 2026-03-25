@@ -1,6 +1,6 @@
 # 🏃 SPRINT BOARD
 
-> Last updated: Wed, 25 Mar 2026 05:28:57 GMT (UTC)
+> Last updated: Wed, 25 Mar 2026 05:42:41 GMT (UTC)
 
 ## 🚨 Critical Path (Blockers)
 
@@ -64,5 +64,6 @@
 
 | Type | #ID | Task/PR Title | Status/Problem |
 | :--- | :--- | :--- | :--- |
+| 📌 Issue | #49 | [docs: initialize Project North Star and Strategic Blueprint](https://github.com/walace-lopes-peng/isp-simulator/issues/49) | `documentation`, `architecture`, `P1-high` |
 | 📌 Issue | #27 | [🏃 SPRINT BOARD](https://github.com/walace-lopes-peng/isp-simulator/issues/27) | 📌 Backlog |
 
