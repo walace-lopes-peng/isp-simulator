@@ -1,6 +1,6 @@
 # 🏃 SPRINT BOARD
 
-> Last updated: Wed, 25 Mar 2026 05:42:41 GMT (UTC)
+> Last updated: Wed, 25 Mar 2026 05:48:07 GMT (UTC)
 
 ## 🚨 Critical Path (Blockers)
 
@@ -40,6 +40,7 @@
 
 | Type | #ID | Task/PR Title | Status/Problem |
 | :--- | :--- | :--- | :--- |
+| 📌 Issue | #50 | [[EPIC][FEAT] Implementation of Scenario Engine & 'Cyber-Iron Curtain' Expansion](https://github.com/walace-lopes-peng/isp-simulator/issues/50) | `architecture`, `feat`, `P2-medium`, `immersion`, `epic` |
 | 📌 Issue | #48 | [[UX] Signal Pulse & Range Visualization](https://github.com/walace-lopes-peng/isp-simulator/issues/48) | `immersion`, `vfx`, `ux` |
 | 📌 Issue | #47 | [[FEAT] Era-Specific System Overlays (OS Immersion)](https://github.com/walace-lopes-peng/isp-simulator/issues/47) | `feat`, `ui`, `immersion` |
 | 📌 Issue | #45 | [[UX] Interactive Linking Flow (Visual Feedback)](https://github.com/walace-lopes-peng/isp-simulator/issues/45) | `ui`, `vfx`, `ux` |
