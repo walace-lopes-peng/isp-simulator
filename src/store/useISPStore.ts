@@ -52,7 +52,7 @@ interface ISPStore {
 
 export const useISPStore = create<ISPStore>((set, get) => ({
   money: 5000,
-  currentEra: 'modern',
+  currentEra: '90s',
   totalData: 0,
   zoomLevel: 10,
   selectedNodeId: null,
