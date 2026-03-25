@@ -233,7 +233,7 @@ const LogisticMap = () => {
       `}</style>
       
       <div className="absolute top-4 left-6 z-50 p-3 bg-black/40 backdrop-blur rounded-lg border border-white/5">
-        <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest block mb-1">Network Focus // {zoomLevel}%</label>
+        <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest block mb-1">Network Focus // {Math.round(zoomLevel)}%</label>
         <input 
           type="range" min="0" max="100" step="1"
           value={zoomLevel}
