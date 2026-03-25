@@ -44,6 +44,9 @@ async function run() {
     const prsAwaiting = [];
 
     for (const item of items) {
+      // Exclude the Sprint Board issue itself from the backlog
+      if (item.number === parseInt(process.env.SPRINT_ISSUE_ID)) continue;
+
       const isPR = !!item.pull_request;
       const labels = item.labels ? item.labels.map(l => l.name) : [];
       
