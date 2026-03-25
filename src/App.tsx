@@ -111,10 +111,10 @@ const Sidebar = () => {
         onClick={() => upgradeNode(node.id)}
         disabled={money < cost}
         className={`w-full py-3 rounded border font-black text-[10px] uppercase tracking-widest transition-all
-          ${money >= cost ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.1)]' : 'bg-white/5 border-white/5 text-slate-700 cursor-not-allowed'}
+          ${money >= cost ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20 shadow-[0_0:10px_rgba(16,185,129,0.1)]' : 'bg-white/5 border-white/5 text-slate-700 cursor-not-allowed opacity-50'}
         `}
       >
-        Upgrade // ${cost.toLocaleString()}
+        {money >= cost ? `Upgrade // $${cost.toLocaleString()}` : `Insufficient Funds // $${cost.toLocaleString()}`}
       </button>
     </div>
   );
@@ -152,13 +152,63 @@ const LogisticMap = () => {
   const ringRadii = [80, 180, 280, 380];
 
   const maxTier = zoomLevel <= 25 ? 1 : zoomLevel <= 50 ? 2 : zoomLevel <= 75 ? 3 : 4;
+  const { money, addNode, addLog } = useISPStore();
 
   const getLoadColor = (load: number) => {
-    return load >= 1.0 ? '#ef4444' : load > 0.8 ? '#fbbf24' : '#22d3ee';
+    if (load >= 0.9) return '#ef4444'; // Red
+    if (load >= 0.5) return '#fbbf24'; // Amber
+    return '#10b981'; // Green (Emerald-500 equivalent)
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    const delta = e.deltaY;
+    const newZoom = Math.max(0, Math.min(100, zoomLevel - delta / 5));
+    setZoom(newZoom);
+  };
+
+  const handleMapClick = (e: React.MouseEvent<SVGSVGElement>) => {
+    // If we're clicking a node, stopPropagation should prevent this
+    const svg = e.currentTarget;
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX;
+    pt.y = e.clientY;
+    const svgP = pt.matrixTransform(svg.getScreenCTM()?.inverse());
+    
+    // Simple build logic: if clicking empty space, suggest building
+    if (!selectedNodeId) {
+        const cost = 500;
+        const coverageRange = 250;
+        const isWithinRange = nodes.some(n => {
+            const d = Math.sqrt(Math.pow(n.x - svgP.x, 2) + Math.pow(n.y - svgP.y, 2));
+            return d < coverageRange && (n.traffic > 0 || n.id === '0');
+        });
+
+        if (!isWithinRange && nodes.length > 0) {
+            addLog("Area outside network coverage range", true);
+            return;
+        }
+
+        if (money >= cost) {
+            const newNode = {
+                id: `node-${Date.now()}`,
+                name: `New Hub ${nodes.length}`,
+                bandwidth: 50,
+                traffic: 0,
+                level: 1,
+                layer: maxTier,
+                x: Math.round(svgP.x),
+                y: Math.round(svgP.y)
+            };
+            addNode(newNode);
+            addLog(`Built new node at [${newNode.x}, ${newNode.y}]`, false);
+        } else {
+            addLog(`Insufficient funds to build new node ($${cost} required)`, true);
+        }
+    }
   };
 
   return (
-    <div className="flex-1 relative flex flex-col min-h-0 min-w-0">
+    <div className="flex-1 relative flex flex-col min-h-0 min-w-0" onWheel={handleWheel}>
       <style>{`
         @keyframes pulse-steady { 0%, 100% { opacity: 1; r: 4; } 50% { opacity: 0.7; r: 5; } }
         @keyframes pulse-fast { 0%, 100% { opacity: 1; r: 4; } 50% { opacity: 0.5; r: 6; } }
@@ -171,6 +221,15 @@ const LogisticMap = () => {
         .node-healthy { animation: pulse-steady 2s infinite ease-in-out; stroke: #22d3ee; }
         .node-saturated { animation: pulse-fast 1s infinite ease-in-out; stroke: #fbbf24; }
         .node-critical { animation: glitch-flicker 0.4s infinite linear; stroke: #ef4444; }
+        
+        @keyframes dash {
+          to {
+            stroke-dashoffset: -20;
+          }
+        }
+        .link-flow {
+          animation: dash 1s linear infinite;
+        }
       `}</style>
       
       <div className="absolute top-4 left-6 z-50 p-3 bg-black/40 backdrop-blur rounded-lg border border-white/5">
@@ -190,7 +249,12 @@ const LogisticMap = () => {
       </div>
 
       <div className="flex-1 flex items-center justify-center p-4">
-        <svg viewBox="0 0 800 800" preserveAspectRatio="xMidYMid slice" className="w-full h-full max-h-[80vh] aspect-square drop-shadow-2xl overflow-visible rounded-lg border border-white/5 shadow-inner bg-[#040d1a]">
+        <svg 
+          viewBox="0 0 800 800" 
+          preserveAspectRatio="xMidYMid slice" 
+          className="w-full h-full max-h-[80vh] aspect-square drop-shadow-2xl overflow-visible rounded-lg border border-white/5 shadow-inner bg-[#040d1a]"
+          onClick={handleMapClick}
+        >
           {/* Geographical Map Layer */}
           <defs>
             <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
@@ -216,16 +280,32 @@ const LogisticMap = () => {
 
             const load = (tgt.traffic / tgt.bandwidth);
             const strokeColor = getLoadColor(load);
+            
+            // Curved path calculation
+            const midX = (src.x + tgt.x) / 2;
+            const midY = (src.y + tgt.y) / 2;
+            const dx = tgt.x - src.x;
+            const dy = tgt.y - src.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            // Offset for curve perpendicular to the line
+            const offset = dist * 0.15;
+            const angle = Math.atan2(dy, dx);
+            const controlX = midX + offset * Math.cos(angle - Math.PI / 2);
+            const controlY = midY + offset * Math.sin(angle - Math.PI / 2);
+
+            const strokeWidth = 1 + (link.bandwidth / 1000) * 1.5;
 
             return (
-              <line 
+              <path 
                 key={link.id}
-                x1={src.x} y1={src.y} x2={tgt.x} y2={tgt.y}
-                className="transition-all duration-1000 opacity-60"
+                d={`M ${src.x} ${src.y} Q ${controlX} ${controlY} ${tgt.x} ${tgt.y}`}
+                fill="none"
+                className="transition-all duration-1000 opacity-60 link-flow"
                 stroke={strokeColor}
-                strokeWidth="1.5"
+                strokeWidth={strokeWidth}
                 filter="url(#glow)"
-                strokeDasharray={link.targetId.includes('l4') || zoomLevel > 75 ? "4,4" : "0"}
+                strokeDasharray="5,5"
               />
             );
           })}
@@ -241,19 +321,25 @@ const LogisticMap = () => {
               <g key={`layer-${layerNum}`} className="animate-in fade-in duration-700">
                 {layerNodes.map((node) => {
                   const load = node.traffic / node.bandwidth;
-                  const stateClass = load >= 1.0 ? 'node-critical' : load > 0.8 ? 'node-saturated' : 'node-healthy';
-                  const isSelected = selectedNodeId === node.id;
-                  const r = layerNum === 1 ? (zoomLevel <= 25 ? 12 : 8) : 5;
-                  const isOffline = node.traffic === 0 && node.layer !== 1;
+                   const stateClass = load >= 1.0 ? 'node-critical' : load > 0.8 ? 'node-saturated' : 'node-healthy';
+                   const isSelected = selectedNodeId === node.id;
+                   
+                   // Dynamic Radius based on zoomLevel and layer
+                   const baseR = layerNum === 1 ? 12 : 8;
+                   const zoomScale = 0.4 + (zoomLevel / 100) * 0.6; // Smaller at Global (0), Larger at Local (100)
+                   const r = baseR * zoomScale;
+                   
+                   const isOffline = node.traffic === 0 && node.id !== '0';
 
-                  return (
-                    <g key={node.id} className="cursor-pointer" onClick={() => {
-                      if (isLinking && selectedNodeId && selectedNodeId !== node.id) {
-                        connectNodes(selectedNodeId, node.id);
-                      } else {
-                        selectNode(node.id);
-                      }
-                    }}>
+                   return (
+                     <g key={node.id} className="cursor-pointer" onClick={(e) => {
+                       e.stopPropagation();
+                       if (isLinking && selectedNodeId && selectedNodeId !== node.id) {
+                         connectNodes(selectedNodeId, node.id);
+                       } else {
+                         selectNode(node.id);
+                       }
+                     }}>
                       {isSelected && <circle cx={node.x} cy={node.y} r={r + 6} className="fill-none stroke-emerald-500/40 stroke-1 animate-[ping_3s_infinite]" />}
                       <circle 
                         cx={node.x} cy={node.y} r={r}
@@ -275,7 +361,6 @@ const LogisticMap = () => {
 
           {/* Central Processor Hub (Visual Only) */}
           <rect x={383} y={248} width="24" height="24" rx="4" className="fill-emerald-500/20 stroke-emerald-500/40 stroke-1 animate-pulse pointer-events-none" />
-        </svg>
         </svg>
       </div>
     </div>
