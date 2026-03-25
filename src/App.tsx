@@ -190,15 +190,17 @@ const LogisticMap = () => {
       </div>
 
       <div className="flex-1 flex items-center justify-center p-4">
-        <svg viewBox="0 0 800 800" className="w-full h-full aspect-square drop-shadow-2xl overflow-visible">
-          {/* Visual Guides */}
-          <rect width="100%" height="100%" fill="#040d1a" />
-          <circle cx="50%" cy="50%" r="30%" fill="#0a2040" opacity="0.6" />
+        <svg viewBox="0 0 800 800" className="w-full h-full aspect-square drop-shadow-2xl overflow-visible rounded-lg border border-white/5 shadow-inner">
+          {/* Geographical Map Layer */}
+          <defs>
+            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="0.5"/>
+            </pattern>
+          </defs>
           
-          <ellipse cx="50%" cy="52%" rx="12%" ry="5%" fill="none" stroke="#1D9E75" opacity="0.9" strokeWidth="1.5" />
-          <ellipse cx="50%" cy="54%" rx="28%" ry="11%" fill="none" stroke="#1D9E75" opacity="0.7" strokeWidth="1" />
-          <ellipse cx="50%" cy="56%" rx="44%" ry="17%" fill="none" stroke="#ffffff" opacity="0.15" strokeWidth="0.8" strokeDasharray="4,4" />
-          <ellipse cx="50%" cy="58%" rx="60%" ry="23%" fill="none" stroke="#ffffff" opacity="0.08" strokeWidth="0.8" strokeDasharray="4,4" />
+          <rect width="800" height="800" fill="#040d1a" />
+          <image href="/assets/world-map.png" width="800" height="800" opacity="0.6" />
+          <rect width="800" height="800" fill="url(#grid)" />
 
           {/* Physical Cables */}
           {links.map(link => {
