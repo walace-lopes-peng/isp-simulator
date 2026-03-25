@@ -36,6 +36,8 @@ async function run() {
     items.sort((a, b) => b.number - a.number);
 
     const blockers = [];
+    const milestoneKernel = [];
+    const milestoneGarage = [];
     const inProgress = [];
     const backlog = [];
     const prsReady = [];
@@ -55,10 +57,14 @@ async function run() {
           prsAwaiting.push(item);
         }
       } else {
-        if (labels.includes('P0-blocker')) {
+        if (labels.includes('P0-blocker') || labels.includes('v1-blocker') || labels.includes('bug')) {
           blockers.push(item);
         } else if (labels.includes('in-progress')) {
           inProgress.push(item);
+        } else if (labels.includes('topology-engine') || labels.includes('store') || labels.includes('logic')) {
+          milestoneKernel.push(item);
+        } else if (labels.includes('immersion') || labels.includes('ui-theme') || labels.includes('ui') || labels.includes('vfx')) {
+          milestoneGarage.push(item);
         } else {
           backlog.push(item);
         }
@@ -93,11 +99,13 @@ async function run() {
       return section;
     };
 
-    markdown += renderTable('🚨 Open Blockers', blockers);
+    markdown += renderTable('🚨 Critical Path (Blockers)', blockers);
     markdown += renderTable('⚙️ In Progress', inProgress);
+    markdown += renderTable('🏗️ Phase 1: The Kernel', milestoneKernel);
+    markdown += renderTable('🏠 Phase 2: The Garage & Immersion', milestoneGarage);
     markdown += renderTable('✅ Ready to Merge', prsReady);
     markdown += renderTable('⏳ Awaiting Review', prsAwaiting);
-    markdown += renderTable('📌 Backlog', backlog);
+    markdown += renderTable('📌 Future Expansion (Backlog)', backlog);
 
     fs.writeFileSync('SPRINT.md', markdown);
     console.log('SPRINT.md generated successfully and deterministically!');
