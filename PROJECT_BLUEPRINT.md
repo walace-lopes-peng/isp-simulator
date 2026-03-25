@@ -1,4 +1,4 @@
-# 🗺️ PROJECT_BLUEPRINT: ISP Tycoon
+# 🗺️ PROJECT_BLUEPRINT: ISP Tycoon (The Living Doc - v1.3)
 
 ## 1. Visão Geral (The North Star)
 O jogo é um simulador de infraestrutura histórica. O jogador começa em uma garagem (anos 70) e deve evoluir tecnologicamente até gerenciar o backbone da internet global (Moderno). O foco não é 'clicar', mas gerenciar Topologia vs. Demanda.
