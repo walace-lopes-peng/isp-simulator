@@ -61,16 +61,16 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   links: [],
   nodes: [
     // Layer 1: Local (Core)
-    { id: 'l1-0', name: 'Core Gateway', bandwidth: 100, traffic: 0, level: 1, layer: 1, x: 400, y: 400 },
+    { id: 'l1-0', name: 'Core Gateway', bandwidth: 100, traffic: 0, level: 1, layer: 1, x: 380, y: 240, region: 'EMEA' },
     // Layer 2: Regional
-    { id: 'l2-0', name: 'Neighborhood Hub A', bandwidth: 200, traffic: 0, level: 1, layer: 2, x: 300, y: 300 },
-    { id: 'l2-1', name: 'Neighborhood Hub B', bandwidth: 200, traffic: 0, level: 1, layer: 2, x: 500, y: 300 },
+    { id: 'l2-0', name: 'West Coast Hub', bandwidth: 200, traffic: 0, level: 1, layer: 2, x: 140, y: 260, region: 'AMER' },
+    { id: 'l2-1', name: 'East Coast Hub', bandwidth: 200, traffic: 0, level: 1, layer: 2, x: 230, y: 260, region: 'AMER' },
     // Layer 3: National
-    { id: 'l3-0', name: 'Metropolitan Backbone', bandwidth: 1000, traffic: 0, level: 1, layer: 3, x: 200, y: 400 },
-    { id: 'l3-1', name: 'Regional Exchange', bandwidth: 1000, traffic: 0, level: 1, layer: 3, x: 600, y: 400 },
+    { id: 'l3-0', name: 'LATAM Backbone', bandwidth: 1000, traffic: 0, level: 1, layer: 3, x: 280, y: 560, region: 'AMER' },
+    { id: 'l3-1', name: 'Asian Exchange', bandwidth: 1000, traffic: 0, level: 1, layer: 3, x: 680, y: 300, region: 'APAC' },
     // Layer 4: Global
-    { id: 'l4-0', name: 'Transatlantic Cable', bandwidth: 5000, traffic: 0, level: 1, layer: 4, x: 100, y: 600 },
-    { id: 'l4-1', name: 'Satellite Uplink', bandwidth: 2000, traffic: 0, level: 1, layer: 4, x: 700, y: 600 },
+    { id: 'l4-0', name: 'Transatlantic Cable', bandwidth: 5000, traffic: 0, level: 1, layer: 4, x: 310, y: 310, region: 'EMEA' },
+    { id: 'l4-1', name: 'Pacific Link', bandwidth: 2000, traffic: 0, level: 1, layer: 4, x: 700, y: 600, region: 'APAC' },
   ],
 
   tick: () => {
