@@ -1,0 +1,45 @@
+name: Sprint Board Sync
+
+on:
+  push:
+    branches: [dev]
+  issues:
+    types: [opened, edited, labeled, unlabeled, closed, reopened]
+  pull_request:
+    types: [opened, edited, labeled, unlabeled, closed, reopened]
+  pull_request_review:
+    types: [submitted]
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Run Sync Script
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SPRINT_ISSUE_ID: 27
+        run: node scripts/sync-board.js
+
+      - name: Commit and Push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add SPRINT.md
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: auto-update SPRINT.md"
+            git push origin HEAD:${{ github.event.pull_request.head.ref || github.ref_name }}
+          fi

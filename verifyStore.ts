@@ -15,8 +15,8 @@ for (let i = 0; i < 5; i++) {
 }
 
 // Upgrade node
-console.log('--- Upgrading Node ---');
-useISPStore.getState().upgradeNode('1');
+console.log('--- Upgrading Core Gateway ---');
+useISPStore.getState().upgradeNode('0');
 console.log('Post-upgrade Money:', useISPStore.getState().money);
 console.log('Post-upgrade Nodes:', useISPStore.getState().nodes);
 
@@ -24,9 +24,9 @@ console.log('Post-upgrade Nodes:', useISPStore.getState().nodes);
 console.log('--- Overloading Node ---');
 useISPStore.setState({
     nodes: [
-        { id: '1', name: 'Central Server', bandwidth: 10, traffic: 30, level: 1 }
+        { id: '0', name: 'Core Gateway', bandwidth: 10, traffic: 30, level: 1, layer: 1, x: 400, y: 400 }
     ]
 });
 console.log('Setting traffic to 30 and bandwidth to 10...');
 useISPStore.getState().tick();
-console.log('Money after overload tick:', useISPStore.getState().money);
+console.log('Money after overload tick (penalized):', useISPStore.getState().money);
