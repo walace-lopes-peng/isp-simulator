@@ -97,54 +97,56 @@ export const useISPStore = create<ISPStore>((set, get) => ({
         }
       }
 
-      // Check for new disconnections for logging
-      const newlyDisconnected = state.nodes.filter(n => !reachableIds.has(n.id) && n.id !== '0');
-      // Note: We could track previous state to only log when it *becomes* disconnected, 
-      // but for now let's just ensure nodes not reachable are greyed/inactive in UI and yield no revenue.
-
-      // 2. Sim Loop: Node Traffic Drift
+      // 2. Sim Loop: Node Traffic and OPEX calculations
+      let totalMaintenanceCost = 0;
       const updatedNodes = state.nodes.map(node => {
+        // Maintenance Cost (OPEX)
+        const baseCost = node.layer === 1 ? 50 : node.layer === 2 ? 20 : node.layer === 3 ? 10 : 5;
+        totalMaintenanceCost += Math.floor(baseCost * Math.pow(1.1, node.level - 1));
+
         if (!reachableIds.has(node.id)) return { ...node, traffic: 0 };
+
+        // Traffic Drift
         const targetScaling = node.layer === 1 ? 0.1 : 0.5;
         const targetTraffic = node.bandwidth * (targetScaling + Math.random() * 0.3);
         const drift = (targetTraffic - node.traffic) * 0.15;
         return { ...node, traffic: Math.max(10, Math.min(node.traffic + drift, node.bandwidth * 1.5)) };
       });
 
-      // 3. Revenue
-      const activeTier = state.zoomLevel <= 25 ? 1 : state.zoomLevel <= 50 ? 2 : state.zoomLevel <= 75 ? 3 : 4;
-      const activeNodes = updatedNodes.filter(n => n.layer === activeTier && n.layer > 1 && reachableIds.has(n.id));
-      const rawRevenue = activeNodes.reduce((sum, n) => sum + n.traffic, 0);
-      const hasOverload = activeNodes.some(n => n.traffic > n.bandwidth);
-      const revenue = Math.floor(hasOverload ? rawRevenue * 0.4 : rawRevenue * 0.8);
+      // Link OPEX
+      totalMaintenanceCost += state.links.length * 5;
 
-      // 4. Update Stats
-      const totalLoad = updatedNodes.reduce((sum, n) => sum + n.traffic, 0);
-      const newTotalData = state.totalData + totalLoad;
+      // 3. Revenue
+      // Rule: Sum traffic of all active nodes connected to Core gateway
+      const activeNodes = updatedNodes.filter(n => n.id !== '0' && reachableIds.has(n.id));
+      const totalTraffic = activeNodes.reduce((sum, n) => sum + n.traffic, 0);
+      
+      // Multiplier based on zoom/era focus (Simplified version of user's request)
+      const hasOverload = activeNodes.some(n => n.traffic > n.bandwidth);
+      const revenue = Math.floor(hasOverload ? totalTraffic * 0.5 : totalTraffic * 1.0);
+
+      // 4. Update Stats & Economy
+      const newTotalData = state.totalData + Math.floor(totalTraffic / 10);
       let nextEra = state.currentEra;
-      if (newTotalData > 500000) nextEra = 'modern';
-      else if (newTotalData > 50000) nextEra = '90s';
+      if (newTotalData > 1000000) nextEra = 'modern';
+      else if (newTotalData > 100000) nextEra = '90s';
 
       const timestamp = new Date().toLocaleTimeString();
       let newLogs = [...state.logs];
       
-      // Log newly disconnected nodes (simplified check)
-      updatedNodes.forEach(node => {
-        const wasReachable = state.nodes.find(n => n.id === node.id)?.traffic !== 0 || node.layer === 1; // approximation
-        if (!reachableIds.has(node.id) && wasReachable && node.id !== '0' && Math.random() > 0.9) {
-           newLogs = [`[${timestamp}] ! Node [${node.name}] disconnected from Core`, ...newLogs].slice(0, 20);
-        }
-      });
-
+      // Event: Logs for revenue/OPEX
       if (revenue > 0 && Math.random() > 0.8) {
-        newLogs = [`[${timestamp}] Revenue: +$${revenue} (Focus: Tier ${activeTier})`, ...newLogs].slice(0, 20);
-      } else if (reachableIds.size === 1 && Math.random() > 0.95) {
-        newLogs = [`[${timestamp}] ! ISOLATED: Fiber connectivity required.`, ...newLogs].slice(0, 20);
+        newLogs = [`[${timestamp}] Revenue: +$${revenue} | OPEX: -$${totalMaintenanceCost}`, ...newLogs].slice(0, 20);
+      }
+
+      // Event: Overload Alert
+      if (hasOverload && Math.random() > 0.9) {
+        newLogs = [`[${timestamp}] ! CRITICAL: Network Saturation detected. Overload penalty active.`, ...newLogs].slice(0, 20);
       }
 
       return {
         nodes: updatedNodes,
-        money: state.money + revenue,
+        money: state.money + revenue - totalMaintenanceCost,
         totalData: newTotalData,
         currentEra: nextEra,
         logs: newLogs
