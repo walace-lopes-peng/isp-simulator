@@ -14,7 +14,7 @@
 
 | Type | #ID | Task/PR Title | Status/Problem |
 | :--- | :--- | :--- | :--- |
-| 📌 Issue | #40 | [[BUG] Link Path Misplacement (Zustand/SVG Sync)](https://github.com/walace-lopes-peng/isp-simulator/issues/40) | `bug`, `logic`, `vfx` |
+| ✅ Fixed | #40 | [[BUG] Link Path Misplacement (Zustand/SVG Sync)](https://github.com/walace-lopes-peng/isp-simulator/issues/40) | `bug`, `logic`, `vfx` |
 | 📌 Issue | #13 | [Implementar Kernel de Estado Global (Zustand)](https://github.com/walace-lopes-peng/isp-simulator/issues/13) | `feat`, `P1-high`, `v1-blocker`, `store`, `state-risk` |
 | 📌 Issue | #2 | [[Bug] [Logic] Revenue Black Hole at Layer 1 Focus](https://github.com/walace-lopes-peng/isp-simulator/issues/2) | `fix`, `P0-blocker`, `v1-blocker`, `store`, `state-risk`, `economy` |
 | 📌 Issue | #46 | [[BUG] UI Formatting: Scientific Notation Fix](https://github.com/walace-lopes-peng/isp-simulator/issues/46) | `bug`, `ui`, `ux` |
