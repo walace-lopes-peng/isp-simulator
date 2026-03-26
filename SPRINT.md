@@ -1,6 +1,6 @@
 # 🏃 SPRINT BOARD
 
-> Last updated: Wed, 25 Mar 2026 23:12:09 GMT (UTC)
+> Last updated: Thu, 26 Mar 2026 13:57:21 GMT (UTC)
 
 > ⚠️ **CRITICAL: Project logic is unanchored. Finish the Blueprint first.**
 
@@ -8,7 +8,6 @@
 
 | Type | #ID | Task/PR Title | Status/Problem |
 | :--- | :--- | :--- | :--- |
-| ✅ Fixed | #40 | [[BUG] Link Path Misplacement (Zustand/SVG Sync)](https://github.com/walace-lopes-peng/isp-simulator/issues/40) | `bug`, `logic`, `vfx` |
 | 📌 Issue | #13 | [Implementar Kernel de Estado Global (Zustand)](https://github.com/walace-lopes-peng/isp-simulator/issues/13) | `feat`, `P1-high`, `v1-blocker`, `store`, `state-risk` |
 | 📌 Issue | #2 | [[Bug] [Logic] Revenue Black Hole at Layer 1 Focus](https://github.com/walace-lopes-peng/isp-simulator/issues/2) | `fix`, `P0-blocker`, `v1-blocker`, `store`, `state-risk`, `economy` |
 | 📌 Issue | #46 | [[BUG] UI Formatting: Scientific Notation Fix](https://github.com/walace-lopes-peng/isp-simulator/issues/46) | `bug`, `ui`, `ux` |
@@ -60,8 +59,6 @@
 
 | Type | #ID | Task/PR Title | Status/Problem |
 | :--- | :--- | :--- | :--- |
-| 📦 PR | #55 | [[CHORE] Implement Senior AI Governance Protocol](https://github.com/walace-lopes-peng/isp-simulator/pull/55) | ⏳ Awaiting Review |
-| 📦 PR | #53 | [[ARCH] Implementation of the Living Project Blueprint](https://github.com/walace-lopes-peng/isp-simulator/pull/53) | ⏳ Awaiting Review |
 | 📦 PR | #25 | [chore: implement formal project governance and PR standards](https://github.com/walace-lopes-peng/isp-simulator/pull/25) | ⏳ Awaiting Review |
 | 📦 PR | #24 | [fix: resolve revenue black hole and era transition thresholds](https://github.com/walace-lopes-peng/isp-simulator/pull/24) | ⏳ Awaiting Review |
 
