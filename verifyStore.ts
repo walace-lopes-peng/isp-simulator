@@ -1,32 +1,42 @@
 import { useISPStore } from './src/store/useISPStore';
 
-// Manual simulation since Zustand hooks are usually used in React components
-// However, the core logic is testable through the store object itself
-
 const store = useISPStore.getState();
 
-console.log('Initial State:', store.money, store.nodes);
+console.log('--- Initial State ---');
+console.log('Era:', store.currentEra);
+console.log('Money:', store.money);
+console.log('Nodes:', store.nodes.map(n => n.name));
 
-// simulate a few ticks
-console.log('--- Simulating 5 ticks ---');
-for (let i = 0; i < 5; i++) {
+// 1. Setup a link to core to enable packets
+console.log('\n--- Connecting Node n1 to Core ---');
+useISPStore.getState().connectNodes('n1', '0');
+console.log('Money after connection:', useISPStore.getState().money);
+console.log('Links:', useISPStore.getState().links.length);
+
+// 2. Simulate ticks and watch packets
+console.log('\n--- Simulating 20 ticks (Packet Flow) ---');
+for (let i = 0; i < 20; i++) {
   useISPStore.getState().tick();
-  console.log(`Tick ${i + 1}: Money = ${useISPStore.getState().money}`);
+  const state = useISPStore.getState();
+  const totalPackets = state.nodes.reduce((sum, n) => sum + (n.packets?.length || 0), 0);
+  console.log(`Tick ${i + 1}: Money = ${state.money}, Data = ${state.totalData}, Active Packets = ${totalPackets}`);
+  
+  if (state.logs[0].includes('Packet Handshake')) {
+    console.log('  >> Log:', state.logs[0]);
+  }
 }
 
-// Upgrade node
-console.log('--- Upgrading Core Gateway ---');
-useISPStore.getState().upgradeNode('0');
-console.log('Post-upgrade Money:', useISPStore.getState().money);
-console.log('Post-upgrade Nodes:', useISPStore.getState().nodes);
+// 3. Test Upgrade
+console.log('\n--- Upgrading Computer Lab A ---');
+const prevMoney = useISPStore.getState().money;
+useISPStore.getState().upgradeNode('n1');
+console.log('Money after upgrade:', useISPStore.getState().money, `(Cost: ${prevMoney - useISPStore.getState().money})`);
+console.log('Node n1 Level:', useISPStore.getState().nodes.find(n => n.id === 'n1')?.level);
 
-// Overload node
-console.log('--- Overloading Node ---');
-useISPStore.setState({
-    nodes: [
-        { id: '0', name: 'Core Gateway', bandwidth: 10, traffic: 30, level: 1, layer: 1, x: 400, y: 400 }
-    ]
-});
-console.log('Setting traffic to 30 and bandwidth to 10...');
-useISPStore.getState().tick();
-console.log('Money after overload tick (penalized):', useISPStore.getState().money);
+// 4. Check Era Transition prediction
+console.log('\n--- Current Total Data:', useISPStore.getState().totalData);
+if (useISPStore.getState().totalData > 1000) {
+    console.log('Era should be 90s');
+} else {
+    console.log('Era is still 70s');
+}

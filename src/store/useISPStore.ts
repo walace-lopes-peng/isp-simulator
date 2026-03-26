@@ -2,6 +2,14 @@ import { create } from 'zustand';
 
 export type Era = '70s' | '90s' | 'modern';
 
+export interface Packet {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  isReturn: boolean;
+  progress: number; // 0 to 1
+}
+
 export interface ISPNode {
   id: string;
   name: string;
@@ -12,6 +20,7 @@ export interface ISPNode {
   x: number;
   y: number;
   region?: string;
+  packets?: Packet[];
 }
 
 export interface ISPLink {
@@ -19,14 +28,8 @@ export interface ISPLink {
   sourceId: string;
   targetId: string;
   bandwidth: number;
-  type: 'cable' | 'fiber' | 'satellite';
+  type: 'copper' | 'fiber' | 'satellite';
 }
-
-const ERAS = {
-  '70s': { threshold: 0, next: '90s' as Era },
-  '90s': { threshold: 10000, next: 'modern' as Era },
-  'modern': { threshold: 100000, next: null }
-};
 
 interface ISPStore {
   money: number;
@@ -52,33 +55,25 @@ interface ISPStore {
 }
 
 export const useISPStore = create<ISPStore>((set, get) => ({
-  money: 5000,
-  currentEra: '90s',
+  money: 1000,
+  currentEra: '70s',
   totalData: 0,
   zoomLevel: 10,
   selectedNodeId: null,
   isLinking: false,
-  logs: ['[SYSTEM] Graph Topology Online. Connect nodes to Core to start revenue.'],
+  logs: ['[ERA: 70s] Welcome to the Garage. Build a local network to survive.'],
   links: [],
   nodes: [
-    // Layer 1: Local (Core)
-    { id: '0', name: 'Core Gateway', bandwidth: 100, traffic: 0, level: 1, layer: 1, x: 395, y: 260, region: 'EMEA' },
-    // Layer 2: Regional
-    { id: 'l2-0', name: 'West Coast Hub', bandwidth: 200, traffic: 0, level: 1, layer: 2, x: 110, y: 280, region: 'AMER' },
-    { id: 'l2-1', name: 'East Coast Hub', bandwidth: 200, traffic: 0, level: 1, layer: 2, x: 220, y: 280, region: 'AMER' },
-    // Layer 3: National
-    { id: 'l3-0', name: 'Sampa Hub', bandwidth: 1000, traffic: 0, level: 1, layer: 3, x: 265, y: 590, region: 'AMER' },
-    { id: 'l3-1', name: 'Tokyo Exchange', bandwidth: 1000, traffic: 0, level: 1, layer: 3, x: 715, y: 290, region: 'APAC' },
-    // Layer 4: Global
-    { id: 'l4-0', name: 'Transatlantic Cable', bandwidth: 5000, traffic: 0, level: 1, layer: 4, x: 300, y: 310, region: 'EMEA' },
-    { id: 'l4-1', name: 'Pacific Link', bandwidth: 2000, traffic: 0, level: 1, layer: 4, x: 730, y: 610, region: 'APAC' },
+    { id: '0', name: 'Alumni Core', bandwidth: 56, traffic: 0, level: 1, layer: 1, x: 400, y: 300, region: 'Campus', packets: [] },
+    { id: 'n1', name: 'Computer Lab A', bandwidth: 10, traffic: 0, level: 1, layer: 1, x: 200, y: 150, region: 'Campus', packets: [] },
+    { id: 'n2', name: 'Library Terminal', bandwidth: 10, traffic: 0, level: 1, layer: 1, x: 600, y: 150, region: 'Campus', packets: [] },
   ],
 
   tick: () => {
     set((state) => {
       // 1. BFS for Reachability from Core (ID '0')
-      const core = state.nodes.find(n => n.id === '0');
       const reachableIds = new Set<string>();
+      const core = state.nodes.find(n => n.id === '0');
       
       if (core) {
         const queue = [core.id];
@@ -98,49 +93,61 @@ export const useISPStore = create<ISPStore>((set, get) => ({
         }
       }
 
-      // Check for new disconnections for logging
-      const newlyDisconnected = state.nodes.filter(n => !reachableIds.has(n.id) && n.id !== '0');
-      // Note: We could track previous state to only log when it *becomes* disconnected, 
-      // but for now let's just ensure nodes not reachable are greyed/inactive in UI and yield no revenue.
-
-      // 2. Sim Loop: Node Traffic Drift
-      const updatedNodes = state.nodes.map(node => {
-        if (!reachableIds.has(node.id)) return { ...node, traffic: 0 };
-        const targetScaling = node.layer === 1 ? 0.1 : 0.5;
-        const targetTraffic = node.bandwidth * (targetScaling + Math.random() * 0.3);
-        const drift = (targetTraffic - node.traffic) * 0.15;
-        return { ...node, traffic: Math.max(10, Math.min(node.traffic + drift, node.bandwidth * 1.5)) };
-      });
-
-      // 3. Revenue
-      const activeTier = state.zoomLevel <= 25 ? 1 : state.zoomLevel <= 50 ? 2 : state.zoomLevel <= 75 ? 3 : 4;
-      const activeNodes = updatedNodes.filter(n => n.layer === activeTier && n.layer > 1 && reachableIds.has(n.id));
-      const rawRevenue = activeNodes.reduce((sum, n) => sum + n.traffic, 0);
-      const hasOverload = activeNodes.some(n => n.traffic > n.bandwidth);
-      const revenue = Math.floor(hasOverload ? rawRevenue * 0.4 : rawRevenue * 0.8);
-
-      // 4. Update Stats
-      const totalLoad = updatedNodes.reduce((sum, n) => sum + n.traffic, 0);
-      const newTotalData = state.totalData + totalLoad;
-      let nextEra = state.currentEra;
-      if (newTotalData > 500000) nextEra = 'modern';
-      else if (newTotalData > 50000) nextEra = '90s';
-
       const timestamp = new Date().toLocaleTimeString();
       let newLogs = [...state.logs];
-      
-      // Log newly disconnected nodes (simplified check)
-      updatedNodes.forEach(node => {
-        const wasReachable = state.nodes.find(n => n.id === node.id)?.traffic !== 0 || node.layer === 1; // approximation
-        if (!reachableIds.has(node.id) && wasReachable && node.id !== '0' && Math.random() > 0.9) {
-           newLogs = [`[${timestamp}] ! Node [${node.name}] disconnected from Core`, ...newLogs].slice(0, 20);
+      let revenue = 0;
+      let dataProcessed = 0;
+
+      // 2. Packet Flow Simulation
+      const updatedNodes = state.nodes.map(node => {
+        let nodePackets = node.packets || [];
+        
+        // Generate new requests from non-core nodes
+        if (node.id !== '0' && reachableIds.has(node.id) && Math.random() > 0.7) {
+          nodePackets.push({
+            id: `pkt-${Date.now()}-${Math.random()}`,
+            sourceId: node.id,
+            targetId: '0',
+            isReturn: false,
+            progress: 0
+          });
         }
+
+        // Process existing packets
+        const nextPackets: Packet[] = [];
+        nodePackets.forEach(pkt => {
+          pkt.progress += 0.5; // Each tick moves packet halfway
+
+          if (pkt.progress >= 1) {
+            if (!pkt.isReturn) {
+              // Reached Core -> Return to Source
+              nextPackets.push({ ...pkt, isReturn: true, progress: 0, targetId: pkt.sourceId });
+            } else {
+              // Reached Source -> Complete Journey -> Revenue
+              revenue += node.level * 10;
+              dataProcessed += 1;
+              if (Math.random() > 0.9) {
+                newLogs = [`[${timestamp}] Packet Handshake Complete: +$${node.level * 10}`, ...newLogs].slice(0, 15);
+              }
+            }
+          } else {
+            nextPackets.push(pkt);
+          }
+        });
+
+        // Traffic is a function of active packets
+        const traffic = nextPackets.length * 2;
+        
+        return { ...node, packets: nextPackets, traffic };
       });
 
-      if (revenue > 0 && Math.random() > 0.8) {
-        newLogs = [`[${timestamp}] Revenue: +$${revenue} (Focus: Tier ${activeTier})`, ...newLogs].slice(0, 20);
-      } else if (reachableIds.size === 1 && Math.random() > 0.95) {
-        newLogs = [`[${timestamp}] ! ISOLATED: Fiber connectivity required.`, ...newLogs].slice(0, 20);
+      // 3. Update Stats & Era
+      const newTotalData = state.totalData + dataProcessed;
+      let nextEra = state.currentEra;
+      if (newTotalData > 1000) nextEra = '90s';
+
+      if (nextEra !== state.currentEra) {
+        newLogs = [`[SYSTEM] TECHNOLOGICAL LEAP: Welcome to the ${nextEra}`, ...newLogs].slice(0, 15);
       }
 
       return {
@@ -154,41 +161,37 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   },
 
   connectNodes: (srcId, tgtId) => set((state) => {
-    // Explicit string conversion to prevent number/string mismatch
     const sId = String(srcId);
     const tId = String(tgtId);
-    
-    const src = state.nodes.find(n => String(n.id) === sId);
-    const tgt = state.nodes.find(n => String(n.id) === tId);
-    
-    if (!src || !tgt || sId === tId) return state;
+    if (sId === tId) return state;
+
+    const src = state.nodes.find(n => n.id === sId);
+    const tgt = state.nodes.find(n => n.id === tId);
+    if (!src || !tgt) return state;
 
     if (state.links.some(l => (l.sourceId === sId && l.targetId === tId) || (l.sourceId === tId && l.targetId === sId))) {
-      return { ...state, isLinking: false, logs: [`[ERROR] Redundant link bypassed.`, ...state.logs].slice(0, 15) };
+      return state;
     }
 
     const dist = Math.sqrt(Math.pow(src.x - tgt.x, 2) + Math.pow(src.y - tgt.y, 2));
-    const baseCost = 100;
-    const distanceMultiplier = 1.5;
-    const cost = Math.floor(baseCost + (dist * distanceMultiplier));
-    
+    const cost = Math.floor(50 + dist * 0.5);
+
     if (state.money < cost) {
-      return { ...state, isLinking: false, logs: [`[ERROR] Low credit: $${cost} required.`, ...state.logs].slice(0, 15) };
+      return { ...state, logs: [`[ERROR] Insufficient funds for link (-$${cost})`, ...state.logs].slice(0, 15) };
     }
 
     const newLink: ISPLink = {
       id: `link-${Date.now()}`,
       sourceId: sId,
       targetId: tId,
-      bandwidth: 1000,
-      type: 'fiber'
+      bandwidth: 10,
+      type: 'copper'
     };
 
     return {
       money: state.money - cost,
       links: [...state.links, newLink],
-      isLinking: false,
-      logs: [`[LINK] Established fiber (-$${cost})`, ...state.logs].slice(0, 15)
+      logs: [`[LINK] ${src.name} <-> ${tgt.name} established (-$${cost})`, ...state.logs].slice(0, 15)
     };
   }),
 
@@ -196,12 +199,12 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   upgradeNode: (id) => set((state) => {
     const node = state.nodes.find(n => n.id === id);
     if (!node) return state;
-    const cost = Math.floor(50 * Math.pow(1.15, node.level));
+    const cost = node.level * 100;
     if (state.money < cost) return state;
     return {
       money: state.money - cost,
-      nodes: state.nodes.map(n => n.id === id ? { ...n, level: n.level + 1, bandwidth: Math.floor(n.bandwidth * 1.4) } : n),
-      logs: [`[SUCCESS] ${node.name} optimized to LVL ${node.level + 1}.`, ...state.logs].slice(0, 15)
+      nodes: state.nodes.map(n => n.id === id ? { ...n, level: n.level + 1, bandwidth: n.bandwidth * 2 } : n),
+      logs: [`[UPGRADE] ${node.name} optimized to LVL ${node.level + 1}`, ...state.logs].slice(0, 15)
     };
   }),
   selectNode: (id) => set({ selectedNodeId: id }),
