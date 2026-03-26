@@ -281,16 +281,18 @@ const LogisticMap = () => {
           {links.map(link => {
             const src = nodes.find(n => n.id === link.sourceId);
             const tgt = nodes.find(n => n.id === link.targetId);
-            if (!src || !tgt) return null;
+            
+            // Sync Visibility: A link is only visible if both its nodes are within the current maxTier
+            if (!src || !tgt || src.layer > maxTier || tgt.layer > maxTier) return null;
 
             const load = (tgt.traffic / tgt.bandwidth);
             const strokeColor = getLoadColor(load);
             
-            // REFIX: Ensure links anchor at exact integer coordinates of the node center
-            const x1 = Math.floor(src.x);
-            const y1 = Math.floor(src.y);
-            const x2 = Math.floor(tgt.x);
-            const y2 = Math.floor(tgt.y);
+            // Fix Coordinate Integrity: Remove Math.floor to ensure links anchor exactly at node centers
+            const x1 = src.x;
+            const y1 = src.y;
+            const x2 = tgt.x;
+            const y2 = tgt.y;
 
             const midX = (x1 + x2) / 2;
             const midY = (y1 + y2) / 2;

@@ -11,6 +11,7 @@ export interface ISPNode {
   layer: number; // 1: Local, 2: Regional, 3: National, 4: Global
   x: number;
   y: number;
+  region?: string;
 }
 
 export interface ISPLink {
