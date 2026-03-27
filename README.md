@@ -42,8 +42,8 @@ ISP Simulator is a **state-driven network simulation engine** with a React-based
 
 This repository follows a clean, modular structure. Key systems are isolated in pure functions and connected to the UI via Zustand and custom hooks.
 
-- **[Project Blueprint](PROJECT_BLUEPRINT.md)**: Read our full architectural blueprint, refactoring plan, and coding standards.
-- **[Git Workflow](CONTRIBUTING.md)**: Explore our branch strategies and commit conventions.
+- **[Project Blueprint](docs/blueprint.md)**: Read our full architectural blueprint, refactoring plan, and coding standards.
+- **[Git Workflow](docs/CONTRIBUTING.md)**: Explore our branch strategies and commit conventions.
 
 ### Folder Structure Overview
 - `src/components/`: Reusable, simple UI elements.
