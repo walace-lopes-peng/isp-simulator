@@ -113,10 +113,20 @@ export const useISPStore = create<ISPStore>((set, get) => ({
 
       // 3. Revenue
       const activeTier = state.zoomLevel <= 25 ? 1 : state.zoomLevel <= 50 ? 2 : state.zoomLevel <= 75 ? 3 : 4;
-      const activeNodes = updatedNodes.filter(n => n.layer === activeTier && n.layer > 1 && reachableIds.has(n.id));
-      const rawRevenue = activeNodes.reduce((sum, n) => sum + n.traffic, 0);
-      const hasOverload = activeNodes.some(n => n.traffic > n.bandwidth);
-      const revenue = Math.floor(hasOverload ? rawRevenue * 0.4 : rawRevenue * 0.8);
+
+      const allProfitableNodes = updatedNodes.filter(n => n.layer > 1 && reachableIds.has(n.id));
+
+      const rawRevenue = allProfitableNodes.reduce((sum, n) => {
+        const isFocused = n.layer === activeTier;
+        const multiplier = isFocused ? 0.8 : 0.2; // 80% if focused, 20% passive background
+        const nodeRevenue = n.traffic * multiplier;
+        
+        // Congestion penalty (local to node)
+        const isCongested = n.traffic > n.bandwidth;
+        return sum + (isCongested ? nodeRevenue * 0.5 : nodeRevenue);
+      }, 0);
+
+      const revenue = Math.floor(rawRevenue);
 
       // 4. Update Stats
       const totalLoad = updatedNodes.reduce((sum, n) => sum + n.traffic, 0);
@@ -137,7 +147,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
       });
 
       if (revenue > 0 && Math.random() > 0.8) {
-        newLogs = [`[${timestamp}] Revenue: +$${revenue} (Focus: Tier ${activeTier})`, ...newLogs].slice(0, 20);
+        newLogs = [`[${timestamp}] Revenue: +$${revenue} (Combined Focus)`, ...newLogs].slice(0, 20);
       } else if (reachableIds.size === 1 && Math.random() > 0.95) {
         newLogs = [`[${timestamp}] ! ISOLATED: Fiber connectivity required.`, ...newLogs].slice(0, 20);
       }
