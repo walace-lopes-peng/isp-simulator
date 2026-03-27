@@ -21,11 +21,14 @@ export interface ISPLink {
   type: 'cable' | 'fiber' | 'satellite';
 }
 
-const ERAS = {
-  '70s': { threshold: 0, next: '90s' as Era },
-  '90s': { threshold: 10000, next: 'modern' as Era },
-  'modern': { threshold: 100000, next: null }
-};
+export const RANGE_PRESETS = {
+  1: { name: 'LOCAL', viewBox: '250 150 300 300', tier: 1 },
+  2: { name: 'REGIONAL', viewBox: '50 100 400 300', tier: 2 },
+  3: { name: 'NATIONAL', viewBox: '0 0 800 600', tier: 3 },
+  4: { name: 'GLOBAL', viewBox: '0 0 800 800', tier: 4 },
+} as const;
+
+export type RangeLevel = keyof typeof RANGE_PRESETS;
 
 interface ISPStore {
   money: number;
@@ -34,9 +37,11 @@ interface ISPStore {
   links: ISPLink[];
   totalData: number;
   logs: string[];
-  zoomLevel: number;
+  rangeLevel: RangeLevel;
   selectedNodeId: string | null;
   isLinking: boolean;
+  isGodMode: boolean;
+  tickRate: number;
   
   // Actions
   tick: () => void;
@@ -44,38 +49,41 @@ interface ISPStore {
   addNode: (node: ISPNode) => void;
   setEra: (era: Era) => void;
   addLog: (msg: string, isCritical?: boolean) => void;
-  setZoom: (level: number) => void;
+  setRange: (level: RangeLevel) => void;
   selectNode: (id: string | null) => void;
   connectNodes: (sourceId: string, targetId: string) => void;
   toggleLinking: () => void;
+  
+  // Debug Actions
+  addMoney: (amount: number) => void;
+  resetTopology: () => void;
+  toggleGodMode: () => void;
+  setTickRate: (rate: number) => void;
 }
 
 export const useISPStore = create<ISPStore>((set, get) => ({
   money: 5000,
   currentEra: 'modern',
   totalData: 0,
-  zoomLevel: 10,
+  rangeLevel: 1,
   selectedNodeId: null,
   isLinking: false,
+  isGodMode: false,
+  tickRate: 1000,
   logs: ['[SYSTEM] Graph Topology Online. Connect nodes to Core to start revenue.'],
   links: [],
   nodes: [
-    // Layer 1: Local (Core)
-    { id: '0', name: 'Core Gateway', bandwidth: 100, traffic: 0, level: 1, layer: 1, x: 395, y: 260, region: 'EMEA' },
-    // Layer 2: Regional
-    { id: 'l2-0', name: 'West Coast Hub', bandwidth: 200, traffic: 0, level: 1, layer: 2, x: 110, y: 280, region: 'AMER' },
-    { id: 'l2-1', name: 'East Coast Hub', bandwidth: 200, traffic: 0, level: 1, layer: 2, x: 220, y: 280, region: 'AMER' },
-    // Layer 3: National
-    { id: 'l3-0', name: 'Sampa Hub', bandwidth: 1000, traffic: 0, level: 1, layer: 3, x: 265, y: 590, region: 'AMER' },
-    { id: 'l3-1', name: 'Tokyo Exchange', bandwidth: 1000, traffic: 0, level: 1, layer: 3, x: 715, y: 290, region: 'APAC' },
-    // Layer 4: Global
-    { id: 'l4-0', name: 'Transatlantic Cable', bandwidth: 5000, traffic: 0, level: 1, layer: 4, x: 300, y: 310, region: 'EMEA' },
-    { id: 'l4-1', name: 'Pacific Link', bandwidth: 2000, traffic: 0, level: 1, layer: 4, x: 730, y: 610, region: 'APAC' },
+    { id: '0', name: 'Core Gateway', bandwidth: 100, traffic: 0, level: 1, layer: 1, x: 395, y: 260 },
+    { id: 'l2-0', name: 'West Coast Hub', bandwidth: 200, traffic: 0, level: 1, layer: 2, x: 110, y: 280 },
+    { id: 'l2-1', name: 'East Coast Hub', bandwidth: 200, traffic: 0, level: 1, layer: 2, x: 220, y: 280 },
+    { id: 'l3-0', name: 'Sampa Hub', bandwidth: 1000, traffic: 0, level: 1, layer: 3, x: 265, y: 590 },
+    { id: 'l3-1', name: 'Tokyo Exchange', bandwidth: 1000, traffic: 0, level: 1, layer: 3, x: 715, y: 290 },
+    { id: 'l4-0', name: 'Transatlantic Cable', bandwidth: 5000, traffic: 0, level: 1, layer: 4, x: 300, y: 310 },
+    { id: 'l4-1', name: 'Pacific Link', bandwidth: 2000, traffic: 0, level: 1, layer: 4, x: 730, y: 610 },
   ],
 
   tick: () => {
     set((state) => {
-      // 1. BFS for Reachability from Core (ID '0')
       const core = state.nodes.find(n => n.id === '0');
       const reachableIds = new Set<string>();
       
@@ -97,12 +105,6 @@ export const useISPStore = create<ISPStore>((set, get) => ({
         }
       }
 
-      // Check for new disconnections for logging
-      const newlyDisconnected = state.nodes.filter(n => !reachableIds.has(n.id) && n.id !== '0');
-      // Note: We could track previous state to only log when it *becomes* disconnected, 
-      // but for now let's just ensure nodes not reachable are greyed/inactive in UI and yield no revenue.
-
-      // 2. Sim Loop: Node Traffic Drift
       const updatedNodes = state.nodes.map(node => {
         if (!reachableIds.has(node.id)) return { ...node, traffic: 0 };
         const targetScaling = node.layer === 1 ? 0.1 : 0.5;
@@ -111,24 +113,20 @@ export const useISPStore = create<ISPStore>((set, get) => ({
         return { ...node, traffic: Math.max(10, Math.min(node.traffic + drift, node.bandwidth * 1.5)) };
       });
 
-      // 3. Revenue
-      const activeTier = state.zoomLevel <= 25 ? 1 : state.zoomLevel <= 50 ? 2 : state.zoomLevel <= 75 ? 3 : 4;
-
+      // 3. Revenue (Hybrid Formula from Issue #2)
+      const activeTier = state.rangeLevel;
       const allProfitableNodes = updatedNodes.filter(n => n.layer > 1 && reachableIds.has(n.id));
 
       const rawRevenue = allProfitableNodes.reduce((sum, n) => {
         const isFocused = n.layer === activeTier;
         const multiplier = isFocused ? 0.8 : 0.2; // 80% if focused, 20% passive background
         const nodeRevenue = n.traffic * multiplier;
-        
-        // Congestion penalty (local to node)
         const isCongested = n.traffic > n.bandwidth;
         return sum + (isCongested ? nodeRevenue * 0.5 : nodeRevenue);
       }, 0);
 
       const revenue = Math.floor(rawRevenue);
 
-      // 4. Update Stats
       const totalLoad = updatedNodes.reduce((sum, n) => sum + n.traffic, 0);
       const newTotalData = state.totalData + totalLoad;
       let nextEra = state.currentEra;
@@ -138,18 +136,8 @@ export const useISPStore = create<ISPStore>((set, get) => ({
       const timestamp = new Date().toLocaleTimeString();
       let newLogs = [...state.logs];
       
-      // Log newly disconnected nodes (simplified check)
-      updatedNodes.forEach(node => {
-        const wasReachable = state.nodes.find(n => n.id === node.id)?.traffic !== 0 || node.layer === 1; // approximation
-        if (!reachableIds.has(node.id) && wasReachable && node.id !== '0' && Math.random() > 0.9) {
-           newLogs = [`[${timestamp}] ! Node [${node.name}] disconnected from Core`, ...newLogs].slice(0, 20);
-        }
-      });
-
       if (revenue > 0 && Math.random() > 0.8) {
         newLogs = [`[${timestamp}] Revenue: +$${revenue} (Combined Focus)`, ...newLogs].slice(0, 20);
-      } else if (reachableIds.size === 1 && Math.random() > 0.95) {
-        newLogs = [`[${timestamp}] ! ISOLATED: Fiber connectivity required.`, ...newLogs].slice(0, 20);
       }
 
       return {
@@ -163,41 +151,28 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   },
 
   connectNodes: (srcId, tgtId) => set((state) => {
-    // Explicit string conversion to prevent number/string mismatch
     const sId = String(srcId);
     const tId = String(tgtId);
-    
+    if (state.links.some(l => (l.sourceId === sId && l.targetId === tId) || (l.sourceId === tId && l.targetId === sId))) return state;
+
     const src = state.nodes.find(n => String(n.id) === sId);
     const tgt = state.nodes.find(n => String(n.id) === tId);
-    
     if (!src || !tgt || sId === tId) return state;
 
-    if (state.links.some(l => (l.sourceId === sId && l.targetId === tId) || (l.sourceId === tId && l.targetId === sId))) {
-      return { ...state, isLinking: false, logs: [`[ERROR] Redundant link bypassed.`, ...state.logs].slice(0, 15) };
-    }
-
     const dist = Math.sqrt(Math.pow(src.x - tgt.x, 2) + Math.pow(src.y - tgt.y, 2));
-    const baseCost = 100;
-    const distanceMultiplier = 1.5;
-    const cost = Math.floor(baseCost + (dist * distanceMultiplier));
+    const cost = Math.floor(100 + (dist * 1.5));
     
-    if (state.money < cost) {
+    if (!state.isGodMode && state.money < cost) {
       return { ...state, isLinking: false, logs: [`[ERROR] Low credit: $${cost} required.`, ...state.logs].slice(0, 15) };
     }
 
-    const newLink: ISPLink = {
-      id: `link-${Date.now()}`,
-      sourceId: sId,
-      targetId: tId,
-      bandwidth: 1000,
-      type: 'fiber'
-    };
+    const newLink: ISPLink = { id: `link-${Date.now()}`, sourceId: sId, targetId: tId, bandwidth: 1000, type: 'fiber' };
 
     return {
-      money: state.money - cost,
+      money: state.isGodMode ? state.money : state.money - cost,
       links: [...state.links, newLink],
       isLinking: false,
-      logs: [`[LINK] Established fiber (-$${cost})`, ...state.logs].slice(0, 15)
+      logs: [`[LINK] Established fiber (${state.isGodMode ? 'FREE' : `-$${cost}`})`, ...state.logs].slice(0, 15)
     };
   }),
 
@@ -206,18 +181,33 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     const node = state.nodes.find(n => n.id === id);
     if (!node) return state;
     const cost = Math.floor(50 * Math.pow(1.15, node.level));
-    if (state.money < cost) return state;
+    if (!state.isGodMode && state.money < cost) return state;
     return {
-      money: state.money - cost,
+      money: state.isGodMode ? state.money : state.money - cost,
       nodes: state.nodes.map(n => n.id === id ? { ...n, level: n.level + 1, bandwidth: Math.floor(n.bandwidth * 1.4) } : n),
-      logs: [`[SUCCESS] ${node.name} optimized to LVL ${node.level + 1}.`, ...state.logs].slice(0, 15)
+      logs: [`[SUCCESS] ${node.name} optimized (LVL ${node.level + 1}).`, ...state.logs].slice(0, 15)
     };
   }),
   selectNode: (id) => set({ selectedNodeId: id }),
-  setZoom: (level) => set({ zoomLevel: level }),
+  setRange: (level) => set({ rangeLevel: level }),
   addLog: (msg, isCritical = false) => set((state) => ({
     logs: [`[${new Date().toLocaleTimeString()}] ${isCritical ? '!!! ' : ''}${msg}`, ...state.logs].slice(0, 20)
   })),
   addNode: (node) => set((state) => ({ nodes: [...state.nodes, node] })),
   setEra: (era) => set({ currentEra: era }),
+  addMoney: (amount) => set((state) => ({ money: state.money + amount })),
+  toggleGodMode: () => set((state) => ({ isGodMode: !state.isGodMode })),
+  setTickRate: (rate) => set({ tickRate: rate }),
+  resetTopology: () => set((state) => ({
+    links: [],
+    nodes: [
+      { id: '0', name: 'Core Gateway', bandwidth: 100, traffic: 0, level: 1, layer: 1, x: 395, y: 260 },
+      { id: 'l2-0', name: 'West Coast Hub', bandwidth: 200, traffic: 0, level: 1, layer: 2, x: 110, y: 280 },
+      { id: 'l2-1', name: 'East Coast Hub', bandwidth: 200, traffic: 0, level: 1, layer: 2, x: 220, y: 280 },
+      { id: 'l3-0', name: 'Sampa Hub', bandwidth: 1000, traffic: 0, level: 1, layer: 3, x: 265, y: 590 },
+      { id: 'l3-1', name: 'Tokyo Exchange', bandwidth: 1000, traffic: 0, level: 1, layer: 3, x: 715, y: 290 },
+      { id: 'l4-0', name: 'Transatlantic Cable', bandwidth: 5000, traffic: 0, level: 1, layer: 4, x: 300, y: 310 },
+      { id: 'l4-1', name: 'Pacific Link', bandwidth: 2000, traffic: 0, level: 1, layer: 4, x: 730, y: 610 },
+    ]
+  })),
 }));
