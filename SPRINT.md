@@ -17,7 +17,13 @@
 | 📌 Issue | #3 | [[Bug] [Visual] Nodes Detached from Perspective Geometry](https://github.com/walace-lopes-peng/isp-simulator/issues/3) | `fix`, `P1-high`, `v1-blocker`, `ui-3d`, `ai-agent` |
 | 📌 Issue | #1 | [feat: implement intelligent project management workflows & AI agent skills](https://github.com/walace-lopes-peng/isp-simulator/issues/1) | `documentation`, `feature`, `workflow`, `architecture`, `feat`, `docs`, `v1-blocker`, `config`, `needs-review` |
 
-## 🏗️ Phase 1: The Kernel
+## 🏗️ Phase 1: The Kernel (Strategic Roadmap Alignment)
+
+| Type | #ID | Task/PR Title | Status/Problem |
+| :--- | :--- | :--- | :--- |
+| 📌 Issue | #MK1 | [North Star Milestone 1] Sync de Estado: LEP/PoP Support | `roadmap`, `v1-blocker` |
+| 📌 Issue | #MK2 | [North Star Milestone 2] Asset Swapping: Local/Global SVG | `roadmap`, `ui` |
+| 📌 Issue | #MK3 | [North Star Milestone 3] Engine de Hazards: Heat/Noise Loop | `roadmap`, `simulation` |
 
 | Type | #ID | Task/PR Title | Status/Problem |
 | :--- | :--- | :--- | :--- |
