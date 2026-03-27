@@ -1,4 +1,4 @@
-# 🗺️ PROJECT_BLUEPRINT: ISP Tycoon (The Living Doc - v1.3)
+# 🗺️ PROJECT_BLUEPRINT: ISP Tycoon (The Living Doc - v1.4)
 
 ## 1. Visão Geral (The North Star)
 O jogo é um simulador de infraestrutura histórica. O jogador começa em uma garagem (anos 70) e deve evoluir tecnologicamente até gerenciar o backbone da internet global (Moderno). O foco não é 'clicar', mas gerenciar Topologia vs. Demanda.
@@ -33,41 +33,48 @@ Substituir a receita estática por Entrega de Pacotes (Packet-Flow):
 - **Hardware**: Fibra óptica de Terabit, Starlink.
 - **Desafio**: Ataques DDoS, latência transcontinental e manutenção de custos globais.
 
-## 4. O Motor de Cenários (Modular Engine)
-O sistema deve suportar 'Cenários' que sobrescrevem o Blueprint original:
-- **Guerra Fria**: EUA vs URSS. Mudança de idioma (Cirílico), UI militar e mecânicas de sabotagem/espionagem.
-- **Marte 2050**: Colonização espacial com latência de 20 minutos por pacote.
+## 4. 🌳 Hierarquia de Infraestructura (Infrastructure Hierarchy)
+A simulação impõe uma topologia em camadas (Layered Hierarchy):
+- **Terminal (Tier 0)**: Nós de usuário final. Conectam-se apenas a **LEP**.
+- **LEP (Tier 1 - Local Exchange Point)**: Hubs locais. Conectam Terminais a **PoPs**.
+- **PoP (Tier 2 - Point of Presence)**: Agregadores regionais. Conectam LEPs a **Gateways**.
+- **Tier-1 Gateway (Tier 3-4)**: Backbone global. Capaz de estabelecer links transcontinentais.
 
-## 5. Mapeamento de Milestones (Project Board)
-Alinhado com a automação do [sync-board.js](file:///c:/Users/walac/Documents/Projetos/ISP%20Game/scripts/sync-board.js), o projeto segue este fluxo de prioridade:
+*Regra de Ouro: Links diretos que saltam mais de 1 nível de hierarquia são proibidos por custo e latência prohibitivos.*
 
-1.  **🎯 Strategic Core**: Mudanças no Blueprint ou Visão North Star.
-2.  **🚨 Critical Path**: Blockers técnicos (P0) e bugs impeditivos.
-3.  **🏗️ Phase 1: The Kernel**: Lógica central, `useISPStore`, algoritmos de topologia.
-4.  **🏠 Phase 2: The Garage**: UI/UX, Imersão (VFX/SFX), Shader de CRT.
-5.  **📌 Future Expansion**: Novas eras, multiplayer, sistemas avançados.
+## 5. Fórmulas de Negócio (Imutáveis)
 
-Consulte o [ROADMAP.md](file:///c:/Users/walac/Documents/Projetos/ISP%20Game/ROADMAP.md) para detalhes cronológicos.
+### A. Cálculo de Receita (Hybrid Revenue)
+A receita é calculada por nó ativo (Layer > 1):
+- **Tier Focada (Zoom)**: Receita base * 0.8.
+- **Tiers em Background**: Receita base * 0.2.
+- **Penalidade de Congestionamento**: Se `traffic > bandwidth`, a receita do nó é reduzida significativamente.
 
-## 6. Arquitetura de Software (The Onion)
-Construímos de dentro para fora para garantir estabilidade funcional:
+### B. Upgrade de Nó
+O custo de upgrade segue uma curva exponencial:
+- `Cost = 50 * (1.15 ^ level)`
+- Upgrade aumenta o `bandwidth` em 40% (`* 1.4`).
+
+### C. Conexão de Nós (Links)
+O custo de conexão baseado em distância:
+- `Cost = 100 + (Distance * 1.5)`
+
+## 6. Regras de Topologia & Estabilidade
+1. **Core Connectivity**: Nenhum nó gera receita se não estiver conectado (direta ou indiretamente) ao **Core Gateway (ID: '0')**.
+2. **Network Health (Survival)**:
+   - `Health = (Capacidade - Tráfego) - Penalidades de Hazard.`
+   - Se `Health < 50%`, multiplicador de receita = `0.5x`.
+3. **Hazards**: 'Signal Noise' (70s), 'Thermal Load' (90s) e 'Latency' (Moderno) impactam o `Health` global.
+
+## 7. Arquitetura de Software (The Onion)
 - **Camada 1: Store (Core Logic)**: Zustand as SSoT. Toda a matemática de tráfego e economia.
-- **Camada 2: Simulation**: Handlers de eventos, timers e o loop de `tick()`.
-- **Camada 3: UI Layer (React)**: Projeções visuais do estado. Componentes puros de visualização.
-- **Camada 4: Immersion**: Shaders, Áudio Procedural, Overlays estéticos.
+- **Camada 2: Simulation**: Handlers de eventos e o loop de `tick()`.
+- **Camada 3: UI Layer (React)**: Projeções visuais do estado.
+- **Camada 4: Immersion**: Shaders, Áudio, Overlays estéticos.
 
-Mais detalhes em [ARCHITECTURE.md](file:///c:/Users/walac/Documents/Projetos/ISP%20Game/ARCHITECTURE.md).
-
-## 7. Filosofia de Design (Retro-Cyberpunk)
-O ISP Tycoon não é apenas um tycoon; é uma ferramenta de "arqueologia técnica".
-- **Realismo Estético**: Se é 1995, a barra de progresso deve parecer do Win95.
-- **UX Reativa**: Todo link deve "respirar" de acordo com a carga de dados.
-- **Feedback Híbrido**: Misturar visualização moderna de dados com interfaces obsoletas.
-
-## 8. Regras Técnicas (Guardrails)
+## 8. Governança Técnica (Guardrails)
 - **Zustand First**: Proibido lógica de negócio em componentes.
-- **No Static Magic**: Constantes devem ser descentralizadas no `ERA_CONFIGS`.
-- **Coordinate Integrity**: Usar coordenadas absolutas para garantir consistência no zoom.
+- **Coordinate Integrity**: Usar coordenadas absolutas para consistência no zoom.
 - **Documentation First**: Mudanças arquiteturais exigem atualização deste Blueprint.
 
 ---
