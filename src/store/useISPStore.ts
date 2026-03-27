@@ -1,16 +1,21 @@
 import { create } from 'zustand';
 
 export type Era = '70s' | '90s' | 'modern';
+export type RangeLevel = 1 | 2 | 3 | 4;
+export type ISPNodeType = 'terminal' | 'hub_local' | 'hub_regional' | 'backbone';
 
 export interface ISPNode {
   id: string;
   name: string;
+  x: number;
+  y: number;
   bandwidth: number;
   traffic: number;
   level: number;
   layer: number; // 1: Local, 2: Regional, 3: National, 4: Global
-  x: number;
-  y: number;
+  type: ISPNodeType;
+  health: number; // 0-100
+  hazard?: 'noise' | 'heat' | 'congestion' | 'latency';
 }
 
 export interface ISPLink {
@@ -28,8 +33,6 @@ export const RANGE_PRESETS = {
   4: { name: 'GLOBAL', viewBox: '0 0 800 800', tier: 4 },
 } as const;
 
-export type RangeLevel = keyof typeof RANGE_PRESETS;
-
 interface ISPStore {
   money: number;
   currentEra: Era;
@@ -42,6 +45,7 @@ interface ISPStore {
   isLinking: boolean;
   isGodMode: boolean;
   tickRate: number;
+  networkHealth: number;
   
   // Actions
   tick: () => void;
@@ -63,28 +67,27 @@ interface ISPStore {
 
 export const useISPStore = create<ISPStore>((set, get) => ({
   money: 5000,
-  currentEra: 'modern',
   totalData: 0,
-  rangeLevel: 1,
+  nodes: [
+    { id: '0', name: 'CORE GATEWAY', x: 350, y: 350, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'backbone', health: 100 },
+    { id: '1', name: 'EAST COAST HUB', x: 280, y: 520, bandwidth: 100, traffic: 0, level: 1, layer: 2, type: 'hub_regional', health: 100 },
+    { id: '2', name: 'WEST COAST HUB', x: 15, y: 520, bandwidth: 100, traffic: 0, level: 1, layer: 2, type: 'hub_regional', health: 100 },
+  ],
+  links: [],
   selectedNodeId: null,
   isLinking: false,
-  isGodMode: false,
+  rangeLevel: 1,
+  currentEra: 'modern',
   tickRate: 1000,
-  logs: ['[SYSTEM] Graph Topology Online. Connect nodes to Core to start revenue.'],
-  links: [],
-  nodes: [
-    { id: '0', name: 'Core Gateway', bandwidth: 100, traffic: 0, level: 1, layer: 1, x: 395, y: 260 },
-    { id: 'l2-0', name: 'West Coast Hub', bandwidth: 200, traffic: 0, level: 1, layer: 2, x: 110, y: 280 },
-    { id: 'l2-1', name: 'East Coast Hub', bandwidth: 200, traffic: 0, level: 1, layer: 2, x: 220, y: 280 },
-    { id: 'l3-0', name: 'Sampa Hub', bandwidth: 1000, traffic: 0, level: 1, layer: 3, x: 265, y: 590 },
-    { id: 'l3-1', name: 'Tokyo Exchange', bandwidth: 1000, traffic: 0, level: 1, layer: 3, x: 715, y: 290 },
-    { id: 'l4-0', name: 'Transatlantic Cable', bandwidth: 5000, traffic: 0, level: 1, layer: 4, x: 300, y: 310 },
-    { id: 'l4-1', name: 'Pacific Link', bandwidth: 2000, traffic: 0, level: 1, layer: 4, x: 730, y: 610 },
-  ],
+  logs: ["Graph Topology Online. Connect nodes to Core to start revenue."],
+  isGodMode: false,
+  networkHealth: 100,
 
   tick: () => {
     set((state) => {
-      const core = state.nodes.find(n => n.id === '0');
+      const { nodes, links, rangeLevel, money, totalData, isGodMode, addLog } = get();
+
+      const core = nodes.find(n => n.id === '0');
       const reachableIds = new Set<string>();
       
       if (core) {
@@ -92,7 +95,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
         reachableIds.add(core.id);
         while (queue.length > 0) {
           const currentId = queue.shift()!;
-          const neighbors = state.links
+          const neighbors = links
             .filter(l => l.sourceId === currentId || l.targetId === currentId)
             .map(l => l.sourceId === currentId ? l.targetId : l.sourceId);
           
@@ -105,7 +108,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
         }
       }
 
-      const updatedNodes = state.nodes.map(node => {
+      const trafficUpdatedNodes = nodes.map(node => {
         if (!reachableIds.has(node.id)) return { ...node, traffic: 0 };
         const targetScaling = node.layer === 1 ? 0.1 : 0.5;
         const targetTraffic = node.bandwidth * (targetScaling + Math.random() * 0.3);
@@ -113,22 +116,47 @@ export const useISPStore = create<ISPStore>((set, get) => ({
         return { ...node, traffic: Math.max(10, Math.min(node.traffic + drift, node.bandwidth * 1.5)) };
       });
 
-      // 3. Revenue (Hybrid Formula from Issue #2)
-      const activeTier = state.rangeLevel;
-      const allProfitableNodes = updatedNodes.filter(n => n.layer > 1 && reachableIds.has(n.id));
+      // --- SURVIVAL ENGINE: HAZARDS & HEALTH ---
+      let healthSum = 0;
+      const updatedNodes = trafficUpdatedNodes.map(node => {
+        let nodeHealth = 100;
+        let activeHazard: ISPNode['hazard'] = undefined;
 
-      const rawRevenue = allProfitableNodes.reduce((sum, n) => {
-        const isFocused = n.layer === activeTier;
-        const multiplier = isFocused ? 0.8 : 0.2; // 80% if focused, 20% passive background
-        const nodeRevenue = n.traffic * multiplier;
-        const isCongested = n.traffic > n.bandwidth;
-        return sum + (isCongested ? nodeRevenue * 0.5 : nodeRevenue);
+        // 1. Noise Hazard (Distance/Layer)
+        if (node.layer >= 3) { // Regional/National
+            const load = node.traffic / node.bandwidth;
+            if (load > 0.8) {
+                nodeHealth -= (load - 0.8) * 100;
+                activeHazard = 'congestion';
+            }
+        }
+
+        // 2. Thermal Hazard (Regional Focus)
+        if (rangeLevel === 2 && node.layer === 2) {
+            nodeHealth -= 5; // Passive heat
+            activeHazard = 'heat';
+        }
+
+        const finalHealth = Math.max(0, nodeHealth);
+        healthSum += finalHealth;
+        return { ...node, health: finalHealth, hazard: activeHazard };
+      });
+
+      const avgHealth = updatedNodes.length > 0 ? healthSum / updatedNodes.length : 100;
+      const healthMultiplier = avgHealth < 50 ? 0.5 : 1.0;
+
+      // --- REVENUE CALCULATION ---
+      const totalRevenue = updatedNodes.reduce((acc, node) => {
+        if (node.id === '0' || node.traffic === 0) return acc;
+        
+        const isFocused = node.layer === rangeLevel;
+        const efficiency = isFocused ? 0.8 : 0.2;
+        const nodeRevenue = (node.traffic * 0.1) * efficiency * healthMultiplier;
+        
+        return acc + nodeRevenue;
       }, 0);
 
-      const revenue = Math.floor(rawRevenue);
-
-      const totalLoad = updatedNodes.reduce((sum, n) => sum + n.traffic, 0);
-      const newTotalData = state.totalData + totalLoad;
+      const newTotalData = totalData + updatedNodes.reduce((s, n) => s + n.traffic, 0);
       let nextEra = state.currentEra;
       if (newTotalData > 500000) nextEra = 'modern';
       else if (newTotalData > 50000) nextEra = '90s';
@@ -136,14 +164,15 @@ export const useISPStore = create<ISPStore>((set, get) => ({
       const timestamp = new Date().toLocaleTimeString();
       let newLogs = [...state.logs];
       
-      if (revenue > 0 && Math.random() > 0.8) {
-        newLogs = [`[${timestamp}] Revenue: +$${revenue} (Combined Focus)`, ...newLogs].slice(0, 20);
+      if (totalRevenue > 0 && Math.random() > 0.8) {
+        newLogs = [`[${timestamp}] Revenue: +$${Math.floor(totalRevenue)} (Combined Focus)`, ...newLogs].slice(0, 20);
       }
 
-      return {
+      return { 
         nodes: updatedNodes,
-        money: state.money + revenue,
+        money: money + (isGodMode ? 0 : totalRevenue),
         totalData: newTotalData,
+        networkHealth: avgHealth,
         currentEra: nextEra,
         logs: newLogs
       };
@@ -151,18 +180,36 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   },
 
   connectNodes: (srcId, tgtId) => set((state) => {
+    const { nodes, links, isGodMode, addLog } = get();
     const sId = String(srcId);
     const tId = String(tgtId);
-    if (state.links.some(l => (l.sourceId === sId && l.targetId === tId) || (l.sourceId === tId && l.targetId === sId))) return state;
+    if (links.some(l => (l.sourceId === sId && l.targetId === tId) || (l.sourceId === tId && l.targetId === sId))) return state;
 
-    const src = state.nodes.find(n => String(n.id) === sId);
-    const tgt = state.nodes.find(n => String(n.id) === tId);
-    if (!src || !tgt || sId === tId) return state;
+    const source = nodes.find(n => String(n.id) === sId);
+    const target = nodes.find(n => String(n.id) === tId);
+    if (!source || !target || sId === tId) return state;
 
-    const dist = Math.sqrt(Math.pow(src.x - tgt.x, 2) + Math.pow(src.y - tgt.y, 2));
+    // Hierarchy Validation
+    const hierarchy = {
+        'terminal': 0,
+        'hub_local': 1,
+        'hub_regional': 2,
+        'backbone': 3
+    };
+
+    const diff = Math.abs(hierarchy[source.type] - hierarchy[target.type]);
+    const isPeer = source.type === target.type && source.type !== 'terminal';
+    const isParentChild = diff === 1;
+
+    if (!isPeer && !isParentChild && !isGodMode) {
+        addLog(`INCOMPATIBLE HIERARCHY: ${source.type} cannot link to ${target.type}`, true);
+        return { ...state, isLinking: false };
+    }
+
+    const dist = Math.sqrt(Math.pow(source.x - target.x, 2) + Math.pow(source.y - target.y, 2));
     const cost = Math.floor(100 + (dist * 1.5));
     
-    if (!state.isGodMode && state.money < cost) {
+    if (!isGodMode && state.money < cost) {
       return { ...state, isLinking: false, logs: [`[ERROR] Low credit: $${cost} required.`, ...state.logs].slice(0, 15) };
     }
 
@@ -201,13 +248,9 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   resetTopology: () => set((state) => ({
     links: [],
     nodes: [
-      { id: '0', name: 'Core Gateway', bandwidth: 100, traffic: 0, level: 1, layer: 1, x: 395, y: 260 },
-      { id: 'l2-0', name: 'West Coast Hub', bandwidth: 200, traffic: 0, level: 1, layer: 2, x: 110, y: 280 },
-      { id: 'l2-1', name: 'East Coast Hub', bandwidth: 200, traffic: 0, level: 1, layer: 2, x: 220, y: 280 },
-      { id: 'l3-0', name: 'Sampa Hub', bandwidth: 1000, traffic: 0, level: 1, layer: 3, x: 265, y: 590 },
-      { id: 'l3-1', name: 'Tokyo Exchange', bandwidth: 1000, traffic: 0, level: 1, layer: 3, x: 715, y: 290 },
-      { id: 'l4-0', name: 'Transatlantic Cable', bandwidth: 5000, traffic: 0, level: 1, layer: 4, x: 300, y: 310 },
-      { id: 'l4-1', name: 'Pacific Link', bandwidth: 2000, traffic: 0, level: 1, layer: 4, x: 730, y: 610 },
+      { id: '0', name: 'CORE GATEWAY', x: 350, y: 350, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'backbone', health: 100 },
+      { id: '1', name: 'EAST COAST HUB', x: 280, y: 520, bandwidth: 100, traffic: 0, level: 1, layer: 2, type: 'hub_regional', health: 100 },
+      { id: '2', name: 'WEST COAST HUB', x: 15, y: 520, bandwidth: 100, traffic: 0, level: 1, layer: 2, type: 'hub_regional', health: 100 },
     ]
   })),
 }));

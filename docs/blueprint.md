@@ -79,3 +79,14 @@ Once the architectural refactor is complete, we will focus on these gameplay fea
 2. **Node Connections (Cables):** Allow players to explicitly buy connections between nodes to route traffic.
 3. **Data Flow Animations:** Enhance the SVG map with moving particles along the flow lines.
 4. **Scaling System & Events:** Introduce random events (fiber cuts, DDOS attacks) and technology research.
+
+---
+
+## 6. 🌳 Infrastructure Hierarchy
+The simulation enforces a strict hierarchical topology:
+- **Terminal**: End-user nodes (Residential/Commercial).
+- **LEP (Local Exchange Point)**: Tier 1 Hub. Mandatory for terminal connectivity.
+- **PoP (Point of Presence)**: Tier 2 Regional Hub. Aggregates multiple LEPs.
+- **Tier-1 Gateway**: Tier 3/4 Global Backbone. Only node capable of trans-oceanic peering.
+
+*Note: Linking nodes across non-adjacent tiers (e.g., Terminal directly to Gateway) is prohibited by the simulation engine.*

@@ -5,13 +5,14 @@ import DebugConsole from './components/DebugConsole';
 // --- NEW UI PANELS ---
 
 const TopBar = () => {
-  const { money, currentEra, totalData, nodes } = useISPStore();
+  const { money, currentEra, totalData, nodes, networkHealth } = useISPStore();
   const traffic = nodes.reduce((sum, n) => sum + n.traffic, 0);
   const bandwidth = nodes.reduce((sum, n) => sum + n.bandwidth, 0);
   const loadRatio = traffic / bandwidth;
   
   const status = loadRatio >= 1.0 ? 'CRITICAL' : loadRatio > 0.8 ? 'STRESSED' : 'STABLE';
   const statusColor = loadRatio >= 1.0 ? 'text-red-500' : loadRatio > 0.8 ? 'text-amber-500' : 'text-emerald-500';
+  const healthColor = networkHealth < 50 ? 'text-red-500' : networkHealth < 80 ? 'text-amber-400' : 'text-emerald-400';
 
   return (
     <div className={`h-14 w-full flex items-center justify-between px-6 border-b border-white/10 ${currentEra === '90s' ? 'win95-outset' : 'bg-black/40 backdrop-blur-md'} fixed top-0 z-50 glass-panel`}>
@@ -29,6 +30,16 @@ const TopBar = () => {
           <div>
             <span className="text-[9px] text-slate-500 uppercase font-bold block">Total Data</span>
             <span className="text-sm font-mono text-slate-200">{Math.floor(totalData / 100).toLocaleString()} GB</span>
+          </div>
+          <div className="h-8 w-px bg-white/5 mx-2" />
+          <div className="flex flex-col">
+            <span className="text-[9px] text-slate-500 uppercase font-bold block">Network Health</span>
+            <div className="flex items-center gap-2">
+              <span className={`text-sm font-mono font-bold ${healthColor}`}>{Math.floor(networkHealth)}%</span>
+              <div className="w-16 h-1 bg-white/10 rounded-full overflow-hidden">
+                <div className={`h-full ${networkHealth < 50 ? 'bg-red-500 shadow-[0_0_5px_red]' : 'bg-emerald-500'} transition-all duration-1000`} style={{ width: `${networkHealth}%` }} />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -69,14 +80,24 @@ const Sidebar = () => {
       <div className="flex justify-between items-start mb-6">
         <div>
           <h2 className="text-[10px] font-black text-emerald-500 uppercase tracking-tighter mb-1">{node.name}</h2>
-          <span className={`text-[8px] font-mono uppercase ${isReachable ? 'text-emerald-500' : 'text-red-500 animate-pulse'}`}>
-            {isReachable ? 'CONNECTED // ONLINE' : 'ISOLATED // NO_SIGNAL'}
-          </span>
+          <div className="flex gap-2 items-center">
+            <span className={`text-[8px] font-mono uppercase ${isReachable ? 'text-emerald-500' : 'text-red-500 animate-pulse'}`}>
+              {isReachable ? 'CONNECTED // ONLINE' : 'ISOLATED // NO_SIGNAL'}
+            </span>
+            <span className="text-[7px] bg-white/10 px-1 py-0.5 rounded text-slate-400 font-mono tracking-tighter">{node.type}</span>
+          </div>
         </div>
         <button onClick={() => { selectNode(null); if (isLinking) toggleLinking(); }} className="text-slate-600 hover:text-white text-xs">×</button>
       </div>
 
       <div className="space-y-6 flex-1">
+        {node.hazard && (
+          <div className="bg-red-500/10 border border-red-500/30 p-2 rounded animate-pulse">
+            <span className="text-[8px] font-black text-red-500 uppercase tracking-widest block">⚠ CRITICAL_HAZARD</span>
+            <p className="text-[9px] text-red-400 font-mono italic">{node.hazard.toUpperCase()}_DETECTED</p>
+          </div>
+        )}
+        
         <div>
           <div className="flex justify-between mb-1">
             <span className="text-[9px] text-slate-400 uppercase font-bold tracking-tighter">Throughput</span>
@@ -185,6 +206,13 @@ const LogisticMap = () => {
         }
 
         if (money >= cost) {
+            const nodeTypeLookup: Record<RangeLevel, any> = {
+                1: 'hub_local',
+                2: 'hub_regional',
+                3: 'backbone',
+                4: 'backbone'
+            };
+
             const newNode = {
                 id: `node-${Date.now()}`,
                 name: `New Hub ${nodes.length}`,
@@ -192,11 +220,13 @@ const LogisticMap = () => {
                 traffic: 0,
                 level: 1,
                 layer: maxTier,
+                type: nodeTypeLookup[rangeLevel as RangeLevel],
+                health: 100,
                 x: Math.round(svgP.x),
                 y: Math.round(svgP.y)
             };
             addNode(newNode);
-            addLog(`Built new node at [${newNode.x}, ${newNode.y}]`, false);
+            addLog(`Built ${newNode.type} at [${newNode.x}, ${newNode.y}]`, false);
         } else {
             addLog(`Insufficient funds to build new node ($${cost} required)`, true);
         }
