@@ -7,12 +7,8 @@ These rules ensure architectural integrity and professional repository managemen
 - **Implementation Plan**: Before modifying code, create an `implementation_plan.md` and wait for user approval (LGTM).
 
 ## 2. Core Architecture (Strict)
-- **SSoT (Single Source of Truth)**: ALL simulation logic, economic math, and state transitions MUST reside3. **Execution (Phase-based)**
-   - **Phase 1: State Definition**: Open `src/store/useISPStore.ts` and update interfaces and initial states.
-   - **Phase 2: Actions & Logic**: Implement the Zustand actions and logic (e.g., BFS updates) before touching the UI.
-   - **Phase 3: Visuals**: Wire the state to the UI components using Tailwind tokens.
-   - **Phase 4: Theme Audit**: Verify the feature honors the era-specific container classes.
-venue, latency, or traffic inside a `.tsx` file.
+- **SSoT (Single Source of Truth)**: ALL simulation logic, economic math, and state transitions MUST reside in `src/store/useISPStore.ts`.
+- **Dumb Components**: React components should be purely visual. Do NOT calculate revenue, latency, or traffic inside a `.tsx` file.
 - **Era Consistency**: Use dynamic Tailwind classes for styling. Use `.theme-70s`, `.theme-90s`, and `.theme-modern` class names applied at the root container. Never hardcode colors that are not theme-aware.
 - **BFS Integrity**: Any change to the topology or traffic must maintain the BFS reachability algorithm in the `tick()` loop. If the `LogisticMap` breaks (e.g., blank screen), revert the logic to the last working snapshot.
 
