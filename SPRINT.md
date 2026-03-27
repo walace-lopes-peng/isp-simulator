@@ -1,6 +1,6 @@
 # 🏃 SPRINT BOARD
 
-> Last updated: Fri, 27 Mar 2026 01:30:03 GMT (UTC)
+> Last updated: Fri, 27 Mar 2026 01:41:00 GMT (UTC)
 
 ## 🚨 Critical Path (Blockers)
 
@@ -15,7 +15,6 @@
 | 📌 Issue | #9 | [[Bug] Node Interaction & Positioning Glitches](https://github.com/walace-lopes-peng/isp-simulator/issues/9) | `fix`, `P1-high`, `v1-blocker`, `ui-3d`, `ai-agent` |
 | 📌 Issue | #8 | [[Bug] Responsive Design: Scale Issues on Desktop & Mobile](https://github.com/walace-lopes-peng/isp-simulator/issues/8) | `fix`, `P1-high`, `v1-blocker`, `ui-theme`, `ai-agent` |
 | 📌 Issue | #3 | [[Bug] [Visual] Nodes Detached from Perspective Geometry](https://github.com/walace-lopes-peng/isp-simulator/issues/3) | `fix`, `P1-high`, `v1-blocker`, `ui-3d`, `ai-agent` |
-| 📌 Issue | #1 | [feat: implement intelligent project management workflows & AI agent skills](https://github.com/walace-lopes-peng/isp-simulator/issues/1) | `documentation`, `feature`, `workflow`, `architecture`, `feat`, `docs`, `v1-blocker`, `config`, `needs-review` |
 
 ## 🏗️ Phase 1: The Kernel
 
@@ -50,6 +49,7 @@
 
 | Type | #ID | Task/PR Title | Status/Problem |
 | :--- | :--- | :--- | :--- |
+| 📦 PR | #63 | [feat: Discrete Map Navigation (Snap ViewBox) #60](https://github.com/walace-lopes-peng/isp-simulator/pull/63) | ⏳ Awaiting Review |
 | 📦 PR | #62 | [fix: resolve Revenue Black Hole at Layer 1 focus #2](https://github.com/walace-lopes-peng/isp-simulator/pull/62) | ⏳ Awaiting Review |
 | 📦 PR | #59 | [feat: implement Developer Debug Suite (Cheat Menu) #44](https://github.com/walace-lopes-peng/isp-simulator/pull/59) | ⏳ Awaiting Review |
 | 📦 PR | #58 | [feat: harden state kernel with OPEX and refined simulation logic](https://github.com/walace-lopes-peng/isp-simulator/pull/58) | ⏳ Awaiting Review |
