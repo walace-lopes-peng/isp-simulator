@@ -42,8 +42,8 @@ ISP Simulator is a **state-driven network simulation engine** with a React-based
 
 This repository follows a clean, modular structure. Key systems are isolated in pure functions and connected to the UI via Zustand and custom hooks.
 
-- **[Project Blueprint](.gemini/antigravity/brain/a4bb2621-873e-44f9-a349-d9aff5436f00/project_blueprint.md)**: Read our full architectural blueprint, refactoring plan, and coding standards.
-- **[Git Workflow](.gemini/antigravity/brain/a4bb2621-873e-44f9-a349-d9aff5436f00/git_workflow.md)**: Explore our branch strategies and commit conventions.
+- **[Project Blueprint](docs/blueprint.md)**: Read our full architectural blueprint, refactoring plan, and coding standards.
+- **[Git Workflow](docs/workflow.md)**: Explore our branch strategies and commit conventions.
 
 ### Folder Structure Overview
 - `src/components/`: Reusable, simple UI elements.
