@@ -378,13 +378,15 @@ const LogisticMap = () => {
   );
 };
 
+import DebugConsole from './components/DebugConsole';
+
 const App = () => {
-  const { tick, currentEra } = useISPStore();
+  const { tick, currentEra, tickRate } = useISPStore();
 
   useEffect(() => {
-    const timer = setInterval(() => tick(), 1000);
+    const timer = setInterval(() => tick(), tickRate);
     return () => clearInterval(timer);
-  }, [tick]);
+  }, [tick, tickRate]);
 
   return (
     <div className={`theme-${currentEra} h-screen flex flex-col bg-slate-950 text-slate-200 font-sans selection:bg-emerald-500/30 overflow-hidden`}>
@@ -406,6 +408,8 @@ const App = () => {
             ))}
         </div>
       </footer>
+
+      {import.meta.env.DEV && <DebugConsole />}
     </div>
   );
 };
