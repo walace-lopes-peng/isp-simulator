@@ -11,6 +11,11 @@ on:
     types: [submitted]
   workflow_dispatch:
 
+# Previne condições de corrida em commits simultâneos no mesmo branch/PR
+concurrency:
+  group: board-sync-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -22,6 +27,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -41,5 +48,7 @@ jobs:
           git add SPRINT.md
           if ! git diff --staged --quiet; then
             git commit -m "chore: auto-update SPRINT.md"
+            # Sincroniza com as mudanças remotas antes de empurrar para evitar [rejected]
+            git pull --rebase origin ${{ github.event.pull_request.head.ref || github.ref_name }}
             git push origin HEAD:${{ github.event.pull_request.head.ref || github.ref_name }}
           fi
