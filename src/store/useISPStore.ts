@@ -112,13 +112,22 @@ export const useISPStore = create<ISPStore>((set, get) => ({
         return { ...node, traffic: Math.max(10, Math.min(node.traffic + drift, node.bandwidth * 1.5)) };
       });
 
-      // 3. Revenue (FIXED #2): Cumulative from all connected hubs (layer > 1)
-      const activeNodes = updatedNodes.filter(n => n.layer > 1 && reachableIds.has(n.id));
-      const rawRevenue = activeNodes.reduce((sum, n) => sum + n.traffic, 0);
-      const hasOverload = activeNodes.some(n => n.traffic > n.bandwidth);
-      const revenue = Math.floor(hasOverload ? rawRevenue * 0.4 : rawRevenue * 0.8);
+      // 3. Revenue (Unified Logic): Hybrid Model (80/20) + Localized Congestion
+      const activeTier = state.zoomLevel <= 25 ? 1 : state.zoomLevel <= 50 ? 2 : state.zoomLevel <= 75 ? 3 : 4;
+      const allProfitableNodes = updatedNodes.filter(n => n.layer > 1 && reachableIds.has(n.id));
 
-      // 4. Stats & Era Transition (FIXED #4)
+      const rawRevenue = allProfitableNodes.reduce((sum, n) => {
+        const isFocused = n.layer === activeTier;
+        const multiplier = isFocused ? 0.8 : 0.2; // 80% focus, 20% background
+        const nodeRevenue = n.traffic * multiplier;
+        
+        const isCongested = n.traffic > n.bandwidth;
+        return sum + (isCongested ? nodeRevenue * 0.5 : nodeRevenue);
+      }, 0);
+
+      const revenue = Math.floor(rawRevenue);
+
+      // 4. Stats & Era Transition (Stable)
       const totalLoad = updatedNodes.reduce((sum, n) => sum + n.traffic, 0);
       const newTotalData = state.totalData + totalLoad;
       
@@ -129,16 +138,16 @@ export const useISPStore = create<ISPStore>((set, get) => ({
       const timestamp = new Date().toLocaleTimeString();
       let newLogs = [...state.logs];
       
-      // Log newly disconnected nodes (simplified check)
+      // Log newly disconnected nodes
       updatedNodes.forEach(node => {
-        const wasReachable = state.nodes.find(n => n.id === node.id)?.traffic !== 0 || node.layer === 1; // approximation
+        const wasReachable = state.nodes.find(n => n.id === node.id)?.traffic !== 0 || node.layer === 1;
         if (!reachableIds.has(node.id) && wasReachable && node.id !== '0' && Math.random() > 0.9) {
            newLogs = [`[${timestamp}] ! Node [${node.name}] disconnected from Core`, ...newLogs].slice(0, 20);
         }
       });
 
       if (revenue > 0 && Math.random() > 0.8) {
-        newLogs = [`[${timestamp}] Revenue: +$${revenue} (${activeNodes.length} Hubs Active)`, ...newLogs].slice(0, 20);
+        newLogs = [`[${timestamp}] Revenue: +$${revenue} (Combined Focus)`, ...newLogs].slice(0, 20);
       } else if (reachableIds.size === 1 && Math.random() > 0.95) {
         newLogs = [`[${timestamp}] ! ISOLATED: Fiber connectivity required.`, ...newLogs].slice(0, 20);
       }
