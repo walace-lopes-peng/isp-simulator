@@ -72,11 +72,23 @@ async function getPRReviewStatus(prNumber) {
 
 async function run() {
   try {
-    await handleAutoClosing();
+    console.log(`Starting Board Sync for ${REPO}...`);
+    if (!GITHUB_TOKEN) throw new Error("GITHUB_TOKEN is missing");
+    if (!REPO) throw new Error("GITHUB_REPOSITORY is missing");
+
+    try {
+      await handleAutoClosing();
+    } catch (autoCloseError) {
+      console.error('Non-critical error in handleAutoClosing:', autoCloseError.message);
+    }
+
     console.log(`Fetching issues and PRs for ${REPO}...`);
-    
-    // Fetch all open items (GitHub includes both issues and PRs in this API)
     const items = await fetchAll('/issues?state=open&per_page=100');
+    
+    if (!Array.isArray(items)) {
+      console.error('Unexpected response from GitHub API (not an array):', items);
+      throw new Error('GitHub API did not return an array of issues');
+    }
     
     // Smart Priority Sync: Weight calculation
     items.forEach(item => {
