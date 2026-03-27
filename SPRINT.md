@@ -1,6 +1,6 @@
 # 🏃 SPRINT BOARD
 
-> Last updated: Fri, 27 Mar 2026 01:18:22 GMT (UTC)
+> Last updated: Fri, 27 Mar 2026 01:27:43 GMT (UTC)
 
 ## 🚨 Critical Path (Blockers)
 
@@ -50,6 +50,7 @@
 
 | Type | #ID | Task/PR Title | Status/Problem |
 | :--- | :--- | :--- | :--- |
+| 📦 PR | #62 | [fix: resolve Revenue Black Hole at Layer 1 focus #2](https://github.com/walace-lopes-peng/isp-simulator/pull/62) | ⏳ Awaiting Review |
 | 📦 PR | #59 | [feat: implement Developer Debug Suite (Cheat Menu) #44](https://github.com/walace-lopes-peng/isp-simulator/pull/59) | ⏳ Awaiting Review |
 | 📦 PR | #58 | [feat: harden state kernel with OPEX and refined simulation logic](https://github.com/walace-lopes-peng/isp-simulator/pull/58) | ⏳ Awaiting Review |
 | 📦 PR | #25 | [chore: implement formal project governance and PR standards](https://github.com/walace-lopes-peng/isp-simulator/pull/25) | ⏳ Awaiting Review |
