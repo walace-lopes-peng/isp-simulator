@@ -18,6 +18,51 @@ async function fetchAll(path) {
   return response.json();
 }
 
+async function closeIssue(issueNumber) {
+  console.log(`Closing Issue #${issueNumber}...`);
+  const response = await fetch(`${API_URL}/issues/${issueNumber}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `token ${GITHUB_TOKEN}`,
+      Accept: 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json',
+      'User-Agent': 'ISP-Simulator-Bot'
+    },
+    body: JSON.stringify({ state: 'closed' }),
+  });
+  if (!response.ok) {
+    console.error(`Failed to close issue #${issueNumber}: ${response.statusText}`);
+  } else {
+    console.log(`Issue #${issueNumber} closed successfully.`);
+  }
+}
+
+async function handleAutoClosing() {
+  const eventPath = process.env.GITHUB_EVENT_PATH;
+  if (!eventPath) return;
+
+  const event = JSON.parse(fs.readFileSync(eventPath, 'utf8'));
+  
+  // Only trigger on merged pull requests
+  if (event.action === 'closed' && event.pull_request && event.pull_request.merged) {
+    const body = event.pull_request.body || "";
+    const issueRegex = /(?:close|closes|fixes|fix|resolve|resolves)\s+#(\d+)/gi;
+    let match;
+    const closedIssues = new Set();
+
+    while ((match = issueRegex.exec(body)) !== null) {
+      closedIssues.add(match[1]);
+    }
+
+    if (closedIssues.size > 0) {
+      console.log(`Detected PR merge with issue closing keywords. Processing: ${Array.from(closedIssues).join(', ')}`);
+      for (const issueId of closedIssues) {
+        await closeIssue(issueId);
+      }
+    }
+  }
+}
+
 async function getPRReviewStatus(prNumber) {
   const reviews = await fetchAll(`/pulls/${prNumber}/reviews`);
   if (reviews.some(r => r.state === 'CHANGES_REQUESTED')) return 'BLOCKED';
@@ -27,6 +72,7 @@ async function getPRReviewStatus(prNumber) {
 
 async function run() {
   try {
+    await handleAutoClosing();
     console.log(`Fetching issues and PRs for ${REPO}...`);
     
     // Fetch all open items (GitHub includes both issues and PRs in this API)
