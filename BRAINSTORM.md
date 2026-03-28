@@ -47,6 +47,18 @@ Ao avaliar a lista abaixo, o processo de graduação deve usar a seguinte matriz
   * **Complexidade**: Média de implementação na Engine.
   * **Status**: 🟢 Livre
 
+* **[ID-B07] Revenue Model Diversification (Contracts & Liquidity)**
+  * **Conceito**: Escolha estratégica entre Fluxo de Caixa (Lump Sum) e Sustentabilidade (Recurring Revenue).
+  * **Ideias para Geração de Revenue**:
+    1. Assinatura (SLA-Based MRR)
+    2. Taxa de Instalação (Setup Fee)
+    3. Subsídios Governamentais (Era 70/80)
+    4. Acordos de Trânsito IP (Tier-1 Peering)
+  * **Impacto**: Alto. Define a capacidade de expansão agressiva vs. sobrevivência a longo prazo.
+  * **Complexidade**: Média. Requer balanceamento de juros compostos e inflação por era.
+  * **Status**: 🟢 Livre
+
+
 ---
 
 ## ⚠️ Pilar: Crises e Incidentes
@@ -61,4 +73,19 @@ Ao avaliar a lista abaixo, o processo de graduação deve usar a seguinte matriz
   * **Conceito**: Rompimento físico imediato de uma rota vital devido a fatores externos simulados: Âncoras e terremotos (Cabos Marítimos) ou obras civis (Áreas Urbanas densas). Força roteamento BGP ou reparo técnico urgente via OPEX.
   * **Impacto**: Médio na UI, Alto no balanço.
   * **Complexidade**: Baixa (apenas evento pseudoaleatório no TICK que seta `capacity` do link para 0).
+  * **Status**: 🟢 Livre
+
+---
+
+## ⏳ Pilar: Gestão de Tempo e Progressão
+
+* **[ID-B08] Time Control & Historical Ticking**
+  * **Conceito**: Sistema de controle de velocidade (Pause, 1x, 2x, 4x) com mapeamento de Ticks para datas históricas.
+  * **Características**:
+    1. Escala de Tempo Dupla (Ticks vs. Calendário e Pausa Ativa)
+    2. Tick de Simulação Assíncrono (Simplificação gráfica em 4x)
+    3. Eventos Históricos Discretos (Gatilhos de Era baseados em data)
+    4. Gestão de "Backlog de Trabalho" (Ações de construção levam tempo de calendário)
+  * **Impacto**: Alto. Essencial para gerenciamento de crises e planejamento logarítmico.
+  * **Complexidade**: Média. Requer sincronização entre animações de pacotes e o relógio da UI.
   * **Status**: 🟢 Livre
