@@ -17,6 +17,9 @@ export interface ISPNode {
   health: number; // 0-100
   hazard?: 'noise' | 'heat' | 'congestion' | 'latency';
   region?: string;
+  // Week 2 Physics
+  latency?: number;
+  signalStrength?: number;
 }
 
 export interface ISPLink {
@@ -47,7 +50,12 @@ interface ISPStore {
   isGodMode: boolean;
   tickRate: number;
   networkHealth: number;
+  avgLatency: number;
   
+  // Simulation Worker
+  worker: Worker | null;
+  initWorker: () => void;
+
   // Actions
   tick: () => void;
   upgradeNode: (id: string) => void;
@@ -83,133 +91,57 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   selectedNodeId: null,
   isLinking: false,
   rangeLevel: 1,
-  tickRate: 1000,
+  tickRate: 16,
   logs: ['[SYSTEM] Graph Topology Online. Connect nodes to Core to start revenue.'],
   isGodMode: false,
   networkHealth: 100,
+  avgLatency: 0,
 
-  tick: () => {
-    set((state) => {
-      // 1. BFS for Reachability from Core (ID '0')
-      const core = state.nodes.find(n => n.id === '0');
-      const reachableIds = new Set<string>();
+  worker: null,
+  initWorker: () => {
+    if (get().worker) return;
+    const worker = new Worker(new URL('../systems/SimulationWorker.ts', import.meta.url));
+    
+    worker.onmessage = (e) => {
+      const { nodes, revenue, totalMaintenanceCost, totalLoad, networkHealth, avgLatency } = e.data;
+      const state = get();
       
-      if (core) {
-        const queue = [core.id];
-        reachableIds.add(core.id);
-        while (queue.length > 0) {
-          const currentId = queue.shift()!;
-          const neighbors = state.links
-            .filter(l => l.sourceId === currentId || l.targetId === currentId)
-            .map(l => l.sourceId === currentId ? l.targetId : l.sourceId);
-          
-          for (const neighborId of neighbors) {
-            if (!reachableIds.has(neighborId)) {
-              reachableIds.add(neighborId);
-              queue.push(neighborId);
-            }
-          }
-        }
+      let recoveredMoney = state.money;
+      if (state.money < -100 && !state.isGodMode) {
+          recoveredMoney = 5000;
+          set({ logs: [`[SYSTEM_RECOVERY] Resetting capital for Week 2 stability.`, ...state.logs].slice(0, 20) });
       }
 
-      // 2. Sim Loop: Node Traffic and OPEX calculations
-      let totalMaintenanceCost = 0;
-      let healthSum = 0;
-      
-      const updatedNodes = state.nodes.map(node => {
-        // --- OPEX Logic (dev) ---
-        const baseCost = node.layer === 1 ? 50 : node.layer === 2 ? 20 : node.layer === 3 ? 10 : 5;
-        totalMaintenanceCost += Math.floor(baseCost * Math.pow(1.1, node.level - 1));
-
-        if (!reachableIds.has(node.id)) return { ...node, traffic: 0, health: 100, hazard: undefined };
-
-        // --- Traffic Drift (dev) ---
-        const targetScaling = node.layer === 1 ? 0.1 : 0.5;
-        const targetTraffic = node.bandwidth * (targetScaling + Math.random() * 0.3);
-        const drift = (targetTraffic - node.traffic) * 0.15;
-        const finalTraffic = Math.max(10, Math.min(node.traffic + drift, node.bandwidth * 1.5));
-
-        // --- Survival Engine: Hazards & Health (HEAD) ---
-        let nodeHealth = 100;
-        let activeHazard: ISPNode['hazard'] = undefined;
-        const loadRatio = finalTraffic / node.bandwidth;
-
-        if (loadRatio > 0.8) {
-            nodeHealth -= (loadRatio - 0.8) * 100;
-            activeHazard = 'congestion';
-        }
-
-        if (state.rangeLevel === 2 && node.layer === 2) {
-            nodeHealth -= 5; // Passive heat in Regional view
-            activeHazard = 'heat';
-        }
-
-        const finalHealth = Math.round(Math.max(0, nodeHealth));
-        healthSum += finalHealth;
-
-        return { 
-          ...node, 
-          traffic: finalTraffic, 
-          health: finalHealth, 
-          hazard: activeHazard 
-        };
-      });
-
-      // 3. Link OPEX (dev)
-      totalMaintenanceCost += state.links.length * 5;
-
-      // 4. Revenue (Restored Tier Focus logic using discrete rangeLevel)
-      const avgHealth = updatedNodes.length > 0 ? healthSum / updatedNodes.length : 100;
-      const healthMultiplier = avgHealth < 50 ? 0.5 : 1.0;
-      
-      const activeTier = state.rangeLevel;
-      const profitableNodes = updatedNodes.filter(n => n.layer > 1 && reachableIds.has(n.id));
-
-      const rawRevenue = profitableNodes.reduce((sum, n) => {
-        const isFocused = n.layer === activeTier;
-        const efficiency = isFocused ? 0.8 : 0.2; // 80% focus, 20% background
-        const nodeRevenue = n.traffic * efficiency * healthMultiplier;
-        
-        const isCongested = n.traffic > n.bandwidth;
-        return sum + (isCongested ? nodeRevenue * 0.5 : nodeRevenue);
-      }, 0);
-
-      const revenue = Math.floor(rawRevenue);
-
-      // 5. Stats & Era Transition
-      const totalLoad = updatedNodes.reduce((sum, n) => sum + n.traffic, 0);
       const newTotalData = state.totalData + Math.floor(totalLoad / 10);
-      
       let nextEra = state.currentEra;
       const eraThresholds = { '90s': 50000, 'modern': 500000 };
       if (newTotalData > eraThresholds.modern) nextEra = 'modern';
       else if (newTotalData > eraThresholds['90s']) nextEra = '90s';
 
-      const timestamp = new Date().toLocaleTimeString();
-      let newLogs = [...state.logs];
-      
-      // 6. Node Disconnection Alerts (dev)
-      updatedNodes.forEach(node => {
-        const wasReachable = state.nodes.find(n => n.id === node.id)?.traffic !== 0 || node.layer === 1;
-        if (!reachableIds.has(node.id) && wasReachable && node.id !== '0' && Math.random() > 0.9) {
-           newLogs = [`[${timestamp}] ! Node [${node.name}] disconnected from Core`, ...newLogs].slice(0, 20);
-        }
-      });
-
-      // 7. Logs for revenue/OPEX (dev)
-      if (revenue > 0 && Math.random() > 0.8) {
-        newLogs = [`[${timestamp}] Revenue: +$${revenue} (Focus: ${RANGE_PRESETS[state.rangeLevel].name}) | OPEX: -$${totalMaintenanceCost}`, ...newLogs].slice(0, 20);
+      if (revenue > 0 && Math.random() > 0.98) {
+        set({ logs: [`[SYS_SYNC] REV: +$${revenue} | OPEX: -$${totalMaintenanceCost} | AVG_LATENCY: ${avgLatency}ms`, ...state.logs].slice(0, 20) });
       }
 
-      return {
-        nodes: updatedNodes,
-        money: state.isGodMode ? state.money : state.money + revenue - totalMaintenanceCost,
+      set({ 
+        nodes, 
+        money: state.isGodMode ? state.money : (recoveredMoney + revenue - totalMaintenanceCost), 
         totalData: newTotalData,
-        networkHealth: Math.round(avgHealth),
-        currentEra: nextEra,
-        logs: newLogs
-      };
-    });
+        networkHealth,
+        avgLatency,
+        currentEra: nextEra
+      });
+    };
+    
+    set({ worker });
+  },
+
+  tick: () => {
+    const { worker, nodes, links, rangeLevel, tickRate, initWorker } = get();
+    if (!worker) {
+        initWorker();
+        return;
+    }
+    worker.postMessage({ nodes, links, rangeLevel, tickRate });
   },
 
   connectNodes: (srcId, tgtId) => set((state) => {
@@ -225,11 +157,9 @@ export const useISPStore = create<ISPStore>((set, get) => ({
       return { ...state, isLinking: false, logs: [`[ERROR] Redundant link bypassed.`, ...state.logs].slice(0, 15) };
     }
 
-    // Hierarchy Validation (HEAD)
     const hierarchy = {
       'terminal': 0, 'hub_local': 1, 'hub_regional': 2, 'backbone': 3
     };
-    // Note: If type is missing (dev migration), we assume backbone for core or hub_regional for others
     const getHierarchy = (node: ISPNode) => hierarchy[node.type] ?? (node.id === '0' ? 3 : 2);
     
     const diff = Math.abs(getHierarchy(src) - getHierarchy(tgt));
@@ -241,9 +171,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     }
 
     const dist = Math.sqrt(Math.pow(src.x - tgt.x, 2) + Math.pow(src.y - tgt.y, 2));
-    const baseCost = 100;
-    const distanceMultiplier = 1.5;
-    const cost = Math.floor(baseCost + (dist * distanceMultiplier));
+    const cost = Math.floor(100 + (dist * 1.5));
     
     if (!state.isGodMode && state.money < cost) {
       return { ...state, isLinking: false, logs: [`[ERROR] Low credit: $${cost} required.`, ...state.logs].slice(0, 15) };
@@ -261,7 +189,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
       money: state.isGodMode ? state.money : state.money - cost,
       links: [...state.links, newLink],
       isLinking: false,
-      logs: [`[LINK] Established fiber (${state.isGodMode ? 'FREE' : `-$${cost}`})`, ...state.logs].slice(0, 15)
+      logs: [`SYS_INIT: NEW_FIBER_LINK [ID: ${newLink.id.slice(-4)}] [LATENCY_PENALTY: ${Math.round(dist/10)}ms]`, ...state.logs].slice(0, 15)
     };
   }),
 
@@ -274,7 +202,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     return {
       money: state.isGodMode ? state.money : state.money - cost,
       nodes: state.nodes.map(n => n.id === id ? { ...n, level: n.level + 1, bandwidth: Math.floor(n.bandwidth * 1.4) } : n),
-      logs: [`[SUCCESS] ${node.name} optimized (LVL ${node.level + 1}).`, ...state.logs].slice(0, 15)
+      logs: [`SYS_UPGRADE: ${node.name} [BANDWIDTH_BOOST: +40%] [COST: $${cost}]`, ...state.logs].slice(0, 15)
     };
   }),
   selectNode: (id) => set({ selectedNodeId: id }),

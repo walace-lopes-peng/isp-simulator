@@ -5,7 +5,7 @@ import DebugConsole from './components/DebugConsole';
 // --- NEW UI PANELS ---
 
 const TopBar = () => {
-  const { money, currentEra, totalData, nodes, networkHealth } = useISPStore();
+  const { money, currentEra, totalData, nodes, networkHealth, avgLatency } = useISPStore();
   const traffic = nodes.reduce((sum, n) => sum + n.traffic, 0);
   const bandwidth = nodes.reduce((sum, n) => sum + n.bandwidth, 0);
   const loadRatio = traffic / bandwidth;
@@ -24,16 +24,20 @@ const TopBar = () => {
         <div className="h-8 w-px bg-white/5" />
         <div className="flex gap-6 items-center">
           <div>
-            <span className="text-[9px] text-slate-500 uppercase font-bold block">Available Capital</span>
+            <span className="text-[9px] text-slate-500 uppercase font-bold block tracking-tighter">Available Capital</span>
             <span className="text-sm font-mono text-emerald-400 font-bold">${money.toLocaleString()}</span>
           </div>
           <div>
-            <span className="text-[9px] text-slate-500 uppercase font-bold block">Total Data</span>
-            <span className="text-sm font-mono text-slate-200">{Math.floor(totalData / 100).toLocaleString()} GB</span>
+            <span className="text-[9px] text-slate-500 uppercase font-bold block tracking-tighter">Total Data</span>
+            <span className="text-sm font-mono text-slate-200">{Math.floor(totalData).toLocaleString()} GB</span>
+          </div>
+          <div className="flex flex-col border-l border-white/5 pl-4">
+            <span className="text-[9px] text-slate-500 uppercase font-bold block tracking-tighter">Net Latency</span>
+            <span className={`text-sm font-mono font-bold ${avgLatency > 150 ? 'text-orange-400' : 'text-emerald-400'}`}>{avgLatency}ms</span>
           </div>
           <div className="h-8 w-px bg-white/5 mx-2" />
           <div className="flex flex-col">
-            <span className="text-[9px] text-slate-500 uppercase font-bold block">Network Health</span>
+            <span className="text-[9px] text-slate-500 uppercase font-bold block tracking-tighter">Network Health</span>
             <div className="flex items-center gap-2">
               <span className={`text-sm font-mono font-bold ${healthColor}`}>{Math.floor(networkHealth)}%</span>
               <div className="w-16 h-1 bg-white/10 rounded-full overflow-hidden">
@@ -46,7 +50,7 @@ const TopBar = () => {
       
       <div className="flex items-center gap-6">
         <div className="text-right">
-          <span className="text-[9px] text-slate-500 uppercase font-bold block">Network Status</span>
+          <span className="text-[9px] text-slate-500 uppercase font-bold block tracking-tighter">Network Status</span>
           <span className={`text-[10px] font-black tracking-tighter ${statusColor}`}>{status} // {(loadRatio * 100).toFixed(0)}% LOAD</span>
         </div>
         <div className="px-3 py-1 bg-white/5 border border-white/10 rounded">
@@ -105,6 +109,17 @@ const Sidebar = () => {
           </div>
           <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
             <div className={`h-full ${loadColor} transition-all duration-300`} style={{ width: `${Math.min(100, load * 100)}%` }} />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-white/5 p-2 rounded border border-white/5">
+            <span className="text-[8px] text-slate-500 uppercase font-bold block tracking-tighter">Latency</span>
+            <span className="text-[10px] font-mono text-emerald-100">{node.latency ?? 0}ms</span>
+          </div>
+          <div className="bg-white/5 p-2 rounded border border-white/5">
+            <span className="text-[8px] text-slate-500 uppercase font-bold block tracking-tighter">Signal</span>
+            <span className="text-[10px] font-mono text-blue-300">{node.signalStrength ?? 100}%</span>
           </div>
         </div>
 
