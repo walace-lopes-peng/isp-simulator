@@ -268,7 +268,9 @@ const LogisticMap = () => {
                 type: nodeTypeLookup[rangeLevel as RangeLevel],
                 health: 100,
                 x: Math.round(svgP.x),
-                y: Math.round(svgP.y)
+                y: Math.round(svgP.y),
+                scale: 'global' as const,
+                parentId: null
             };
             addNode(newNode);
             addLog(`Built ${newNode.type} at [${newNode.x}, ${newNode.y}]`, false);

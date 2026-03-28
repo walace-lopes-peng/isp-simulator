@@ -1,0 +1,10 @@
+88	OPEN	[UX] Contextual Map Switcher (The "Scroll" Logic)	feat, P1-high	2026-03-28T21:38:47Z
+87	OPEN	[FEAT] Local Construction Mechanics (The "Last Mile")	feat, P1-high	2026-03-28T21:38:45Z
+86	OPEN	[LOGIC] The "Demand Cell" Heatmap Engine	feat, P1-high	2026-03-28T21:38:44Z
+85	OPEN	[ARCH] Hierarchical Node State & Coordinate Bridge	feat, P1-high	2026-03-28T21:38:42Z
+83	OPEN	[LOGIC] Signal Decay & Dynamic Packet Loss Engine		2026-03-28T17:15:54Z
+82	OPEN	[LOGIC] Signal Decay & Dynamic Packet Loss Engine		2026-03-28T17:07:44Z
+81	OPEN	[ARCH] Tech Tree & Era-Constants Framework		2026-03-28T17:15:53Z
+80	OPEN	[LOGIC] Signal Decay & Dynamic Packet Loss Engine		2026-03-28T17:06:11Z
+79	OPEN	[ARCH] Tech Tree & Era-Constants Framework		2026-03-28T17:06:09Z
+78	OPEN	[UX] Polishing Drag-and-Drop Linking System		2026-03-28T17:15:51Z

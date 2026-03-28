@@ -27,11 +27,21 @@ interface ISPLink {
   type: string;
 }
 
+interface EraConfig {
+  id: string;
+  modifiers: {
+    signalAttenuation: number;
+    revenueMultiplier: number;
+    maintenanceCost: number;
+  };
+}
+
 interface WorkerState {
   nodes: ISPNode[];
   links: ISPLink[];
   rangeLevel: number;
   tickRate: number;
+  era: EraConfig;
 }
 
 // Simple Min-Priority Queue for Dijkstra
@@ -46,9 +56,9 @@ class MinHeap {
 }
 
 self.onmessage = (e: MessageEvent<WorkerState>) => {
-  const { nodes, links, rangeLevel, tickRate } = e.data;
+  const { nodes, links, rangeLevel, tickRate, era } = e.data;
   const dT = tickRate / 1000;
-  const K_ATTENUATION = 0.002; // Attenuation constant for copper (70s)
+  const K_ATTENUATION = era.modifiers.signalAttenuation; // Issue #77: Dynamic physics modifier
 
   // 1. Dijkstra Pathfinding (Path of Least Resistance)
   const dists: Record<string, number> = {};
