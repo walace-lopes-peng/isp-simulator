@@ -32,6 +32,7 @@ interface WorkerState {
   links: ISPLink[];
   rangeLevel: number;
   tickRate: number;
+  demandGrid: any[];
 }
 
 // Simple Min-Priority Queue for Dijkstra
@@ -46,7 +47,7 @@ class MinHeap {
 }
 
 self.onmessage = (e: MessageEvent<WorkerState>) => {
-  const { nodes, links, rangeLevel, tickRate } = e.data;
+  const { nodes, links, rangeLevel, tickRate, demandGrid } = e.data;
   const dT = tickRate / 1000;
   const K_ATTENUATION = 0.002; // Attenuation constant for copper (70s)
 
@@ -101,6 +102,33 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
     }
   }
 
+  // 1.5 Spatial Demand Matrix Processing
+  const nodeTrafficMap: Record<string, number> = {};
+  const nodeRevenueMap: Record<string, number> = {};
+  const COVERAGE_RADIUS = 150;
+
+  if (demandGrid && demandGrid.length > 0) {
+     demandGrid.forEach(cell => {
+        let nearestNode: any = null;
+        let minDist = Infinity;
+        
+        nodes.forEach(n => {
+           if (dists[n.id] === Infinity) return;
+           const d = Math.hypot(n.x - cell.x, n.y - cell.y);
+           if (d < minDist && d < COVERAGE_RADIUS) {
+              minDist = d;
+              nearestNode = n;
+           }
+        });
+        
+        if (nearestNode) {
+           const efficiency = Math.max(0.1, 1 - (minDist / COVERAGE_RADIUS));
+           nodeTrafficMap[nearestNode.id] = (nodeTrafficMap[nearestNode.id] || 0) + (cell.trafficBase * efficiency);
+           nodeRevenueMap[nearestNode.id] = (nodeRevenueMap[nearestNode.id] || 0) + (cell.revenueBase * efficiency);
+        }
+     });
+  }
+
   // 2. Physics & Sim: Node Traffic, OPEX, Hazards, Attenuation
   let totalMaintenanceCost = 0;
   let healthSum = 0;
@@ -122,11 +150,16 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
     totalLatency += latency;
     connectivityCount++;
 
-    // Traffic Simulation (Drift Scaled by Signal)
-    const targetScaling = node.layer === 1 ? 0.1 : 0.5;
-    const targetTraffic = node.bandwidth * (targetScaling + Math.random() * 0.3) * signalStrength;
+    // Heatmap Traffic Assignment
+    let targetTraffic = nodeTrafficMap[node.id] || 0;
+    
+    // Fallback for Backbones extending outside local grid (Layer 3/4)
+    if (targetTraffic === 0 && node.layer > 2) {
+      targetTraffic = node.bandwidth * 0.4 * signalStrength;
+    }
+
     const drift = (targetTraffic - node.traffic) * 0.15 * (dT * 60);
-    const finalTraffic = Math.max(10, Math.min(node.traffic + drift, node.bandwidth * 1.5));
+    const finalTraffic = Math.max(0, Math.min(node.traffic + drift, node.bandwidth * 1.5));
 
     // Survival Engine: Hazards
     let nodeHealth = node.health;
@@ -161,16 +194,18 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
   // 3. Link OPEX
   totalMaintenanceCost += (links.length * 5) * dT;
 
-  // 4. Revenue Calculation (Scaled by Signal & Health)
+  // 4. Revenue Calculation (Scaled by Demand & Health)
   const avgHealth = updatedNodes.length > 0 ? healthSum / updatedNodes.length : 100;
   const healthMultiplier = avgHealth < 50 ? 0.5 : 1.0;
   
-  const profitableNodes = updatedNodes.filter(n => n.layer > 1 && dists[n.id] !== Infinity);
-  const rawRevenue = profitableNodes.reduce((sum, n) => {
-    const isFocused = n.layer === rangeLevel;
-    const efficiency = isFocused ? 0.8 : 0.2;
-    // signalStrength already affected traffic, but we multiply here for direct business impact
-    const nodeRevenue = (n.traffic * efficiency * healthMultiplier * (n.signalStrength! / 100)) * dT;
+  const rawRevenue = updatedNodes.reduce((sum, n) => {
+    let nodeRevenue = (nodeRevenueMap[n.id] || 0) * (n.signalStrength! / 100) * healthMultiplier * dT;
+    
+    // Legacy fallback
+    if (!nodeRevenue && n.layer > 2 && dists[n.id] !== Infinity) {
+       nodeRevenue = n.traffic * 0.2 * healthMultiplier * (n.signalStrength! / 100) * dT;
+    }
+
     const isCongested = n.traffic > n.bandwidth;
     return sum + (isCongested ? nodeRevenue * 0.5 : nodeRevenue);
   }, 0);

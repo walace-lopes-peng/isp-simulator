@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useISPStore, RANGE_PRESETS, RangeLevel } from './store/useISPStore';
 import DebugConsole from './components/DebugConsole';
 import EraWrapper from './components/EraWrapper';
+import HeatmapLayer from './components/HeatmapLayer';
 
 // --- UI COMPONENTS ---
 
@@ -341,6 +342,10 @@ const LogisticMap = () => {
           
           <image href="/assets/world-map.png" width="800" height="800" opacity="0.4" preserveAspectRatio="xMidYMid slice" />
           <rect width="800" height="800" fill="url(#grid)" pointerEvents="none" />
+
+          <foreignObject width="800" height="800" x="0" y="0" style={{ pointerEvents: 'none' }}>
+             <HeatmapLayer />
+          </foreignObject>
 
           {links.map(link => {
             const src = nodes.find(n => n.id === link.sourceId);

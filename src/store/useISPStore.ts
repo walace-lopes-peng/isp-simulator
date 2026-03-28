@@ -37,6 +37,15 @@ export interface ISPNode {
   latency?: number;
   signalStrength?: number;
 }
+export interface DemandCell {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  type: 'residential' | 'commercial' | 'industrial' | 'empty';
+  trafficBase: number;
+  revenueBase: number;
+}
 
 export interface ISPLink {
   id: string;
@@ -60,6 +69,7 @@ interface ISPStore {
   nodes: ISPNode[];
   links: ISPLink[];
   totalData: number;
+  demandGrid: DemandCell[];
   logs: string[];
   rangeLevel: RangeLevel;
   selectedNodeId: string | null;
@@ -102,6 +112,7 @@ interface ISPStore {
   resetTopology: () => void;
   toggleGodMode: () => void;
   setTickRate: (rate: number) => void;
+  generateDemand: () => void;
 }
 
 export const useISPStore = create<ISPStore>((set, get) => ({
@@ -109,6 +120,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   currentEra: '70s',
   canUpgradeEra: false,
   totalData: 0,
+  demandGrid: [],
   nodes: [
     { id: '0', name: 'CORE GATEWAY', x: 395, y: 260, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'backbone', health: 100 },
     { id: 'l2-0', name: 'West Coast Hub', x: 110, y: 280, bandwidth: 200, traffic: 0, level: 1, layer: 2, type: 'hub_regional', health: 100 },
@@ -147,6 +159,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   worker: null,
   initWorker: () => {
     if (get().worker) return;
+    get().generateDemand();
     const worker = new Worker(new URL('../systems/SimulationWorker.ts', import.meta.url));
     worker.onmessage = (e) => {
       const { nodes, revenue, totalMaintenanceCost, totalLoad, networkHealth, avgLatency } = e.data;
@@ -277,4 +290,48 @@ export const useISPStore = create<ISPStore>((set, get) => ({
       { id: '0', name: 'CORE GATEWAY', x: 395, y: 260, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'backbone', health: 100 },
     ]
   })),
+  generateDemand: () => {
+    const cells: DemandCell[] = [];
+    const size = 40;
+    const cols = 800 / size;
+    const rows = 800 / size;
+    
+    // Procedural Seed: 3 industrial epicenters
+    const hotspots = Array.from({length: 3}).map(() => ({
+       x: Math.floor(Math.random() * cols) * size,
+       y: Math.floor(Math.random() * rows) * size
+    }));
+
+    for(let i=0; i<cols; i++) {
+       for(let j=0; j<rows; j++) {
+          const cx = i * size;
+          const cy = j * size;
+          
+          let minDist = Math.min(...hotspots.map(h => Math.hypot(h.x - cx, h.y - cy)));
+
+          let type: 'residential' | 'commercial' | 'industrial' | 'empty' = 'empty';
+          let trafficBase = 0;
+          let revenueBase = 0;
+
+          if (minDist < size * 2.5) {
+             type = 'industrial';
+             trafficBase = 150;
+             revenueBase = 50;
+          } else if (minDist < size * 5) {
+             type = 'commercial';
+             trafficBase = 50;
+             revenueBase = 25;
+          } else if (minDist < size * 9) {
+             type = 'residential';
+             trafficBase = 15;
+             revenueBase = 8;
+          }
+
+          if (type !== 'empty') {
+            cells.push({ x: cx, y: cy, width: size, height: size, type, trafficBase, revenueBase });
+          }
+       }
+    }
+    set({ demandGrid: cells });
+  },
 }));
