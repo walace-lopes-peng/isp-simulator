@@ -32,6 +32,7 @@
 
 | Type | #ID | Task/PR Title | Status/Problem |
 | :--- | :--- | :--- | :--- |
+| 📌 Issue | #64 | [[FEAT/ARCH] Hierarchical Infrastructure & Survival Mechanics](https://github.com/walace-lopes-peng/isp-simulator/issues/64) | `feat`, `arch`, `simulation`, `difficulty` |
 | 📌 Issue | #61 | [[FEAT] Multi-Region Preset System & Layered SVG Maps](https://github.com/walace-lopes-peng/isp-simulator/issues/61) | `feat`, `simulation`, `ui`, `arch`, `ux` |
 | 📌 Issue | #60 | [[FEAT] Discrete Map Navigation via Snap ViewBox (Range System)](https://github.com/walace-lopes-peng/isp-simulator/issues/60) | `feat`, `simulation`, `ui`, `ux` |
 | 📌 Issue | #50 | [[EPIC][FEAT] Implementation of Scenario Engine & 'Cyber-Iron Curtain' Expansion](https://github.com/walace-lopes-peng/isp-simulator/issues/50) | `architecture`, `feat`, `P2-medium`, `immersion`, `epic` |

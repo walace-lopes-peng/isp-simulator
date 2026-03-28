@@ -1,21 +1,23 @@
 import React, { useEffect, useRef } from 'react';
-import { useISPStore } from './store/useISPStore';
+import { useISPStore, RANGE_PRESETS, RangeLevel } from './store/useISPStore';
+import DebugConsole from './components/DebugConsole';
 
 // --- NEW UI PANELS ---
 
 const TopBar = () => {
-  const { money, currentEra, totalData, nodes } = useISPStore();
+  const { money, currentEra, totalData, nodes, networkHealth } = useISPStore();
   const traffic = nodes.reduce((sum, n) => sum + n.traffic, 0);
   const bandwidth = nodes.reduce((sum, n) => sum + n.bandwidth, 0);
   const loadRatio = traffic / bandwidth;
   
   const status = loadRatio >= 1.0 ? 'CRITICAL' : loadRatio > 0.8 ? 'STRESSED' : 'STABLE';
   const statusColor = loadRatio >= 1.0 ? 'text-red-500' : loadRatio > 0.8 ? 'text-amber-500' : 'text-emerald-500';
+  const healthColor = networkHealth < 50 ? 'text-red-500' : networkHealth < 80 ? 'text-amber-400' : 'text-emerald-400';
 
   return (
     <div className={`h-14 w-full flex items-center justify-between px-6 border-b border-white/10 ${currentEra === '90s' ? 'win95-outset' : 'bg-black/40 backdrop-blur-md'} fixed top-0 z-50 glass-panel`}>
       <div className="flex items-center gap-8">
-        <div className={currentEra === '90s' ? 'win95-header' : ''}>
+        <div>
           <h1 className={`text-xs font-black tracking-widest uppercase ${currentEra === '90s' ? 'text-white' : 'text-emerald-500'}`}>Logistic Map // Core</h1>
           <p className={`text-[8px] font-mono ${currentEra === '90s' ? 'text-white/70' : 'text-slate-500'}`}>SYSTEM_REVENUE_ACTIVE</p>
         </div>
@@ -28,6 +30,16 @@ const TopBar = () => {
           <div>
             <span className="text-[9px] text-slate-500 uppercase font-bold block">Total Data</span>
             <span className="text-sm font-mono text-slate-200">{Math.floor(totalData / 100).toLocaleString()} GB</span>
+          </div>
+          <div className="h-8 w-px bg-white/5 mx-2" />
+          <div className="flex flex-col">
+            <span className="text-[9px] text-slate-500 uppercase font-bold block">Network Health</span>
+            <div className="flex items-center gap-2">
+              <span className={`text-sm font-mono font-bold ${healthColor}`}>{Math.floor(networkHealth)}%</span>
+              <div className="w-16 h-1 bg-white/10 rounded-full overflow-hidden">
+                <div className={`h-full ${networkHealth < 50 ? 'bg-red-500 shadow-[0_0_5px_red]' : 'bg-emerald-500'} transition-all duration-1000`} style={{ width: `${networkHealth}%` }} />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -46,7 +58,7 @@ const TopBar = () => {
 };
 
 const Sidebar = () => {
-  const { selectedNodeId, nodes, links, upgradeNode, money, selectNode, connectNodes, isLinking, toggleLinking, currentEra } = useISPStore();
+  const { selectedNodeId, nodes, links, upgradeNode, money, selectNode, connectNodes, isLinking, toggleLinking, currentEra, isGodMode } = useISPStore();
   const node = nodes.find(n => n.id === selectedNodeId);
 
   if (!node) return (
@@ -68,14 +80,24 @@ const Sidebar = () => {
       <div className="flex justify-between items-start mb-6">
         <div>
           <h2 className="text-[10px] font-black text-emerald-500 uppercase tracking-tighter mb-1">{node.name}</h2>
-          <span className={`text-[8px] font-mono uppercase ${isReachable ? 'text-emerald-500' : 'text-red-500 animate-pulse'}`}>
-            {isReachable ? 'CONNECTED // ONLINE' : 'ISOLATED // NO_SIGNAL'}
-          </span>
+          <div className="flex gap-2 items-center">
+            <span className={`text-[8px] font-mono uppercase ${isReachable ? 'text-emerald-500' : 'text-red-500 animate-pulse'}`}>
+              {isReachable ? 'CONNECTED // ONLINE' : 'ISOLATED // NO_SIGNAL'}
+            </span>
+            <span className="text-[7px] bg-white/10 px-1 py-0.5 rounded text-slate-400 font-mono tracking-tighter">{node.type}</span>
+          </div>
         </div>
         <button onClick={() => { selectNode(null); if (isLinking) toggleLinking(); }} className="text-slate-600 hover:text-white text-xs">×</button>
       </div>
 
       <div className="space-y-6 flex-1">
+        {node.hazard && (
+          <div className="bg-red-500/10 border border-red-500/30 p-2 rounded animate-pulse">
+            <span className="text-[8px] font-black text-red-500 uppercase tracking-widest block">⚠ CRITICAL_HAZARD</span>
+            <p className="text-[9px] text-red-400 font-mono italic">{node.hazard.toUpperCase()}_DETECTED</p>
+          </div>
+        )}
+        
         <div>
           <div className="flex justify-between mb-1">
             <span className="text-[9px] text-slate-400 uppercase font-bold tracking-tighter">Throughput</span>
@@ -109,12 +131,12 @@ const Sidebar = () => {
 
       <button 
         onClick={() => upgradeNode(node.id)}
-        disabled={money < cost}
+        disabled={!isGodMode && money < cost}
         className={`w-full py-3 rounded border font-black text-[10px] uppercase tracking-widest transition-all
-          ${money >= cost ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20 shadow-[0_0:10px_rgba(16,185,129,0.1)]' : 'bg-white/5 border-white/5 text-slate-700 cursor-not-allowed opacity-50'}
+          ${isGodMode || money >= cost ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20 shadow-[0_0:10px_rgba(16,185,129,0.1)]' : 'bg-white/5 border-white/5 text-slate-700 cursor-not-allowed opacity-50'}
         `}
       >
-        {money >= cost ? `Upgrade // $${cost.toLocaleString()}` : `Insufficient Funds // $${cost.toLocaleString()}`}
+        {isGodMode ? `God Upgrade // FREE` : money >= cost ? `Upgrade // $${cost.toLocaleString()}` : `Insufficient Funds // $${cost.toLocaleString()}`}
       </button>
     </div>
   );
@@ -147,34 +169,29 @@ const LogPanel = () => {
 // --- LOGISTIC MAP CORE ---
 
 const LogisticMap = () => {
-  const { nodes, links, zoomLevel, selectNode, selectedNodeId, connectNodes, setZoom, isLinking, currentEra } = useISPStore();
-  const center = { x: 400, y: 400 };
-  const ringRadii = [80, 180, 280, 380];
-
-  const maxTier = zoomLevel <= 25 ? 1 : zoomLevel <= 50 ? 2 : zoomLevel <= 75 ? 3 : 4;
+  const { nodes, links, rangeLevel, selectNode, selectedNodeId, connectNodes, setRange, isLinking, currentEra } = useISPStore();
+  const currentRange = RANGE_PRESETS[rangeLevel];
+  const maxTier = rangeLevel;
   const { money, addNode, addLog } = useISPStore();
 
   const getLoadColor = (load: number) => {
-    if (load >= 0.9) return '#ef4444'; // Red
-    if (load >= 0.5) return '#fbbf24'; // Amber
-    return '#10b981'; // Green (Emerald-500 equivalent)
+    if (load >= 0.9) return '#ef4444';
+    if (load >= 0.5) return '#fbbf24';
+    return '#10b981';
   };
 
   const handleWheel = (e: React.WheelEvent) => {
-    const delta = e.deltaY;
-    const newZoom = Math.max(0, Math.min(100, zoomLevel - delta / 5));
-    setZoom(newZoom);
+    if (e.deltaY > 0 && rangeLevel < 4) setRange((rangeLevel + 1) as RangeLevel);
+    else if (e.deltaY < 0 && rangeLevel > 1) setRange((rangeLevel - 1) as RangeLevel);
   };
 
   const handleMapClick = (e: React.MouseEvent<SVGSVGElement>) => {
-    // If we're clicking a node, stopPropagation should prevent this
     const svg = e.currentTarget;
     const pt = svg.createSVGPoint();
     pt.x = e.clientX;
     pt.y = e.clientY;
     const svgP = pt.matrixTransform(svg.getScreenCTM()?.inverse());
     
-    // Simple build logic: if clicking empty space, suggest building
     if (!selectedNodeId) {
         const cost = 500;
         const coverageRange = 250;
@@ -189,6 +206,13 @@ const LogisticMap = () => {
         }
 
         if (money >= cost) {
+            const nodeTypeLookup: Record<RangeLevel, any> = {
+                1: 'hub_local',
+                2: 'hub_regional',
+                3: 'backbone',
+                4: 'backbone'
+            };
+
             const newNode = {
                 id: `node-${Date.now()}`,
                 name: `New Hub ${nodes.length}`,
@@ -196,11 +220,13 @@ const LogisticMap = () => {
                 traffic: 0,
                 level: 1,
                 layer: maxTier,
+                type: nodeTypeLookup[rangeLevel as RangeLevel],
+                health: 100,
                 x: Math.round(svgP.x),
                 y: Math.round(svgP.y)
             };
             addNode(newNode);
-            addLog(`Built new node at [${newNode.x}, ${newNode.y}]`, false);
+            addLog(`Built ${newNode.type} at [${newNode.x}, ${newNode.y}]`, false);
         } else {
             addLog(`Insufficient funds to build new node ($${cost} required)`, true);
         }
@@ -221,46 +247,34 @@ const LogisticMap = () => {
         .node-healthy { animation: pulse-steady 2s infinite ease-in-out; stroke: #22d3ee; }
         .node-saturated { animation: pulse-fast 1s infinite ease-in-out; stroke: #fbbf24; }
         .node-critical { animation: glitch-flicker 0.4s infinite linear; stroke: #ef4444; }
-        
-        .node-circle {
-          transform-box: fill-box;
-          transform-origin: center;
-        }
-        
-        @keyframes dash {
-          to {
-            stroke-dashoffset: -20;
-          }
-        }
-        .link-flow {
-          animation: dash 1s linear infinite;
-        }
+        .node-circle { transform-box: fill-box; transform-origin: center; }
+        @keyframes dash { to { stroke-dashoffset: -20; } }
+        .link-flow { animation: dash 1s linear infinite; }
+        .map-svg { transition: view-box 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
       `}</style>
       
-      <div className="absolute top-4 left-6 z-50 p-3 bg-black/40 backdrop-blur rounded-lg border border-white/5">
-        <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest block mb-1">Network Focus // {Math.round(zoomLevel)}%</label>
-        <input 
-          type="range" min="0" max="100" step="1"
-          value={zoomLevel}
-          onChange={(e) => setZoom(parseInt(e.target.value))}
-          className="w-48 accent-emerald-500 bg-slate-800 h-1 rounded-full cursor-pointer"
-        />
-        <div className="flex justify-between text-[7px] font-mono text-slate-600 mt-2 uppercase tracking-tighter">
-          <span>Local</span>
-          <span>Regional</span>
-          <span>National</span>
-          <span>Global</span>
+      <div className="absolute top-4 left-6 z-50 p-3 bg-black/60 backdrop-blur-xl rounded-lg border border-white/10 shadow-2xl">
+        <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest block mb-2">Network Focus // {currentRange.name}</label>
+        <div className="flex gap-1">
+          {([1, 2, 3, 4] as const).map(level => (
+            <button 
+              key={level}
+              onClick={() => setRange(level)}
+              className={`px-3 py-1.5 text-[9px] font-black border transition-all duration-300 ${rangeLevel === level ? 'bg-emerald-500 border-emerald-400 text-black shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'bg-white/5 border-white/5 text-slate-500 hover:bg-white/10 hover:text-slate-300'}`}
+            >
+              LEVEL {level}
+            </button>
+          ))}
         </div>
       </div>
 
       <div className="flex-1 flex items-center justify-center p-4">
         <svg 
-          viewBox="0 0 800 800" 
+          viewBox={currentRange.viewBox} 
           preserveAspectRatio="xMidYMid slice" 
-          className="w-full h-full max-h-[80vh] aspect-square drop-shadow-2xl overflow-visible rounded-lg border border-white/5 shadow-inner bg-[#040d1a]"
+          className="w-full h-full max-h-[85vh] aspect-square drop-shadow-2xl overflow-visible rounded-lg border border-white/10 shadow-inner bg-[#040d1a] map-svg"
           onClick={handleMapClick}
         >
-          {/* Geographical Map Layer */}
           <defs>
             <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
               <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="0.5"/>
@@ -274,10 +288,9 @@ const LogisticMap = () => {
             </filter>
           </defs>
           
-          <image href="/assets/world-map.png" width="800" height="800" opacity="0.5" preserveAspectRatio="xMidYMid slice" />
+          <image href="/assets/world-map.png" width="800" height="800" opacity="0.4" preserveAspectRatio="xMidYMid slice" />
           <rect width="800" height="800" fill="url(#grid)" pointerEvents="none" />
 
-          {/* Physical Cables */}
           {links.map(link => {
             const src = nodes.find(n => n.id === link.sourceId);
             const tgt = nodes.find(n => n.id === link.targetId);
@@ -294,19 +307,14 @@ const LogisticMap = () => {
             const x2 = tgt.x;
             const y2 = tgt.y;
 
-            const midX = (x1 + x2) / 2;
-            const midY = (y1 + y2) / 2;
             const dx = x2 - x1;
             const dy = y2 - y1;
             const dist = Math.sqrt(dx * dx + dy * dy);
-            
             const offset = dist * 0.15;
             const angle = Math.atan2(dy, dx);
-            const controlX = midX + offset * Math.cos(angle - Math.PI / 2);
-            const controlY = midY + offset * Math.sin(angle - Math.PI / 2);
-
+            const controlX = (x1 + x2) / 2 + offset * Math.cos(angle - Math.PI / 2);
+            const controlY = (y1 + y2) / 2 + offset * Math.sin(angle - Math.PI / 2);
             const strokeWidth = 1 + (link.bandwidth / 1000) * 1.5;
-
             return (
               <path 
                 key={link.id}
@@ -316,32 +324,26 @@ const LogisticMap = () => {
                 stroke={strokeColor}
                 strokeWidth={strokeWidth}
                 filter={currentEra === 'modern' ? "url(#glow)" : "none"}
-                strokeDasharray={currentEra === '70s' ? "2,2" : "5,5"}
+                strokeDasharray={currentEra === '70s' ? "2,2" : "none"}
               />
             );
           })}
 
-          {/* Sectors */}
           {[1, 2, 3, 4].map(layerNum => {
             const layerNodes = nodes.filter(n => n.layer === layerNum);
-            const isVisible = layerNum <= maxTier;
-
-            if (!isVisible) return null; // CLEANUP: Removed aggregate node logic
+            if (layerNum === 1 && rangeLevel === 4) return null;
+            if (layerNum > maxTier) return null;
 
             return (
               <g key={`layer-${layerNum}`} className="animate-in fade-in duration-700">
                 {layerNodes.map((node) => {
-                  const load = node.traffic / node.bandwidth;
+                   const load = node.traffic / node.bandwidth;
                    const stateClass = load >= 1.0 ? 'node-critical' : load > 0.8 ? 'node-saturated' : 'node-healthy';
                    const isSelected = selectedNodeId === node.id;
-                   
-                   // Dynamic Radius based on zoomLevel and layer
-                   const baseR = layerNum === 1 ? 12 : 8;
-                   const zoomScale = 0.4 + (zoomLevel / 100) * 0.6; // Smaller at Global (0), Larger at Local (100)
-                   const r = baseR * zoomScale;
-                   
+                   const baseR = layerNum === 1 ? 14 : 9;
+                   const rangeScale = 1.0 - (rangeLevel - 1) * 0.15;
+                   const r = baseR * rangeScale;
                    const isOffline = node.traffic === 0 && node.id !== '0';
-
                    return (
                      <g key={node.id} className="cursor-pointer" onClick={(e) => {
                        e.stopPropagation();
@@ -357,21 +359,18 @@ const LogisticMap = () => {
                         className={`node-circle transition-all duration-300 stroke-2 fill-slate-900 ${isOffline ? 'stroke-slate-700 opacity-40' : stateClass} ${isSelected ? 'stroke-white scale-110' : ''}`}
                       />
                       <text 
-                        x={node.x} y={node.y + r + 12} 
+                        x={node.x} y={node.y + r + 14} 
                         textAnchor="middle"
                         className={`text-[8px] font-black font-mono select-none pointer-events-none uppercase transition-all backdrop-blur-sm ${isOffline ? 'opacity-20' : 'fill-slate-300'}`}
                       >
-                        {node.name}
+                        {rangeLevel < 4 ? node.name : ''} 
                       </text>
                     </g>
-                  );
+                   );
                 })}
               </g>
             );
           })}
-
-          {/* Central Processor Hub (Visual Only) */}
-          <rect x={383} y={248} width="24" height="24" rx="4" className="fill-emerald-500/20 stroke-emerald-500/40 stroke-1 animate-pulse pointer-events-none" />
         </svg>
       </div>
     </div>
@@ -379,12 +378,12 @@ const LogisticMap = () => {
 };
 
 const App = () => {
-  const { tick, currentEra } = useISPStore();
+  const { tick, currentEra, tickRate } = useISPStore();
 
   useEffect(() => {
-    const timer = setInterval(() => tick(), 1000);
+    const timer = setInterval(() => tick(), tickRate);
     return () => clearInterval(timer);
-  }, [tick]);
+  }, [tick, tickRate]);
 
   return (
     <div className={`theme-${currentEra} h-screen flex flex-col bg-slate-950 text-slate-200 font-sans selection:bg-emerald-500/30 overflow-hidden`}>
@@ -397,6 +396,8 @@ const App = () => {
         </div>
         <Sidebar />
       </div>
+
+      {import.meta.env.DEV && <DebugConsole />}
 
       <footer className="h-6 bg-black border-t border-white/5 px-4 flex items-center justify-between z-50">
         <span className="text-[8px] font-mono text-slate-700 tracking-wider">PROTOCOL_VX // TOPOLOGY_SYNCED</span>
