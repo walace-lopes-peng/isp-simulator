@@ -1,6 +1,6 @@
 # 🏃 SPRINT BOARD
 
-> Last updated: Fri, 27 Mar 2026 20:35:05 GMT (UTC)
+> Last updated: Sat, 28 Mar 2026 01:01:29 GMT (UTC)
 
 ## 🚨 Critical Path (Blockers)
 
@@ -49,13 +49,11 @@
 
 | Type | #ID | Task/PR Title | Status/Problem |
 | :--- | :--- | :--- | :--- |
-| 📦 PR | #72 | [docs: Establish Design Backlog (Icebox) & Ideation Governance](https://github.com/walace-lopes-peng/isp-simulator/pull/72) | ⏳ Awaiting Review |
 | 📦 PR | #65 | [docs: implement Strategic Roadmap (North Star) and Project Blueprint](https://github.com/walace-lopes-peng/isp-simulator/pull/65) | ⏳ Awaiting Review |
 | 📦 PR | #64 | [feat: Hierarchical Infrastructure & Survival Mechanics #64](https://github.com/walace-lopes-peng/isp-simulator/pull/64) | ⏳ Awaiting Review |
 | 📦 PR | #63 | [feat: Discrete Map Navigation (Snap ViewBox) #60](https://github.com/walace-lopes-peng/isp-simulator/pull/63) | ⏳ Awaiting Review |
 | 📦 PR | #62 | [fix: resolve Revenue Black Hole at Layer 1 focus #2](https://github.com/walace-lopes-peng/isp-simulator/pull/62) | ⏳ Awaiting Review |
 | 📦 PR | #58 | [feat: harden state kernel with OPEX and refined simulation logic](https://github.com/walace-lopes-peng/isp-simulator/pull/58) | ⏳ Awaiting Review |
-| 📦 PR | #25 | [chore: implement formal project governance and PR standards](https://github.com/walace-lopes-peng/isp-simulator/pull/25) | ⏳ Awaiting Review |
 
 ## 📌 Future Expansion (Backlog)
 
