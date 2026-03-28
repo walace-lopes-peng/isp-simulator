@@ -64,6 +64,7 @@ interface ISPStore {
   totalData: number;
   logs: string[];
   rangeLevel: RangeLevel;
+  currentScale: 'local' | 'regional' | 'national' | 'global';
   selectedNodeId: string | null;
   isLinking: boolean;
   isGodMode: boolean;
@@ -123,7 +124,8 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   links: [],
   selectedNodeId: null,
   isLinking: false,
-  rangeLevel: 1,
+  rangeLevel: 4,
+  currentScale: 'global',
   tickRate: 16,
   logs: ['[SYSTEM] Graph Topology Online. Drag a node to Connect or Build.'],
   isGodMode: false,
@@ -253,7 +255,12 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     };
   }),
   selectNode: (id) => set({ selectedNodeId: id }),
-  setRange: (level) => set({ rangeLevel: level }),
+  setRange: (level) => {
+    const scaleMap: Record<number, 'local' | 'regional' | 'national' | 'global'> = {
+      1: 'local', 2: 'regional', 3: 'national', 4: 'global'
+    };
+    set({ rangeLevel: level, currentScale: scaleMap[level] || 'global' });
+  },
   addLog: (msg, isCritical = false) => set((state) => ({
     logs: [`[${new Date().toLocaleTimeString()}] ${isCritical ? '!!! ' : ''}${msg}`, ...state.logs].slice(0, 20)
   })),

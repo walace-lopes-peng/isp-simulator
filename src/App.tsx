@@ -178,7 +178,7 @@ const LogPanel = () => {
 
 const LogisticMap = () => {
   const { 
-    nodes, links, rangeLevel, selectNode, selectedNodeId, 
+    nodes, links, rangeLevel, currentScale, selectNode, selectedNodeId, 
     setRange, dragSourceId, dragPos, 
     startDragging, setDragPos, endDragging, validateLink,
     money, addNode, addLog
@@ -258,6 +258,14 @@ const LogisticMap = () => {
                 4: 'backbone'
             };
 
+            let assignedParentId = null;
+            if (currentScale === 'local') {
+               const sortedGlobalHubs = [...nodes]
+                 .filter(n => n.scale === 'global')
+                 .sort((a,b) => Math.hypot(a.x - svgP.x, a.y - svgP.y) - Math.hypot(b.x - svgP.x, b.y - svgP.y));
+               if (sortedGlobalHubs.length > 0) assignedParentId = sortedGlobalHubs[0].id;
+            }
+
             const newNode = {
                 id: `node-${Date.now()}`,
                 name: `New Hub ${nodes.length}`,
@@ -269,8 +277,8 @@ const LogisticMap = () => {
                 health: 100,
                 x: Math.round(svgP.x),
                 y: Math.round(svgP.y),
-                scale: 'global' as const,
-                parentId: null
+                scale: currentScale,
+                parentId: assignedParentId
             };
             addNode(newNode);
             addLog(`Built ${newNode.type} at [${newNode.x}, ${newNode.y}]`, false);
@@ -348,6 +356,7 @@ const LogisticMap = () => {
             const src = nodes.find(n => n.id === link.sourceId);
             const tgt = nodes.find(n => n.id === link.targetId);
             if (!src || !tgt || src.layer > maxTier || tgt.layer > maxTier) return null;
+            if (src.scale !== currentScale || tgt.scale !== currentScale) return null;
             const load = (tgt.traffic / tgt.bandwidth);
             const strokeColor = getLoadColor(load);
             const dx = tgt.x - src.x;
@@ -394,7 +403,7 @@ const LogisticMap = () => {
           })()}
 
           {[1, 2, 3, 4].map(layerNum => {
-            const layerNodes = nodes.filter(n => n.layer === layerNum);
+            const layerNodes = nodes.filter(n => n.layer === layerNum && n.scale === currentScale);
             if (layerNum === 1 && rangeLevel === 4) return null;
             if (layerNum > maxTier) return null;
 
