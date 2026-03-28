@@ -188,18 +188,20 @@ const LogisticMap = () => {
     if (nodeId) {
       e.stopPropagation();
       startDragging(nodeId);
+      selectNode(nodeId); // Select on down for immediate feedback
     }
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
     if (dragSourceId) {
       const p = getSVGPoint(e);
-      setDragPos(p.x, p.y);
+      if (p) setDragPos(p.x, p.y);
     }
   };
 
   const handlePointerUp = (e: React.PointerEvent, nodeId?: string) => {
     if (dragSourceId) {
+      if (nodeId) (e as any).stopPropagation();
       endDragging(nodeId);
     }
   };
@@ -400,7 +402,7 @@ const LogisticMap = () => {
                      <g key={node.id} className="cursor-pointer" 
                         onPointerDown={(e) => handlePointerDown(e, node.id)}
                         onPointerUp={(e) => handlePointerUp(e, node.id)}
-                        onClick={(e) => { e.stopPropagation(); selectNode(node.id); }}
+                        onClick={(e) => e.stopPropagation()}
                      >
                        {isSelected && <circle cx={node.x} cy={node.y} r={r + 6} className="fill-none stroke-emerald-500/40 stroke-1 animate-[ping_3s_infinite]" />}
                        <circle 
