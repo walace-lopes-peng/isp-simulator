@@ -2,6 +2,9 @@
 
 O objetivo desta issue é [Descreva aqui o objetivo macro da funcionalidade ou correção].
 
+Closes: #[ID]
+Labels: [TIPO]
+
 ### 🛠️ Especificações Técnicas
 
 1. **Arquitetura de Dados & State Management**
