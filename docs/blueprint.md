@@ -1,92 +1,61 @@
-# ISP Simulator: Project Blueprint & Architecture
+# 🗺️ PROJECT_BLUEPRINT: ISP Tycoon (The Living Doc - v1.5)
 
-As the technical lead, this blueprint transforms our working prototype into a scalable, professional, and maintainable game repository. This document serves as the guide for our upcoming refactor and future development.
+## 1. Visão Geral (The North Star)
+O jogo é um simulador de infraestrutura histórica. O jogador começa em uma garagem (anos 70) e deve evoluir tecnologicamente até gerenciar o backbone da internet global (Moderno). O foco não é 'clicar', mas gerenciar Topologia vs. Demanda.
 
-## 1. 📂 Folder Structure & Architectural Decisions
+> [!NOTE]
+> Este documento é a "Semente" do projeto. Todas as decisões de design e arquitetura devem ser validadas contra esta visão.
 
-Our goal is **Separation of Concerns**. UI should not contain game math; global state should be minimal.
+## 2. 📂 Arquitetura & Estrutura (Separation of Concerns)
+Nossa meta é que a UI seja apenas uma projeção do estado.
 
 ```text
 src/
-├── assets/          # Static files (images, sounds, icons)
-├── components/      # Dumb, reusable UI components (Buttons, Modals, ProgressBars)
-├── features/        # Smart, scoped components handling specific game systems (Map, HUD, Nodes)
-├── hooks/           # Custom React hooks bridging systems/store to UI (useGameLoop, useEconomy)
-├── store/           # Zustand state management (split into logical slices if needed)
-├── systems/         # PURE GAME LOGIC classes/functions (Engine, Economy, Traffic). NO REACT HERE.
-├── styles/          # Global CSS, Tailwind configurations, animation keyframes
-├── types/           # Global TypeScript interfaces (ISPNode, Era, GameState)
-└── utils/           # Helper functions (math, string formatting, array manipulation)
+├── components/      # Componentes UI reutilizáveis (Dumb)
+├── features/        # Sistemas complexos (Map, HUD, Nodes) (Smart)
+├── systems/         # Lógica pura de jogo (Engine, Economy). SEM REACT.
+├── store/           # Zustand state management (SSoT)
+├── types/           # Interfaces TypeScript globais
+└── utils/           # Math helpers e constantes
 ```
 
-**Why this structure?**
-- **Testability**: Pure functions in `systems/` can be unit tested without mounting React components.
-- **Maintainability**: When the UI changes, `systems/` remains untouched. When math changes, UI is untouched.
-- **Scalability**: Adding a new feature (e.g., "Research Tree") simply means adding a new folder in `features/` and logic in `systems/`.
+**Benefícios:**
+- **Testabilidade**: Lógica em `systems/` pode ser testada unitariamente.
+- **Manutenibilidade**: Mudanças na UI não afetam a matemática da simulação.
+
+## 3. O Motor de Fluxo (Core Loop)
+O loop principal (`tick`) processa a rede de forma holística:
+- **Reachability**: Fluxo de dados exige conexão ativa com o **Core Gateway (ID: '0')**.
+- **Packet Flow**: Receita baseada na entrega de tráfego bem-sucedida.
+- **Congestionamento**: Se `traffic > bandwidth`, ocorre perda de pacotes e penalidade de receita.
+- **Network Health**: Impactado por Hazards (Ruído, Calor, Latência). Health < 50% corta a eficiência pela metade.
+
+## 4. 🌳 Hierarquia de Infraestrutura (Topology Guidelines)
+A simulação impõe uma topologia em camadas:
+- **Terminal (Tier 0)**: Usuários finais. Conectam-se apenas a **LEPs**.
+- **LEP (Tier 1)**: Hubs locais. Conectam Terminais a **PoPs**.
+- **PoP (Tier 2)**: Agregadores regionais. Conectam LEPs a **Gateways**.
+- **Tier-1 Gateway (Tier 3-4)**: Backbone global. Capaz de peering transcontinental.
+
+*Regra de Ouro: Links diretos que saltam níveis (ex: Terminal -> Gateway) são bloqueados por custo proibitivo.*
+
+## 5. Fórmulas de Negócio (Imutáveis)
+
+### A. Cálculo de Receita (Tier-Focus Focus)
+A receita é calculada por nó ativo (Layer > 1):
+- **Range Focado (rangeLevel)**: Receita base * 0.8.
+- **Ranges em Background**: Receita base * 0.2.
+- **Health Multiplier**: `avgHealth < 50 ? 0.5 : 1.0`.
+
+### B. Economia de Upgrade & Link
+- **Upgrade Cost**: `50 * (1.15 ^ level)`. Aumenta bandwidth em 40%.
+- **Link Cost**: `100 + (Distance * 1.5)`.
+- **OPEX (Manutenção)**: Nós e Links geram custos passivos por tick.
+
+## 6. Governança Técnica (Guardrails)
+- **Zustand First**: Proibido lógica de negócio persistente em componentes React.
+- **Coordinate Integrity**: Usar coordenadas absolutas para garantir alinhamento de links no zoom/viewbox.
+- **Discrete Navigation**: O mapa utiliza o sistema **Snap ViewBox** (Range 1-4) para focar em Tiers específicos.
 
 ---
-
-## 2. 🔄 Refactoring Plan (Step-by-Step)
-
-To move from our monolithic prototype to this structure, we will execute the following refactoring steps in order:
-
-1. **Extract Types & Utilities**
-   - Move `ISPNode`, `Era`, etc., to `src/types/game.ts`.
-   - Move config constants (like `ERAS`) to `src/utils/constants.ts`.
-
-2. **Isolate Game Logic (Systems)**
-   - Create `src/systems/engine.ts` to handle the `tick` calculation.
-   - Create `src/systems/economy.ts` for revenue, upgrade costs, and congestion penalties.
-   - Refactor `useISPStore` to strictly hold state and call these pure system functions inside its actions.
-
-3. **Break Down the Monolith (`App.tsx`)**
-   - Extract `LogisticMap` to `src/features/map/LogisticMap.tsx`.
-   - Extract `NodeModule` to `src/features/nodes/NodeCard.tsx`.
-   - Extract HUDs (`ZoomSlider`, `HUDStats`) to `src/features/hud/`.
-   - Extract small generic UI like `StatusIndicator` to `src/components/`.
-
-4. **Implement Custom Hooks**
-   - Create `src/hooks/useGameLoop.ts` to handle `setInterval` and trigger the store's `tick` action, keeping `App.tsx` clean.
-
----
-
-## 3. 🧩 File Organization & Examples
-
-### The "Dumb/Smart" Component Rule
-- **`components/ProgressBar.tsx` (Dumb)**: Takes `value` and `max` as props. Renders a div.
-- **`features/nodes/NodeCard.tsx` (Smart)**: Takes a `nodeId`, connects to Zustand, gets live traffic data, and uses `ProgressBar` to render it.
-
----
-
-## 4. 📐 Coding Standards & Conventions
-
-- **Naming:**
-  - Components/Interfaces: `PascalCase` (`NodeCard.tsx`, `ISPNode`).
-  - Functions/Hooks/Variables: `camelCase` (`useGameLoop`, `calculateRevenue`).
-  - Constants: `UPPER_SNAKE_CASE` (`MAX_NODES`).
-- **State Usage Rules:**
-  - Avoid large object selectors. Use specific atomic selectors to prevent unnecessary re-renders.
-- **File Organization:**
-  - One primary component per file.
-
----
-
-## 5. 🗺️ Next Development Steps (Roadmap)
-
-Once the architectural refactor is complete, we will focus on these gameplay features in order:
-
-1. **Map System Expansion:** Finalize the visual transitions between `zoomLevel` states (Local vs Global).
-2. **Node Connections (Cables):** Allow players to explicitly buy connections between nodes to route traffic.
-3. **Data Flow Animations:** Enhance the SVG map with moving particles along the flow lines.
-4. **Scaling System & Events:** Introduce random events (fiber cuts, DDOS attacks) and technology research.
-
----
-
-## 6. 🌳 Infrastructure Hierarchy
-The simulation enforces a strict hierarchical topology:
-- **Terminal**: End-user nodes (Residential/Commercial).
-- **LEP (Local Exchange Point)**: Tier 1 Hub. Mandatory for terminal connectivity.
-- **PoP (Point of Presence)**: Tier 2 Regional Hub. Aggregates multiple LEPs.
-- **Tier-1 Gateway**: Tier 3/4 Global Backbone. Only node capable of trans-oceanic peering.
-
-*Note: Linking nodes across non-adjacent tiers (e.g., Terminal directly to Gateway) is prohibited by the simulation engine.*
+*Single Source of Truth - v1.5 [Dev Branch]*
