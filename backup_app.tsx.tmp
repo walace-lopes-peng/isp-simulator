@@ -2,13 +2,13 @@ import React, { useEffect, useRef } from 'react';
 import { useISPStore, RANGE_PRESETS, RangeLevel } from './store/useISPStore';
 import DebugConsole from './components/DebugConsole';
 
-// --- UI COMPONENTS ---
+// --- NEW UI PANELS ---
 
 const TopBar = () => {
   const { money, currentEra, totalData, nodes, networkHealth } = useISPStore();
   const traffic = nodes.reduce((sum, n) => sum + n.traffic, 0);
   const bandwidth = nodes.reduce((sum, n) => sum + n.bandwidth, 0);
-  const loadRatio = bandwidth > 0 ? traffic / bandwidth : 0;
+  const loadRatio = traffic / bandwidth;
   
   const status = loadRatio >= 1.0 ? 'CRITICAL' : loadRatio > 0.8 ? 'STRESSED' : 'STABLE';
   const statusColor = loadRatio >= 1.0 ? 'text-red-500' : loadRatio > 0.8 ? 'text-amber-500' : 'text-emerald-500';
@@ -58,7 +58,7 @@ const TopBar = () => {
 };
 
 const Sidebar = () => {
-  const { selectedNodeId, nodes, links, upgradeNode, money, selectNode, isLinking, toggleLinking, currentEra, isGodMode } = useISPStore();
+  const { selectedNodeId, nodes, links, upgradeNode, money, selectNode, connectNodes, isLinking, toggleLinking, currentEra, isGodMode } = useISPStore();
   const node = nodes.find(n => n.id === selectedNodeId);
 
   if (!node) return (
@@ -71,7 +71,7 @@ const Sidebar = () => {
   );
 
   const cost = Math.floor(50 * Math.pow(1.15, node.level));
-  const load = node.bandwidth > 0 ? node.traffic / node.bandwidth : 0;
+  const load = node.traffic / node.bandwidth;
   const loadColor = load >= 1.0 ? 'bg-red-500' : load > 0.8 ? 'bg-amber-500' : 'bg-emerald-500';
   const isReachable = node.traffic > 0 || node.layer === 1;
 
@@ -119,19 +119,21 @@ const Sidebar = () => {
           </div>
         </div>
 
-        <div className="pt-4 border-t border-white/5 flex flex-col gap-2">
-            <label className="text-[8px] font-black text-slate-600 uppercase">Interaction Protocol</label>
-            <div className="bg-white/5 p-2 rounded text-[8px] font-mono text-slate-400">
-                DRAG FROM NODE TO CONNECT_LINK.
-            </div>
-        </div>
+        <button 
+          onClick={toggleLinking}
+          className={`w-full py-2 border font-black text-[9px] uppercase tracking-widest transition-all
+            ${currentEra === '90s' ? (isLinking ? 'win95-linking-flash' : 'win95-outset text-black') : (isLinking ? 'bg-amber-500 text-black border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.3)]' : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10')}
+          `}
+        >
+          {isLinking ? 'linking active...' : 'establish link'}
+        </button>
       </div>
 
       <button 
         onClick={() => upgradeNode(node.id)}
         disabled={!isGodMode && money < cost}
         className={`w-full py-3 rounded border font-black text-[10px] uppercase tracking-widest transition-all
-          ${isGodMode || money >= cost ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.1)]' : 'bg-white/5 border-white/5 text-slate-700 cursor-not-allowed opacity-50'}
+          ${isGodMode || money >= cost ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20 shadow-[0_0:10px_rgba(16,185,129,0.1)]' : 'bg-white/5 border-white/5 text-slate-700 cursor-not-allowed opacity-50'}
         `}
       >
         {isGodMode ? `God Upgrade // FREE` : money >= cost ? `Upgrade // $${cost.toLocaleString()}` : `Insufficient Funds // $${cost.toLocaleString()}`}
@@ -145,7 +147,9 @@ const LogPanel = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
   }, [logs]);
 
   return (
@@ -162,49 +166,13 @@ const LogPanel = () => {
   );
 };
 
-// --- LOGISTIC MAP ---
+// --- LOGISTIC MAP CORE ---
 
 const LogisticMap = () => {
-  const { 
-    nodes, links, rangeLevel, selectNode, selectedNodeId, 
-    setRange, currentEra, dragSourceId, dragPos, 
-    startDragging, setDragPos, endDragging, validateLink,
-    money, addNode, addLog
-  } = useISPStore();
-  
+  const { nodes, links, rangeLevel, selectNode, selectedNodeId, connectNodes, setRange, isLinking, currentEra } = useISPStore();
   const currentRange = RANGE_PRESETS[rangeLevel];
   const maxTier = rangeLevel;
-  const svgRef = useRef<SVGSVGElement>(null);
-
-  const getSVGPoint = (e: React.PointerEvent) => {
-    if (!svgRef.current) return { x: 0, y: 0 };
-    const pt = svgRef.current.createSVGPoint();
-    pt.x = e.clientX;
-    pt.y = e.clientY;
-    return pt.matrixTransform(svgRef.current.getScreenCTM()?.inverse());
-  };
-
-  const handlePointerDown = (e: React.PointerEvent, nodeId?: string) => {
-    if (nodeId) {
-      e.stopPropagation();
-      startDragging(nodeId);
-      selectNode(nodeId); // Select on down for immediate feedback
-    }
-  };
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (dragSourceId) {
-      const p = getSVGPoint(e);
-      if (p) setDragPos(p.x, p.y);
-    }
-  };
-
-  const handlePointerUp = (e: React.PointerEvent, nodeId?: string) => {
-    if (dragSourceId) {
-      if (nodeId) (e as any).stopPropagation();
-      endDragging(nodeId);
-    }
-  };
+  const { money, addNode, addLog } = useISPStore();
 
   const getLoadColor = (load: number) => {
     if (load >= 0.9) return '#ef4444';
@@ -218,7 +186,6 @@ const LogisticMap = () => {
   };
 
   const handleMapClick = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (dragSourceId) return; // Ignore click if dragging
     const svg = e.currentTarget;
     const pt = svg.createSVGPoint();
     pt.x = e.clientX;
@@ -284,11 +251,8 @@ const LogisticMap = () => {
         @keyframes dash { to { stroke-dashoffset: -20; } }
         .link-flow { animation: dash 1s linear infinite; }
         .map-svg { transition: view-box 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
-        .ghost-line { pointer-events: none; stroke-dasharray: 4,4; transition: stroke 0.2s; }
-        .range-overlay { pointer-events: none; fill: rgba(16, 185, 129, 0.03); stroke: rgba(16, 185, 129, 0.1); stroke-dasharray: 2,2; }
       `}</style>
       
-      {/* HUD Layer */}
       <div className="absolute top-4 left-6 z-50 p-3 bg-black/60 backdrop-blur-xl rounded-lg border border-white/10 shadow-2xl">
         <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest block mb-2">Network Focus // {currentRange.name}</label>
         <div className="flex gap-1">
@@ -306,12 +270,9 @@ const LogisticMap = () => {
 
       <div className="flex-1 flex items-center justify-center p-4">
         <svg 
-          ref={svgRef}
           viewBox={currentRange.viewBox} 
           preserveAspectRatio="xMidYMid slice" 
           className="w-full h-full max-h-[85vh] aspect-square drop-shadow-2xl overflow-visible rounded-lg border border-white/10 shadow-inner bg-[#040d1a] map-svg"
-          onPointerMove={handlePointerMove}
-          onPointerUp={() => handlePointerUp({} as any)}
           onClick={handleMapClick}
         >
           <defs>
@@ -333,53 +294,40 @@ const LogisticMap = () => {
           {links.map(link => {
             const src = nodes.find(n => n.id === link.sourceId);
             const tgt = nodes.find(n => n.id === link.targetId);
+            
+            // Sync Visibility: A link is only visible if both its nodes are within the current maxTier
             if (!src || !tgt || src.layer > maxTier || tgt.layer > maxTier) return null;
+
             const load = (tgt.traffic / tgt.bandwidth);
             const strokeColor = getLoadColor(load);
-            const dx = tgt.x - src.x;
-            const dy = tgt.y - src.y;
+            
+            // Fix Coordinate Integrity: Remove Math.floor to ensure links anchor exactly at node centers
+            const x1 = src.x;
+            const y1 = src.y;
+            const x2 = tgt.x;
+            const y2 = tgt.y;
+
+            const dx = x2 - x1;
+            const dy = y2 - y1;
             const dist = Math.sqrt(dx * dx + dy * dy);
             const offset = dist * 0.15;
             const angle = Math.atan2(dy, dx);
-            const controlX = (src.x + tgt.x) / 2 + offset * Math.cos(angle - Math.PI / 2);
-            const controlY = (src.y + tgt.y) / 2 + offset * Math.sin(angle - Math.PI / 2);
+            const controlX = (x1 + x2) / 2 + offset * Math.cos(angle - Math.PI / 2);
+            const controlY = (y1 + y2) / 2 + offset * Math.sin(angle - Math.PI / 2);
+            const strokeWidth = 1 + (link.bandwidth / 1000) * 1.5;
             return (
               <path 
                 key={link.id}
-                d={`M ${src.x} ${src.y} Q ${controlX} ${controlY} ${tgt.x} ${tgt.y}`}
+                d={`M ${x1} ${y1} Q ${controlX} ${controlY} ${x2} ${y2}`}
                 fill="none"
                 className="transition-all duration-1000 opacity-60 link-flow"
                 stroke={strokeColor}
-                strokeWidth={1 + (link.bandwidth / 1000) * 1.5}
+                strokeWidth={strokeWidth}
                 filter={currentEra === 'modern' ? "url(#glow)" : "none"}
                 strokeDasharray={currentEra === '70s' ? "2,2" : "none"}
               />
             );
           })}
-
-          {/* DRAG FEEDBACK */}
-          {dragSourceId && dragPos && (() => {
-            const src = nodes.find(n => n.id === dragSourceId);
-            if (!src) return null;
-            const targetNode = nodes.find(n => {
-                const d = Math.sqrt(Math.pow(n.x - dragPos.x, 2) + Math.pow(n.y - dragPos.y, 2));
-                return d < 25 && n.id !== dragSourceId;
-            });
-            const isValid = targetNode ? validateLink(dragSourceId, targetNode.id).valid : false;
-
-            return (
-              <g className="animate-in fade-in duration-300">
-                <circle cx={src.x} cy={src.y} r={350} className="range-overlay" />
-                <line 
-                  x1={src.x} y1={src.y} 
-                  x2={dragPos.x} y2={dragPos.y} 
-                  stroke={!targetNode ? '#475569' : (isValid ? '#10b981' : '#f43f5e')}
-                  className="ghost-line" strokeWidth="2"
-                  strokeDasharray={isValid ? "none" : "4,4"}
-                />
-              </g>
-            );
-          })()}
 
           {[1, 2, 3, 4].map(layerNum => {
             const layerNodes = nodes.filter(n => n.layer === layerNum);
@@ -389,36 +337,35 @@ const LogisticMap = () => {
             return (
               <g key={`layer-${layerNum}`} className="animate-in fade-in duration-700">
                 {layerNodes.map((node) => {
-                   const load = node.bandwidth > 0 ? node.traffic / node.bandwidth : 0;
+                   const load = node.traffic / node.bandwidth;
                    const stateClass = load >= 1.0 ? 'node-critical' : load > 0.8 ? 'node-saturated' : 'node-healthy';
-                   const isSelected = selectedNodeId === node.id || dragSourceId === node.id;
-                   const isFilterActive = dragSourceId !== null && dragSourceId !== node.id;
-                   const isValidTarget = dragSourceId ? validateLink(dragSourceId, node.id).valid : true;
-                   
+                   const isSelected = selectedNodeId === node.id;
                    const baseR = layerNum === 1 ? 14 : 9;
                    const rangeScale = 1.0 - (rangeLevel - 1) * 0.15;
                    const r = baseR * rangeScale;
+                   const isOffline = node.traffic === 0 && node.id !== '0';
                    return (
-                     <g key={node.id} className="cursor-pointer" 
-                        onPointerDown={(e) => handlePointerDown(e, node.id)}
-                        onPointerUp={(e) => handlePointerUp(e, node.id)}
-                        onClick={(e) => e.stopPropagation()}
-                     >
-                       {isSelected && <circle cx={node.x} cy={node.y} r={r + 6} className="fill-none stroke-emerald-500/40 stroke-1 animate-[ping_3s_infinite]" />}
-                       <circle 
-                         cx={node.x} cy={node.y} r={r}
-                         className={`node-circle transition-all duration-300 stroke-2 fill-slate-900 
-                          ${isSelected ? 'stroke-white scale-110 shadow-lg' : stateClass}
-                          ${isFilterActive && !isValidTarget ? 'opacity-20' : 'opacity-100'}`}
-                       />
-                       <text 
-                         x={node.x} y={node.y + r + 14} 
-                         textAnchor="middle"
-                         className={`text-[8px] font-black font-mono select-none pointer-events-none uppercase transition-all ${isFilterActive && !isValidTarget ? 'opacity-10' : 'fill-slate-300'}`}
-                       >
-                         {rangeLevel < 4 ? node.name : ''} 
-                       </text>
-                     </g>
+                     <g key={node.id} className="cursor-pointer" onClick={(e) => {
+                       e.stopPropagation();
+                       if (isLinking && selectedNodeId && selectedNodeId !== node.id) {
+                         connectNodes(selectedNodeId, node.id);
+                       } else {
+                         selectNode(node.id);
+                       }
+                     }}>
+                      {isSelected && <circle cx={node.x} cy={node.y} r={r + 6} className="fill-none stroke-emerald-500/40 stroke-1 animate-[ping_3s_infinite]" />}
+                      <circle 
+                        cx={node.x} cy={node.y} r={r}
+                        className={`node-circle transition-all duration-300 stroke-2 fill-slate-900 ${isOffline ? 'stroke-slate-700 opacity-40' : stateClass} ${isSelected ? 'stroke-white scale-110' : ''}`}
+                      />
+                      <text 
+                        x={node.x} y={node.y + r + 14} 
+                        textAnchor="middle"
+                        className={`text-[8px] font-black font-mono select-none pointer-events-none uppercase transition-all backdrop-blur-sm ${isOffline ? 'opacity-20' : 'fill-slate-300'}`}
+                      >
+                        {rangeLevel < 4 ? node.name : ''} 
+                      </text>
+                    </g>
                    );
                 })}
               </g>
