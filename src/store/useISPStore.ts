@@ -72,6 +72,7 @@ interface ISPStore {
   demandGrid: DemandCell[];
   logs: string[];
   rangeLevel: RangeLevel;
+  currentScale: 'local' | 'regional' | 'national' | 'global';
   selectedNodeId: string | null;
   isLinking: boolean;
   isGodMode: boolean;
@@ -133,7 +134,8 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   links: [],
   selectedNodeId: null,
   isLinking: false,
-  rangeLevel: 1,
+  rangeLevel: 4,
+  currentScale: 'global',
   tickRate: 16,
   logs: ['[SYSTEM] Graph Topology Online. Drag a node to Connect or Build.'],
   isGodMode: false,
@@ -191,8 +193,10 @@ export const useISPStore = create<ISPStore>((set, get) => ({
       set({ canUpgradeEra: canUpgrade });
     }
 
-    // Extend worker message later to support attenuation modifier
-    worker.postMessage({ nodes, links, rangeLevel, tickRate });
+    // Sync worker with latest global state
+    const eraConfig = get().getCurrentEraConfig();
+    const demandGrid = get().demandGrid;
+    worker.postMessage({ nodes, links, rangeLevel, tickRate, demandGrid, era: eraConfig });
   },
 
   validateLink: (srcId, tgtId) => {
@@ -264,7 +268,12 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     };
   }),
   selectNode: (id) => set({ selectedNodeId: id }),
-  setRange: (level) => set({ rangeLevel: level }),
+  setRange: (level) => {
+    const scaleMap: Record<number, 'local' | 'regional' | 'national' | 'global'> = {
+      1: 'local', 2: 'regional', 3: 'national', 4: 'global'
+    };
+    set({ rangeLevel: level, currentScale: scaleMap[level] || 'global' });
+  },
   addLog: (msg, isCritical = false) => set((state) => ({
     logs: [`[${new Date().toLocaleTimeString()}] ${isCritical ? '!!! ' : ''}${msg}`, ...state.logs].slice(0, 20)
   })),

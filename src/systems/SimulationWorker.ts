@@ -33,6 +33,8 @@ interface WorkerState {
   rangeLevel: number;
   tickRate: number;
   demandGrid: any[];
+  era: any;
+}
 }
 
 // Simple Min-Priority Queue for Dijkstra
@@ -47,9 +49,9 @@ class MinHeap {
 }
 
 self.onmessage = (e: MessageEvent<WorkerState>) => {
-  const { nodes, links, rangeLevel, tickRate, demandGrid } = e.data;
+  const { nodes, links, rangeLevel, tickRate, demandGrid, era } = e.data;
   const dT = tickRate / 1000;
-  const K_ATTENUATION = 0.002; // Attenuation constant for copper (70s)
+  const K_ATTENUATION = era?.modifiers?.signalAttenuation || 0.002;
 
   // 1. Dijkstra Pathfinding (Path of Least Resistance)
   const dists: Record<string, number> = {};
@@ -102,27 +104,31 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
     }
   }
 
-  // 1.5 Spatial Demand Matrix Processing
+  // 1.5 Spatial Demand Matrix Processing (Only for Local/Regional)
   const nodeTrafficMap: Record<string, number> = {};
   const nodeRevenueMap: Record<string, number> = {};
   const COVERAGE_RADIUS = 150;
+  const radiusSq = COVERAGE_RADIUS * COVERAGE_RADIUS;
 
-  if (demandGrid && demandGrid.length > 0) {
+  if (rangeLevel <= 2 && demandGrid && demandGrid.length > 0) {
      demandGrid.forEach(cell => {
         let nearestNode: any = null;
-        let minDist = Infinity;
+        let minDistSq = Infinity;
         
         nodes.forEach(n => {
            if (dists[n.id] === Infinity) return;
-           const d = Math.hypot(n.x - cell.x, n.y - cell.y);
-           if (d < minDist && d < COVERAGE_RADIUS) {
-              minDist = d;
+           const dx = n.x - cell.x;
+           const dy = n.y - cell.y;
+           const dSq = dx * dx + dy * dy;
+           
+           if (dSq < minDistSq && dSq < radiusSq) {
+              minDistSq = dSq;
               nearestNode = n;
            }
         });
         
         if (nearestNode) {
-           const efficiency = Math.max(0.1, 1 - (minDist / COVERAGE_RADIUS));
+           const efficiency = Math.max(0.1, 1 - (Math.sqrt(minDistSq) / COVERAGE_RADIUS));
            nodeTrafficMap[nearestNode.id] = (nodeTrafficMap[nearestNode.id] || 0) + (cell.trafficBase * efficiency);
            nodeRevenueMap[nearestNode.id] = (nodeRevenueMap[nearestNode.id] || 0) + (cell.revenueBase * efficiency);
         }
