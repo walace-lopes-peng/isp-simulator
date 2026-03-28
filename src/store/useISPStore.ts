@@ -52,7 +52,7 @@ interface ISPStore {
 
 export const useISPStore = create<ISPStore>((set, get) => ({
   money: 5000,
-  currentEra: 'modern',
+  currentEra: '70s',
   totalData: 0,
   zoomLevel: 10,
   selectedNodeId: null,
@@ -113,35 +113,53 @@ export const useISPStore = create<ISPStore>((set, get) => ({
         return { ...node, traffic: Math.max(10, Math.min(node.traffic + drift, node.bandwidth * 1.5)) };
       });
 
-      // Link OPEX
+      // 3. Link OPEX
       totalMaintenanceCost += state.links.length * 5;
 
-      // 3. Revenue
-      // Rule: Sum traffic of all active nodes connected to Core gateway
-      const activeNodes = updatedNodes.filter(n => n.id !== '0' && reachableIds.has(n.id));
-      const totalTraffic = activeNodes.reduce((sum, n) => sum + n.traffic, 0);
-      
-      // Multiplier based on zoom/era focus (Simplified version of user's request)
-      const hasOverload = activeNodes.some(n => n.traffic > n.bandwidth);
-      const revenue = Math.floor(hasOverload ? totalTraffic * 0.5 : totalTraffic * 1.0);
+      // 4. Revenue (Restored Tier Focus logic)
+      const activeTier = state.zoomLevel <= 25 ? 1 : state.zoomLevel <= 50 ? 2 : state.zoomLevel <= 75 ? 3 : 4;
+      const profitableNodes = updatedNodes.filter(n => n.layer > 1 && reachableIds.has(n.id));
 
-      // 4. Update Stats & Economy
-      const newTotalData = state.totalData + Math.floor(totalTraffic / 10);
+      const rawRevenue = profitableNodes.reduce((sum, n) => {
+        const isFocused = n.layer === activeTier;
+        const multiplier = isFocused ? 0.8 : 0.2; // 80% focus, 20% background
+        const nodeRevenue = n.traffic * multiplier;
+        
+        const isCongested = n.traffic > n.bandwidth;
+        return sum + (isCongested ? nodeRevenue * 0.5 : nodeRevenue);
+      }, 0);
+
+      const revenue = Math.floor(rawRevenue);
+
+      // 5. Update Stats & Economy
+      const totalLoad = updatedNodes.reduce((sum, n) => sum + n.traffic, 0);
+      const newTotalData = state.totalData + Math.floor(totalLoad / 10);
+      
       let nextEra = state.currentEra;
-      if (newTotalData > 1000000) nextEra = 'modern';
-      else if (newTotalData > 100000) nextEra = '90s';
+      const eraThresholds = { '90s': 50000, 'modern': 500000 }; // Reverting to balanced thresholds
+      if (newTotalData > eraThresholds.modern) nextEra = 'modern';
+      else if (newTotalData > eraThresholds['90s']) nextEra = '90s';
 
       const timestamp = new Date().toLocaleTimeString();
       let newLogs = [...state.logs];
       
-      // Event: Logs for revenue/OPEX
+      // 6. Event: Restore Node Disconnection Alerts
+      updatedNodes.forEach(node => {
+        const wasReachable = state.nodes.find(n => n.id === node.id)?.traffic !== 0 || node.layer === 1;
+        if (!reachableIds.has(node.id) && wasReachable && node.id !== '0' && Math.random() > 0.9) {
+           newLogs = [`[${timestamp}] ! Node [${node.name}] disconnected from Core`, ...newLogs].slice(0, 20);
+        }
+      });
+
+      // 7. Event: Logs for revenue/OPEX
       if (revenue > 0 && Math.random() > 0.8) {
-        newLogs = [`[${timestamp}] Revenue: +$${revenue} | OPEX: -$${totalMaintenanceCost}`, ...newLogs].slice(0, 20);
+        newLogs = [`[${timestamp}] Revenue: +$${revenue} (Focus: Tier ${activeTier}) | OPEX: -$${totalMaintenanceCost}`, ...newLogs].slice(0, 20);
       }
 
       // Event: Overload Alert
+      const hasOverload = updatedNodes.some(n => n.traffic > n.bandwidth && reachableIds.has(n.id));
       if (hasOverload && Math.random() > 0.9) {
-        newLogs = [`[${timestamp}] ! CRITICAL: Network Saturation detected. Overload penalty active.`, ...newLogs].slice(0, 20);
+        newLogs = [`[${timestamp}] ! CRITICAL: Network Saturation detected. Performance penalty active.`, ...newLogs].slice(0, 20);
       }
 
       return {
