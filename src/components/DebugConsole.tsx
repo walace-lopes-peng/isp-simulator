@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useISPStore, Era } from '../store/useISPStore';
+import { useISPStore, ERAS_CONFIG } from '../store/useISPStore';
 
 const DebugConsole: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -62,14 +62,14 @@ const DebugConsole: React.FC = () => {
         {/* Era Manipulation */}
         <div>
           <label className="text-[8px] font-black text-slate-500 uppercase tracking-tighter mb-2 block">Era Simulation</label>
-          <div className="flex gap-2">
-            {(['70s', '90s', 'modern'] as Era[]).map(era => (
+          <div className="flex flex-wrap gap-2">
+            {ERAS_CONFIG.map(era => (
               <button 
-                key={era}
-                onClick={() => { setEra(era); addLog(`DEBUG: Era jumped to ${era}`, false); }}
-                className={`flex-1 py-1 border text-[8px] uppercase transition-all ${currentEra === era ? 'bg-white/20 border-white/40 text-white font-bold' : 'bg-white/5 border-white/5 text-slate-500 hover:bg-white/10'}`}
+                key={era.id}
+                onClick={() => { setEra(era.id); addLog(`DEBUG: Era jumped to ${era.id}`, false); }}
+                className={`flex-1 min-w-[30%] py-1 border text-[8px] uppercase transition-all ${currentEra === era.id ? 'bg-white/20 border-white/40 text-white font-bold' : 'bg-white/5 border-white/5 text-slate-500 hover:bg-white/10'}`}
               >
-                {era}
+                {era.id}
               </button>
             ))}
           </div>

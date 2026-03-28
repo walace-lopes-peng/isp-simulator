@@ -1,6 +1,23 @@
 import { create } from 'zustand';
+import eraConfigData from '../config/eraConfig.json';
 
-export type Era = '70s' | '90s' | 'modern';
+export interface EraConfig {
+  id: string;
+  displayName: string;
+  startYear: number;
+  endYear: number;
+  uiTheme: string;
+  unlockedHardware: string[];
+  modifiers: {
+    signalAttenuation: number;
+    revenueMultiplier: number;
+    maintenanceCost: number;
+  };
+  unlockCondition: { totalData: number; money: number };
+}
+
+export const ERAS_CONFIG = eraConfigData.eras as EraConfig[];
+
 export type RangeLevel = 1 | 2 | 3 | 4;
 export type ISPNodeType = 'terminal' | 'hub_local' | 'hub_regional' | 'backbone';
 
@@ -38,7 +55,8 @@ export const RANGE_PRESETS = {
 
 interface ISPStore {
   money: number;
-  currentEra: Era;
+  currentEra: string;
+  canUpgradeEra: boolean;
   nodes: ISPNode[];
   links: ISPLink[];
   totalData: number;
@@ -59,7 +77,10 @@ interface ISPStore {
   tick: () => void;
   upgradeNode: (id: string) => void;
   addNode: (node: ISPNode) => void;
-  setEra: (era: Era) => void;
+  setEra: (era: string) => void;
+  purchaseEraUpgrade: () => void;
+  getCurrentEraConfig: () => EraConfig;
+  getNextEraConfig: () => EraConfig | null;
   addLog: (msg: string, isCritical?: boolean) => void;
   setRange: (level: RangeLevel) => void;
   selectNode: (id: string | null) => void;
@@ -86,6 +107,7 @@ interface ISPStore {
 export const useISPStore = create<ISPStore>((set, get) => ({
   money: 5000,
   currentEra: '70s',
+  canUpgradeEra: false,
   totalData: 0,
   nodes: [
     { id: '0', name: 'CORE GATEWAY', x: 395, y: 260, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'backbone', health: 100 },
@@ -108,6 +130,20 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   dragSourceId: null,
   dragPos: null,
 
+  getCurrentEraConfig: () => {
+    const eraId = get().currentEra;
+    return ERAS_CONFIG.find(e => e.id === eraId) || ERAS_CONFIG[0];
+  },
+
+  getNextEraConfig: () => {
+    const eraId = get().currentEra;
+    const currentIndex = ERAS_CONFIG.findIndex(e => e.id === eraId);
+    if (currentIndex >= 0 && currentIndex < ERAS_CONFIG.length - 1) {
+      return ERAS_CONFIG[currentIndex + 1];
+    }
+    return null;
+  },
+
   worker: null,
   initWorker: () => {
     if (get().worker) return;
@@ -115,9 +151,13 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     worker.onmessage = (e) => {
       const { nodes, revenue, totalMaintenanceCost, totalLoad, networkHealth, avgLatency } = e.data;
       const state = get();
+      const eraConfig = state.getCurrentEraConfig();
+      const adjustedRevenue = revenue * eraConfig.modifiers.revenueMultiplier;
+      const adjustedCost = totalMaintenanceCost * eraConfig.modifiers.maintenanceCost;
+
       set({ 
         nodes, 
-        money: state.isGodMode ? state.money : (state.money + revenue - totalMaintenanceCost), 
+        money: state.isGodMode ? state.money : (state.money + adjustedRevenue - adjustedCost), 
         totalData: state.totalData + Math.floor(totalLoad / 10),
         networkHealth,
         avgLatency
@@ -127,8 +167,18 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   },
 
   tick: () => {
-    const { worker, nodes, links, rangeLevel, tickRate, initWorker } = get();
+    const { worker, nodes, links, rangeLevel, tickRate, initWorker, totalData, money } = get();
     if (!worker) { initWorker(); return; }
+    
+    // Check for Era Upgrade availability
+    const nextEra = get().getNextEraConfig();
+    const canUpgrade = nextEra ? (totalData >= nextEra.unlockCondition.totalData && money >= nextEra.unlockCondition.money) : false;
+    
+    if (canUpgrade !== get().canUpgradeEra) {
+      set({ canUpgradeEra: canUpgrade });
+    }
+
+    // Extend worker message later to support attenuation modifier
     worker.postMessage({ nodes, links, rangeLevel, tickRate });
   },
 
@@ -207,6 +257,17 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   })),
   addNode: (node) => set((state) => ({ nodes: [...state.nodes, node] })),
   setEra: (era) => set({ currentEra: era }),
+  purchaseEraUpgrade: () => set((state) => {
+    const nextEra = state.getNextEraConfig();
+    if (!nextEra || !state.canUpgradeEra) return state;
+    
+    return {
+      money: state.isGodMode ? state.money : state.money - nextEra.unlockCondition.money,
+      currentEra: nextEra.id,
+      canUpgradeEra: false,
+      logs: [`[SYS_UPGRADE] Epoch Shifted: ${nextEra.displayName}`, ...state.logs].slice(0, 20)
+    };
+  }),
   addMoney: (amount) => set((state) => ({ money: state.money + amount })),
   toggleGodMode: () => set((state) => ({ isGodMode: !state.isGodMode })),
   setTickRate: (rate) => set({ tickRate: rate }),
