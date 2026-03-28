@@ -22,5 +22,9 @@ These rules are CRITICAL. Failure to comply is a 'Failed Build'.
 - **FATAL**: Violation results in immediate session REVERT.
 - **LINTER**: Run `node scripts/ai-linter.js` before PR.
 
+## 5. Branch & Architectural Governance
+- **BRANCH SCOPE**: Always verify current branch. Never implement code outside the user-designated branch.
+- **ZERO PIVOT**: Do NOT pivot the repository "North Star" or switch core simulation engines autonomously. Always present an Implementation Plan and wait for an explicit "Implement" prompt.
+
 ---
 *Senior Lead Authorization: ANCHORED BP-v1.3 — TOKEN-SAVER ACTIVE*
