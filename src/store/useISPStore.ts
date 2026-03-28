@@ -36,7 +36,7 @@ export interface ISPNode {
   region?: string;
   latency?: number;
   signalStrength?: number;
-  scale: 'local' | 'regional' | 'global';
+  scale: 'local' | 'regional' | 'national' | 'global';
   parentId: string | null;
 }
 
