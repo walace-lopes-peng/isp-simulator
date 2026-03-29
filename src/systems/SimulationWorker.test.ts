@@ -14,14 +14,14 @@ describe('SimulationWorker Physics System', () => {
         mockPostMessage.mockClear();
     });
 
-    it('should attenuate signals to near 0 for a 400px link under 1970s era conditions (high attenuation)', async () => {
+    it('should calculate signal attenuation correctly under 1970s era conditions (/1000 scaling)', async () => {
         // Require the worker file so it attaches to global.self.onmessage
         await import('./SimulationWorker');
         // Arrange
         const MOCK_1970S_ERA = {
             id: '70s',
             modifiers: {
-                signalAttenuation: 1.5, // High attenuation
+                signalAttenuation: 1.5, // High attenuation in config
                 revenueMultiplier: 1.0,
                 maintenanceCost: 0.5
             }
@@ -61,11 +61,12 @@ describe('SimulationWorker Physics System', () => {
         // Find the remote node in the processed list
         const processedTarget = result.nodes.find((n: any) => n.id === 'test-target');
         
-        // Assert its signalStrength evaluates to ~0 due to distance 400 * attenuation 1.5
-        // Math.exp(-1.5 * 400) is e^-600, which is effectively 0, but scaled * 100 and rounded.
-        // The worker computes: Math.round(Math.exp(-1.5 * 400) * 100) -> 0
+        // Assert its signalStrength evaluates correctly
+        // K_ATTENUATION = 1.5 / 1000 = 0.0015
+        // Signal = Math.exp(-0.0015 * 400) = e^-0.6 ≈ 0.5488
+        // Round(0.5488 * 100) -> 55
         expect(processedTarget).toBeDefined();
-        expect(processedTarget.signalStrength).toBe(0);
+        expect(processedTarget.signalStrength).toBe(55);
     });
 
 });

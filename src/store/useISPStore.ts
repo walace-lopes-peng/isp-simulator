@@ -49,6 +49,7 @@ const DEFAULT_START = STARTING_POINTS.us_east;
 interface ISPStore {
   money: number;
   currentEra: Era;
+  canUpgradeEra: boolean;
   nodes: ISPNode[];
   links: ISPLink[];
   totalData: number;
@@ -84,6 +85,7 @@ interface ISPStore {
   worker: Worker | null;
   initWorker: () => void;
 
+  purchaseEraUpgrade: () => void;
   addMoney: (amount: number) => void;
   resetTopology: () => void;
   toggleGodMode: () => void;
@@ -93,6 +95,7 @@ interface ISPStore {
 export const useISPStore = create<ISPStore>((set, get) => ({
   money: 5000,
   currentEra: '70s',
+  canUpgradeEra: false,
   totalData: 0,
   nodes: [
     { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'hub_local', health: 100 },
@@ -137,8 +140,17 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   },
 
   tick: () => {
-    const { worker, nodes, links, rangeLevel, tickRate, initWorker } = get();
+    const { worker, nodes, links, rangeLevel, tickRate, totalData, money, initWorker } = get();
     if (!worker) { initWorker(); return; }
+    
+    // Era Synchronization Maintenance (Gold Standard BP-v1.4)
+    const nextEra = get().getNextEraConfig();
+    const canUpgrade = nextEra ? (totalData >= nextEra.unlockCondition.totalData && money >= nextEra.unlockCondition.money) : false;
+    
+    if (canUpgrade !== get().canUpgradeEra) {
+      set({ canUpgradeEra: canUpgrade });
+    }
+
     const era = get().getCurrentEraConfig();
     worker.postMessage({ nodes, links, rangeLevel, tickRate, era });
   },
@@ -161,7 +173,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
 
     const dist = Math.sqrt(Math.pow(src.x - tgt.x, 2) + Math.pow(src.y - tgt.y, 2));
     
-    // Era-Aware Connectivity Range
+    // Era-Aware Connectivity Range (Source: Gold Standard 70s Pioneer baseline)
     const eraConfig = get().getCurrentEraConfig();
     const eraIndex = ERAS_CONFIG.indexOf(eraConfig!);
     const maxDist = 150 + (eraIndex * 100); 
@@ -223,11 +235,23 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   })),
   addNode: (node) => set((state) => ({ nodes: [...state.nodes, node] })),
   setEra: (era) => set({ currentEra: era }),
+  purchaseEraUpgrade: () => set((state) => {
+    const nextEra = state.getNextEraConfig();
+    if (!nextEra || !state.canUpgradeEra) return state;
+    
+    return {
+      money: state.isGodMode ? state.money : state.money - nextEra.unlockCondition.money,
+      currentEra: nextEra.id,
+      canUpgradeEra: false,
+      logs: [`[SYS_UPGRADE] Epoch Shifted: ${nextEra.displayName}`, ...state.logs].slice(0, 20)
+    };
+  }),
   addMoney: (amount) => set((state) => ({ money: state.money + amount })),
   toggleGodMode: () => set((state) => ({ isGodMode: !state.isGodMode })),
   setTickRate: (rate) => set({ tickRate: rate }),
   resetTopology: () => set((state) => ({
     links: [],
+    canUpgradeEra: false,
     nodes: [
       { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'hub_local', health: 100 },
       { id: 'l1-a', name: 'LOCAL TERMINAL A', x: DEFAULT_START.x + 15, y: DEFAULT_START.y - 15, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100 },

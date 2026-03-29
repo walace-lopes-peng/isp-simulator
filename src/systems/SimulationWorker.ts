@@ -27,13 +27,28 @@ interface ISPLink {
   type: string;
 }
 
+interface EraModifiers {
+  signalAttenuation: number;
+  revenueMultiplier: number;
+  maintenanceCost: number;
+}
+
+interface EraConfig {
+  id: string;
+  modifiers: EraModifiers;
+}
+
 interface WorkerState {
   nodes: ISPNode[];
   links: ISPLink[];
   rangeLevel: number;
   tickRate: number;
+<<<<<<< HEAD
   attenuation?: number;
   era?: any;
+=======
+  era: EraConfig;
+>>>>>>> dev
 }
 
 // Simple Min-Priority Queue for Dijkstra
@@ -48,9 +63,18 @@ class MinHeap {
 }
 
 self.onmessage = (e: MessageEvent<WorkerState>) => {
+<<<<<<< HEAD
   const { nodes, links, rangeLevel, tickRate, attenuation, era } = e.data;
   const dT = tickRate / 1000;
   const K_ATTENUATION = attenuation ?? era?.modifiers?.signalAttenuation ?? 0.002;
+=======
+  const { nodes, links, rangeLevel, tickRate, era } = e.data;
+  const dT = tickRate / 1000;
+  
+  // Physics Fix: Scale JSON attenuation (e.g., 1.5) to simulation constant k (e.g., 0.0015)
+  // Base fallback 0.002 (copper) if config is missing.
+  const K_ATTENUATION = (era?.modifiers?.signalAttenuation || 0.002) / 1000;
+>>>>>>> dev
 
   // 1. Dijkstra Pathfinding (Path of Least Resistance)
   const dists: Record<string, number> = {};
