@@ -47,7 +47,7 @@ export interface ISPLink {
 }
 
 export const STARTING_POINTS = {
-  us_east: { name: "New York (US East)", x: 238, y: 312 },
+  us_east: { name: "New York (US East)", x: 248, y: 318 },
   us_west: { name: "San Francisco (US West)", x: 110, y: 280 },
   europe: { name: "London (Europe)", x: 410, y: 210 },
   sampa: { name: "São Paulo (LATAM)", x: 265, y: 590 },
@@ -206,7 +206,12 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     if (!isPeer && diff !== 1 && !state.isGodMode) return { valid: false, error: 'HIERARCHY' };
 
     const dist = Math.sqrt(Math.pow(src.x - tgt.x, 2) + Math.pow(src.y - tgt.y, 2));
-    const maxDist = 350; // Week 2 Attenuation limit prototype
+    
+    // Era-Aware Connectivity Range (Issue #99.1)
+    const eraId = state.currentEra;
+    const eraIndex = ERAS_CONFIG.findIndex(e => e.id === eraId);
+    const maxDist = 150 + (eraIndex * 100); 
+    
     if (dist > maxDist && !state.isGodMode) return { valid: false, error: 'RANGE' };
 
     const cost = Math.floor(100 + (dist * 1.5));
