@@ -46,8 +46,18 @@ export interface ISPLink {
   type: 'cable' | 'fiber' | 'satellite';
 }
 
+export const STARTING_POINTS = {
+  us_east: { name: "New York (US East)", x: 220, y: 280 },
+  us_west: { name: "San Francisco (US West)", x: 110, y: 280 },
+  europe: { name: "London (Europe)", x: 410, y: 210 },
+  sampa: { name: "São Paulo (LATAM)", x: 265, y: 590 },
+  tokyo: { name: "Tokyo (APAC)", x: 715, y: 290 }
+} as const;
+
+export const DEFAULT_START = STARTING_POINTS.us_east;
+
 export const RANGE_PRESETS = {
-  1: { name: 'LOCAL', viewBox: '250 150 300 300', tier: 1 },
+  1: { name: 'LOCAL', viewBox: `${DEFAULT_START.x - 150} ${DEFAULT_START.y - 150} 300 300`, tier: 1 },
   2: { name: 'REGIONAL', viewBox: '50 100 400 300', tier: 2 },
   3: { name: 'NATIONAL', viewBox: '0 0 800 600', tier: 3 },
   4: { name: 'GLOBAL', viewBox: '0 0 800 800', tier: 4 },
@@ -110,7 +120,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   canUpgradeEra: false,
   totalData: 0,
   nodes: [
-    { id: '0', name: 'CORE GATEWAY', x: 500, y: 500, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'backbone', health: 100 },
+    { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'backbone', health: 100 },
   ],
   links: [],
   selectedNodeId: null,
@@ -288,7 +298,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   resetTopology: () => set((state) => ({
     links: [],
     nodes: [
-      { id: '0', name: 'CORE GATEWAY', x: 500, y: 500, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'backbone', health: 100 },
+      { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'backbone', health: 100 },
     ]
   })),
 }));
