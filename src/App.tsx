@@ -432,7 +432,7 @@ const LogisticMap = () => {
                    const isFilterActive = dragSourceId !== null && dragSourceId !== node.id;
                    const isValidTarget = dragSourceId ? validateLink(dragSourceId, node.id).valid : true;
                    
-                   const baseR = layerNum === 1 ? 5 : 4;
+                   const baseR = layerNum === 1 ? 8 : 6;
                    const rangeScale = 1.0 - (rangeLevel - 1) * 0.15;
                    const r = baseR * rangeScale;
                    const isGateway = node.id === '0';

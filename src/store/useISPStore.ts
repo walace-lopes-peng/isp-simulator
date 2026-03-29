@@ -116,6 +116,8 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   totalData: 0,
   nodes: [
     { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'backbone', health: 100 },
+    { id: 'l1-a', name: 'LOCAL TERMINAL A', x: DEFAULT_START.x + 30, y: DEFAULT_START.y - 30, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100 },
+    { id: 'l1-b', name: 'LOCAL TERMINAL B', x: DEFAULT_START.x - 30, y: DEFAULT_START.y + 30, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100 },
   ],
   links: [],
   selectedNodeId: null,
@@ -265,6 +267,8 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     canUpgradeEra: false,
     nodes: [
       { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'backbone', health: 100 },
+      { id: 'l1-a', name: 'LOCAL TERMINAL A', x: DEFAULT_START.x + 30, y: DEFAULT_START.y - 30, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100 },
+      { id: 'l1-b', name: 'LOCAL TERMINAL B', x: DEFAULT_START.x - 30, y: DEFAULT_START.y + 30, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100 },
     ]
   })),
 }));
