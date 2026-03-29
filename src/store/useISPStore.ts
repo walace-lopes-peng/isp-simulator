@@ -178,8 +178,9 @@ export const useISPStore = create<ISPStore>((set, get) => ({
       set({ canUpgradeEra: canUpgrade });
     }
 
-    // Extend worker message later to support attenuation modifier
-    worker.postMessage({ nodes, links, rangeLevel, tickRate });
+    // Pass current era config to the worker for adaptive physics (Issue #96)
+    const era = get().getCurrentEraConfig();
+    worker.postMessage({ nodes, links, rangeLevel, tickRate, era });
   },
 
   validateLink: (srcId, tgtId) => {
