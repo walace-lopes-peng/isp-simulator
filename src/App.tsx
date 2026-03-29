@@ -6,7 +6,7 @@ import EraWrapper from './components/EraWrapper';
 // --- UI COMPONENTS ---
 
 const TopBar = () => {
-  const { money, totalData, nodes, networkHealth, canUpgradeEra, purchaseEraUpgrade } = useISPStore();
+  const { money, totalData, nodes, networkHealth, canUpgradeEra, purchaseEraUpgrade, isGodMode } = useISPStore();
   const eraConfig = useISPStore(state => state.getCurrentEraConfig());
   const traffic = nodes.reduce((sum, n) => sum + n.traffic, 0);
   const bandwidth = nodes.reduce((sum, n) => sum + n.bandwidth, 0);
@@ -52,6 +52,11 @@ const TopBar = () => {
           <span className={`text-[10px] font-black tracking-tighter ${statusColor}`}>{status} // {(loadRatio * 100).toFixed(0)}% LOAD</span>
         </div>
         <div className="flex gap-2 items-center">
+          {isGodMode && (
+            <div className="px-2 py-1 bg-amber-500 text-black rounded font-black text-[9px] uppercase tracking-wider animate-pulse shadow-[0_0_10px_rgba(245,158,11,0.5)]">
+              GOD MODE ACTIVE
+            </div>
+          )}
           {canUpgradeEra && (
             <button 
               onClick={purchaseEraUpgrade}

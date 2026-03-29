@@ -220,8 +220,14 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   },
 
   connectNodes: (srcId, tgtId) => {
-    const { valid, cost } = get().validateLink(srcId, tgtId);
-    if (!valid && !get().isGodMode) return;
+    const { valid, error, cost } = get().validateLink(srcId, tgtId);
+    if (!valid) {
+      if (get().isGodMode) {
+        get().addLog(`[GOD_MODE] Bypassing ${error} error for ${srcId} -> ${tgtId}`, true);
+      } else {
+        return;
+      }
+    }
     
     const newLink: ISPLink = {
       id: `link-${Date.now()}`,
@@ -244,6 +250,11 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     if (!node) return state;
     const cost = Math.floor(50 * Math.pow(1.15, node.level));
     if (!state.isGodMode && state.money < cost) return state;
+    
+    if (state.money < cost && state.isGodMode) {
+      state.addLog(`[GOD_MODE] Bypassing CAPITAL error for ${node.name} upgrade`, true);
+    }
+
     return {
       money: state.isGodMode ? state.money : state.money - cost,
       nodes: state.nodes.map(n => n.id === id ? { ...n, level: n.level + 1, bandwidth: Math.floor(n.bandwidth * 1.4) } : n),
@@ -261,6 +272,10 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     const nextEra = state.getNextEraConfig();
     if (!nextEra || !state.canUpgradeEra) return state;
     
+    if (state.isGodMode && !state.canUpgradeEra) {
+       state.addLog(`[GOD_MODE] Bypassing UNLOCK requirements for ${nextEra.displayName}`, true);
+    }
+
     return {
       money: state.isGodMode ? state.money : state.money - nextEra.unlockCondition.money,
       currentEra: nextEra.id,
@@ -269,7 +284,11 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     };
   }),
   addMoney: (amount) => set((state) => ({ money: state.money + amount })),
-  toggleGodMode: () => set((state) => ({ isGodMode: !state.isGodMode })),
+  toggleGodMode: () => {
+    const newStatus = !get().isGodMode;
+    get().addLog(`[SYSTEM] God Mode: ${newStatus ? 'ACTIVATED' : 'DEACTIVATED'}`, !newStatus);
+    set({ isGodMode: newStatus });
+  },
   setTickRate: (rate) => set({ tickRate: rate }),
   resetTopology: () => set((state) => ({
     links: [],
