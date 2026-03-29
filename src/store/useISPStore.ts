@@ -57,7 +57,7 @@ export const STARTING_POINTS = {
 export const DEFAULT_START = STARTING_POINTS.us_east;
 
 export const RANGE_PRESETS = {
-  1: { name: 'LOCAL', viewBox: `${DEFAULT_START.x - 150} ${DEFAULT_START.y - 150} 300 300`, tier: 1 },
+  1: { name: 'LOCAL', viewBox: `${DEFAULT_START.x - 60} ${DEFAULT_START.y - 60} 120 120`, tier: 1 },
   2: { name: 'REGIONAL', viewBox: '50 100 400 300', tier: 2 },
   3: { name: 'NATIONAL', viewBox: '0 0 800 600', tier: 3 },
   4: { name: 'GLOBAL', viewBox: '0 0 800 800', tier: 4 },
@@ -115,9 +115,9 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   canUpgradeEra: false,
   totalData: 0,
   nodes: [
-    { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'backbone', health: 100 },
-    { id: 'l1-a', name: 'LOCAL TERMINAL A', x: DEFAULT_START.x + 30, y: DEFAULT_START.y - 30, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100 },
-    { id: 'l1-b', name: 'LOCAL TERMINAL B', x: DEFAULT_START.x - 30, y: DEFAULT_START.y + 30, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100 },
+    { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'hub_local', health: 100 },
+    { id: 'l1-a', name: 'LOCAL TERMINAL A', x: DEFAULT_START.x + 15, y: DEFAULT_START.y - 15, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100 },
+    { id: 'l1-b', name: 'LOCAL TERMINAL B', x: DEFAULT_START.x - 15, y: DEFAULT_START.y + 15, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100 },
   ],
   links: [],
   selectedNodeId: null,
@@ -266,9 +266,10 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     links: [],
     canUpgradeEra: false,
     nodes: [
-      { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'backbone', health: 100 },
-      { id: 'l1-a', name: 'LOCAL TERMINAL A', x: DEFAULT_START.x + 30, y: DEFAULT_START.y - 30, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100 },
-      { id: 'l1-b', name: 'LOCAL TERMINAL B', x: DEFAULT_START.x - 30, y: DEFAULT_START.y + 30, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100 },
+      { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'hub_local', health: 100 },
+      { id: 'l1-a', name: 'LOCAL TERMINAL A', x: DEFAULT_START.x + 15, y: DEFAULT_START.y - 15, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100 },
+      { id: 'l1-b', name: 'LOCAL TERMINAL B', x: DEFAULT_START.x - 15, y: DEFAULT_START.y + 15, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100 },
     ]
   })),
 }));
+
