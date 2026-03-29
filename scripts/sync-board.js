@@ -1,165 +1,91 @@
-import fs from 'fs';
+const { execSync } = require('child_process');
+const fs = require('fs');
 
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const REPO = process.env.GITHUB_REPOSITORY;
-const API_URL = `https://api.github.com/repos/${REPO}`;
+const TOKEN = process.env.GITHUB_TOKEN;
 
-async function fetchAll(path) {
-  const response = await fetch(`${API_URL}${path}`, {
+async function gh(path) {
+  const res = await fetch(`https://api.github.com/repos/${REPO}${path}`, {
     headers: {
-      Authorization: `token ${GITHUB_TOKEN}`,
-      Accept: 'application/vnd.github.v3+json',
-      'User-Agent': 'ISP-Simulator-Bot'
+      Authorization: `Bearer ${TOKEN}`,
+      Accept: 'application/vnd.github+json',
     },
   });
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${path}: ${response.statusText}`);
+  return res.json();
+}
+
+function labels(item) {
+  return item.labels.map(l => `\`${l.name}\``).join(' ');
+}
+
+function prStatus(pr) {
+  if (pr.draft) return '`draft`';
+  if (pr.requested_reviewers?.length > 0) return '`review requested`';
+  return '`open`';
+}
+
+function priorityOrder(item) {
+  const labelNames = item.labels.map(l => l.name);
+  if (labelNames.includes('P0-blocker')) return 0;
+  if (labelNames.includes('P1-high')) return 1;
+  if (labelNames.includes('P2-medium')) return 2;
+  return 3;
+}
+
+function isBlocker(item) {
+  return item.labels.some(l => ['P0-blocker', 'v1-blocker'].includes(l.name));
+}
+
+function row(item, type) {
+  const title = `[${item.title}](${item.html_url})`;
+  if (type === 'pr') {
+    return `| #${item.number} | ${title} | ${prStatus(item)} |`;
   }
-  return response.json();
+  return `| #${item.number} | ${title} | ${labels(item)} |`;
 }
 
-async function getPRReviewStatus(prNumber) {
-  const reviews = await fetchAll(`/pulls/${prNumber}/reviews`);
-  if (reviews.some(r => r.state === 'CHANGES_REQUESTED')) return 'BLOCKED';
-  if (reviews.some(r => r.state === 'APPROVED')) return 'READY';
-  return 'PENDING';
+function inject(content, tag, rows) {
+  const block = rows.length
+    ? rows.join('\n')
+    : '| — | No items | — |';
+  return content.replace(
+    new RegExp(`<!-- ${tag}_START -->([\\s\\S]*?)<!-- ${tag}_END -->`),
+    `<!-- ${tag}_START -->\n${block}\n<!-- ${tag}_END -->`
+  );
 }
 
-async function run() {
-  try {
-    console.log(`Fetching issues and PRs for ${REPO}...`);
-    
-    // Fetch all open items (GitHub includes both issues and PRs in this API)
-    const items = await fetchAll('/issues?state=open&per_page=100');
-    
-    // Smart Priority Sync: Weight calculation
-    items.forEach(item => {
-      const labels = item.labels ? item.labels.map(l => l.name) : [];
-      item.weight = 0;
-      if (labels.some(l => ['blueprint', 'north-star', 'foundation', 'store', 'logic'].includes(l))) {
-        item.weight = 10;
-      } else if (labels.some(l => ['ui', 'immersion', 'dev-tools'].includes(l))) {
-        item.weight = 5;
-      } else if (labels.some(l => ['vfx', 'audio'].includes(l))) {
-        item.weight = 1;
-      }
-    });
+async function main() {
+  const [issues, prs] = await Promise.all([
+    gh('/issues?state=open&per_page=100'),
+    gh('/pulls?state=open&per_page=100'),
+  ]);
 
-    // Sort deterministically by weight descending, then number descending (idempotency)
-    items.sort((a, b) => b.weight - a.weight || b.number - a.number);
+  const onlyIssues = issues.filter(i => !i.pull_request);
 
-    const strategicCore = [];
-    const blockers = [];
-    const milestoneKernel = [];
-    const milestoneGarage = [];
-    const inProgress = [];
-    const backlog = [];
-    const prsReady = [];
-    const prsAwaiting = [];
+  const blockers = onlyIssues
+    .filter(isBlocker)
+    .sort((a, b) => priorityOrder(a) - priorityOrder(b));
 
-    for (const item of items) {
-      // Exclude the Sprint Board issue itself from the backlog
-      if (item.number === parseInt(process.env.SPRINT_ISSUE_ID)) continue;
+  const rest = onlyIssues
+    .filter(i => !isBlocker(i))
+    .sort((a, b) => priorityOrder(a) - priorityOrder(b));
 
-      const isPR = !!item.pull_request;
-      const labels = item.labels ? item.labels.map(l => l.name) : [];
-      
-      if (isPR) {
-        const status = await getPRReviewStatus(item.number);
-        if (status === 'READY') {
-          prsReady.push(item);
-        } else {
-          // Both PENDING and BLOCKED go here for now, marked in the table
-          item.reviewStatus = status;
-          prsAwaiting.push(item);
-        }
-      } else {
-        if (labels.includes('blueprint') || labels.includes('north-star')) {
-          strategicCore.push(item);
-        } else if (labels.includes('P0-blocker') || labels.includes('v1-blocker') || labels.includes('bug')) {
-          blockers.push(item);
-        } else if (labels.includes('in-progress')) {
-          inProgress.push(item);
-        } else if (labels.includes('topology-engine') || labels.includes('store') || labels.includes('logic')) {
-          milestoneKernel.push(item);
-        } else if (labels.includes('immersion') || labels.includes('ui-theme') || labels.includes('ui') || labels.includes('vfx')) {
-          milestoneGarage.push(item);
-        } else {
-          backlog.push(item);
-        }
-      }
-    }
+  const upNext = rest.slice(0, 5);
+  const backlog = rest.slice(5);
 
-    let markdown = `# 🏃 SPRINT BOARD\n\n`;
-    markdown += `> Last updated: ${new Date().toUTCString()} (UTC)\n\n`;
+  let content = fs.readFileSync('SPRINT.md', 'utf8');
+  content = content.replace(
+    /> Last updated: .*/,
+    `> Last updated: ${new Date().toUTCString()}`
+  );
 
-    const hasBlueprintBlocker = items.some(item => item.number === 49 && !item.pull_request);
-    if (hasBlueprintBlocker) {
-      markdown += `> ⚠️ **CRITICAL: Project logic is unanchored. Finish the Blueprint first.**\n\n`;
-    }
+  content = inject(content, 'BLOCKERS', blockers.map(i => row(i, 'issue')));
+  content = inject(content, 'PRS', prs.map(p => row(p, 'pr')));
+  content = inject(content, 'UPNEXT', upNext.map(i => row(i, 'issue')));
+  content = inject(content, 'BACKLOG', backlog.map(i => row(i, 'issue')));
 
-    const renderTable = (title, itemsList) => {
-      if (itemsList.length === 0) return '';
-      let section = `## ${title}\n\n`;
-      section += `| Type | #ID | Task/PR Title | Status/Problem |\n`;
-      section += `| :--- | :--- | :--- | :--- |\n`;
-      itemsList.forEach(item => {
-        const typeIcon = item.pull_request ? '📦' : '📌';
-        const typeText = item.pull_request ? 'PR' : 'Issue';
-        
-        let status = 'No blockers identified';
-        if (item.pull_request) {
-          if (item.reviewStatus === 'BLOCKED') status = '❌ Changes Requested';
-          else if (item.reviewStatus === 'READY') status = '✅ Approved';
-          else status = '⏳ Awaiting Review';
-        } else {
-          const labels = item.labels.map(l => `\`${l.name}\``).join(', ');
-          status = labels || '📌 Backlog';
-        }
-
-        section += `| ${typeIcon} ${typeText} | #${item.number} | [${item.title.replace(/\|/g, '\\|')}](${item.html_url}) | ${status} |\n`;
-      });
-      section += '\n';
-      return section;
-    };
-
-    markdown += renderTable('🎯 Strategic Core', strategicCore);
-    markdown += renderTable('🚨 Critical Path (Blockers)', blockers);
-    markdown += renderTable('⚙️ In Progress', inProgress);
-    markdown += renderTable('🏗️ Phase 1: The Kernel', milestoneKernel);
-    markdown += renderTable('🏠 Phase 2: The Garage & Immersion', milestoneGarage);
-    markdown += renderTable('✅ Ready to Merge', prsReady);
-    markdown += renderTable('⏳ Awaiting Review', prsAwaiting);
-    markdown += renderTable('📌 Future Expansion (Backlog)', backlog);
-
-    fs.writeFileSync('SPRINT.md', markdown);
-    console.log('SPRINT.md generated successfully and deterministically!');
-
-    if (process.env.SPRINT_ISSUE_ID) {
-      console.log(`Updating Sprint Board Issue #${process.env.SPRINT_ISSUE_ID}...`);
-      const updateResponse = await fetch(`${API_URL}/issues/${process.env.SPRINT_ISSUE_ID}`, {
-        method: 'PATCH',
-        headers: {
-          Authorization: `token ${GITHUB_TOKEN}`,
-          Accept: 'application/vnd.github.v3+json',
-          'Content-Type': 'application/json',
-          'User-Agent': 'ISP-Simulator-Bot'
-        },
-        body: JSON.stringify({ body: markdown }),
-      });
-      if (!updateResponse.ok) {
-        console.error(`Failed to update issue: ${updateResponse.status} ${updateResponse.statusText}`);
-        const errorBody = await updateResponse.text();
-        console.error(`Error details: ${errorBody}`);
-      } else {
-        console.log('Sprint Board Issue updated successfully!');
-      }
-    }
-
-  } catch (error) {
-    console.error('Error syncing board:', error);
-    process.exit(1);
-  }
+  fs.writeFileSync('SPRINT.md', content);
+  console.log('SPRINT.md updated.');
 }
 
-run();
+main().catch(e => { console.error(e); process.exit(1); });

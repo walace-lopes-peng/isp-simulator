@@ -1,0 +1,32 @@
+name: Sprint Board Sync
+on:
+  issues:
+    types: [opened, closed, labeled, unlabeled, reopened]
+  pull_request:
+    types: [opened, closed, labeled, unlabeled, reopened, review_requested, ready_for_review, converted_to_draft]
+  workflow_dispatch:
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
+    permissions:
+      contents: write
+      issues: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run sync
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts/sync-board.js
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add SPRINT.md
+          git diff --staged --quiet || git commit -m "chore: sync sprint board"
+          git push
