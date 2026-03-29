@@ -413,24 +413,41 @@ const LogisticMap = () => {
                    const isFilterActive = dragSourceId !== null && dragSourceId !== node.id;
                    const isValidTarget = dragSourceId ? validateLink(dragSourceId, node.id).valid : true;
                    
-                   const baseR = layerNum === 1 ? 8 : 6;
+                   const baseR = layerNum === 1 ? 5 : 4;
                    const rangeScale = 1.0 - (rangeLevel - 1) * 0.15;
                    const r = baseR * rangeScale;
+                   const isGateway = node.id === '0';
+
                    return (
                      <g key={node.id} className="cursor-pointer" 
                         onPointerDown={(e) => handlePointerDown(e, node.id)}
                         onPointerUp={(e) => handlePointerUp(e, node.id)}
                         onClick={(e) => e.stopPropagation()}
                      >
-                       {isSelected && <circle cx={node.x} cy={node.y} r={r + 6} className="fill-none stroke-emerald-500/40 stroke-1 animate-[ping_3s_infinite]" />}
-                       <circle 
-                         cx={node.x} cy={node.y} r={r}
-                         className={`node-circle transition-all duration-300 stroke-2 fill-slate-900 
-                          ${isSelected ? 'stroke-white scale-110 shadow-lg' : stateClass}
-                          ${isFilterActive && !isValidTarget ? 'opacity-20' : 'opacity-100'}`}
-                       />
+                       {isSelected && (
+                         isGateway ? 
+                         <rect x={node.x - r - 3} y={node.y - r - 3} width={r*2 + 6} height={r*2 + 6} className="fill-none stroke-cyan-500/40 stroke-1 animate-[ping_3s_infinite]" /> :
+                         <circle cx={node.x} cy={node.y} r={r + 6} className="fill-none stroke-emerald-500/40 stroke-1 animate-[ping_3s_infinite]" />
+                       )}
+                       
+                       {isGateway ? (
+                         <rect 
+                           x={node.x - r} y={node.y - r} width={r * 2} height={r * 2}
+                           className={`node-rect transition-all duration-300 stroke-2 fill-slate-900 
+                            ${isSelected ? 'stroke-white scale-110 shadow-lg' : 'stroke-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.4)]'}
+                            ${isFilterActive && !isValidTarget ? 'opacity-20' : 'opacity-100'}`}
+                         />
+                       ) : (
+                         <circle 
+                           cx={node.x} cy={node.y} r={r}
+                           className={`node-circle transition-all duration-300 stroke-2 fill-slate-900 
+                            ${isSelected ? 'stroke-white scale-110 shadow-lg' : stateClass}
+                            ${isFilterActive && !isValidTarget ? 'opacity-20' : 'opacity-100'}`}
+                         />
+                       )}
+                       
                        <text 
-                         x={node.x} y={node.y + r + 14} 
+                         x={node.x} y={node.y + r + 10} 
                          textAnchor="middle"
                          className={`text-[8px] font-black font-mono select-none pointer-events-none uppercase transition-all ${isFilterActive && !isValidTarget ? 'opacity-10' : 'fill-slate-300'}`}
                        >
