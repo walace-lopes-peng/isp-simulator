@@ -445,17 +445,24 @@ const LogisticMap = () => {
                      >
                        {isSelected && (
                          isGateway ? 
-                         <rect x={node.x - r - 3} y={node.y - r - 3} width={r*2 + 6} height={r*2 + 6} className="fill-none stroke-cyan-500/40 stroke-1 animate-[ping_3s_infinite]" /> :
-                         <circle cx={node.x} cy={node.y} r={r + 6} className="fill-none stroke-emerald-500/40 stroke-1 animate-[ping_3s_infinite]" />
+                         <rect x={node.x - r - 3} y={node.y - r - 3} width={r*2 + 6} height={r*2 + 6} className="fill-none stroke-emerald-500/60 stroke-2 selection-glow" /> :
+                         <circle cx={node.x} cy={node.y} r={r + 6} className="fill-none stroke-emerald-500/40 stroke-1 selection-glow" />
                        )}
                        
                        {isGateway ? (
-                         <rect 
-                           x={node.x - r} y={node.y - r} width={r * 2} height={r * 2}
-                           className={`node-rect transition-all duration-300 stroke-2 fill-slate-900 
-                            ${isSelected ? 'stroke-white scale-110 shadow-lg' : 'stroke-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.4)]'}
-                            ${isFilterActive && !isValidTarget ? 'opacity-20' : 'opacity-100'}`}
-                         />
+                         <g>
+                           <rect 
+                             x={node.x - r} y={node.y - r} width={r * 2} height={r * 2}
+                             className={`node-rect transition-all duration-300 stroke-2 fill-slate-900 
+                              ${isSelected ? 'stroke-white scale-110 shadow-lg' : 'stroke-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.5)]'}
+                              ${isFilterActive && !isValidTarget ? 'opacity-20' : 'opacity-100'}`}
+                           />
+                           {/* 70s Mainframe Pattern */}
+                           <rect 
+                             x={node.x - r/2} y={node.y - r/2} width={r} height={r}
+                             className="fill-none stroke-emerald-500/40 stroke-[0.5px] pointer-events-none"
+                           />
+                         </g>
                        ) : (
                          <circle 
                            cx={node.x} cy={node.y} r={r}
