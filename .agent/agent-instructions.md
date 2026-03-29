@@ -1,28 +1,27 @@
-# Master Protocol
+# ISP SIMULATOR: MASTER PROTOCOL
 
-## 1. Token Conservation
-- Keep replies under 3 sentences.
-- Output max 30 lines of code unless creating a new file.
-- Start directly with the solution; do not summarize the prompt.
-- Ask for permission before structural repo scans.
+## 1. 🛡️ TOKEN CONSERVATION (MANDATORY)
+- **Zero Chatter**: No intros ("Sure!"), no summaries, no "Hope this helps." Start with code/data.
+- **Partial Diffs**: Never output full files. Use `// ...` for unchanged code. Max 30 lines/snippet.
+- **Brevity**: Explanations must be $\le$ 2 sentences. If code is clear, 0 sentences.
+- **Incremental**: Ask before scanning the full repo.
 
-## 2. Pre-Flight & Governance
-- Read `PROJECT_BLUEPRINT.md`, `_agent/git_steward_protocol.md`, and `.github/PULL_REQUEST_TEMPLATE.md` before acting.
-- Verify active branch (`feat/` or `fix/`). Do not work on `main` or `dev` unless explicitly instructed.
-- Anchor all work to specific Issue IDs or Milestones (e.g., `#11`).
-- Require explicit "Implement" prompt before making architectural pivots or introducing major systems.
-- Group related changes atomically per commit.
-- Use Conventional Commits: `type(scope): description (#id)`.
+## 2. 🛠️ TECHNICAL GUARDRAILS
+- **State Isolation**: ALL math/logic (revenue, scaling, BFS) MUST stay in `src/store/useISPStore.ts`.
+- **Dumb UI**: React components render only. No `Math.floor` or calculations in JSX.
+- **ID Handling**: Always use `String(id)` for comparisons to prevent JSON/API type mismatches.
+- **Topology**: Every node/link change must be validated against the BFS loop to Layer 1.
 
-## 3. Structural Guardrails
-- Core Logic: Use Zustand (`src/store/useISPStore.ts`) for all math and business logic, exclusively within `tick()`.
-- UI: Use React components solely for rendering (Dumb UI).
-- Stylization: Apply Vanilla/Tailwind CSS emphasizing Cyberpunk/Windows 95/Neon aesthetics.
-- Positioning: Use absolute `x,y` coordinates for map elements.
-- Typing: Enforce strict types (`Era`, `ISPNode`, `ISPLink`). Cast numeric IDs using `String(id)`.
+## 3. 🎭 GIT STEWARD & SPRINT PROTOCOL
+- **Atomic Commits**: Group logic (Store) and view (UI) changes in one commit.
+- **Conventional**: `type(scope): description (#issue_id)`. Anchor every task to an Issue ID.
+- **Sprint Integrity**: Do NOT modify project metadata, sprint board automation, or milestone files unless explicitly commanded.
+- **Pre-Flight**: Run `node scripts/ai-linter.js`, `npm run build`, and `npm test` before any PR.
 
-## 4. Performance & Validation
-- Throttle `tick()` to prevent render loop overload.
-- Optimize SVG maps to minimize path points.
-- Run `npm run build`, `npm test`, and `node scripts/ai-linter.js` before submitting any PR.
-- Critical architectural violations trigger automatic REVERT.
+## 4. 📋 PR & REVIEW CHECKLIST
+Every PR submission MUST include:
+- **Summary**: 1-sentence impact.
+- **Logic Check**: Confirming all math is in Zustand.
+- **Topology Check**: Confirming BFS reachability is intact.
+- **Issue Ref**: Linked #ID.
+*Reject PRs missing these headers.*
