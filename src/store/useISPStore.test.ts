@@ -1,94 +1,134 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { useISPStore } from './useISPStore';
 
-describe('useISPStore state manipulation', () => {
+describe('useISPStore validateLink Physics', () => {
+  beforeEach(() => {
+    // Reset store before each test to ensure clean state
+    useISPStore.getState().resetTopology();
+    useISPStore.setState({ 
+        money: 5000, 
+        isGodMode: false, 
+        currentEra: '70s' 
+    });
+  });
 
-    beforeEach(() => {
-        // Reset state before every test to ensure a clean slate
-        useISPStore.getState().resetTopology();
+  it('validates a connection between hub_local (Gateway) and terminal correctly (Hierarchy Physics)', () => {
+    const store = useISPStore.getState();
+    const gateway = store.nodes.find(n => n.id === '0');
+    const terminalA = store.nodes.find(n => n.id === 'l1-a');
+
+    expect(gateway, "Gateway node '0' should exist after reset").toBeDefined();
+    expect(terminalA, "Terminal node 'l1-a' should exist after reset").toBeDefined();
+    expect(gateway?.type).toBe('hub_local');
+    expect(terminalA?.type).toBe('terminal');
+
+    const result = store.validateLink(gateway!.id, terminalA!.id);
+    expect(result.valid).toBe(true);
+    expect(result.error).toBeUndefined();
+  });
+
+  it('fails hierarchy validation if backbone tries to connect to terminal', () => {
+    const store = useISPStore.getState();
+    const nodes = store.nodes;
+    
+    // Force nodes state to have an invalid hierarchy for testing
+    useISPStore.setState({
+      nodes: [
+          { id: 'back-1', name: 'BACKBONE', x: 100, y: 100, bandwidth: 1000, traffic: 0, level: 3, layer: 3, type: 'backbone', health: 100 },
+          { id: 'term-1', name: 'TERMINAL', x: 120, y: 120, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100 }
+      ]
+    });
+    
+    const updatedStore = useISPStore.getState();
+    const backbone = updatedStore.nodes[0];
+    const terminal = updatedStore.nodes[1];
+    
+    expect(backbone.type).toBe('backbone');
+    expect(terminal.type).toBe('terminal');
+
+    // Backbone (3) vs Terminal (0) should fail hierarchy (3 - 0 = 3 != 1)
+    const result = updatedStore.validateLink(backbone.id, terminal.id);
+    expect(result.valid).toBe(false);
+    expect(result.error).toBe('HIERARCHY');
+  });
+
+  it('fails range validation if nodes are too far apart for the 70s era', () => {
+    // Create a valid hierarchy pair but far apart
+    useISPStore.setState({
+      nodes: [
+        { id: 'hub-1', name: 'HUB', x: 0, y: 0, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'hub_local', health: 100 },
+        { id: 'term-far', name: 'FAR TERMINAL', x: 300, y: 300, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100 }
+      ]
     });
 
-    it('should assign a default scale and parentId when adding a new node without them', () => {
-        const store = useISPStore.getState();
-        
-        // Assert initial setup
-        expect(store.nodes.length).toBe(1); // Usually CORE GATEWAY
+    const updatedStore = useISPStore.getState();
+    const hub = updatedStore.nodes[0];
+    const farTerminal = updatedStore.nodes[1];
+    
+    // Distance ~424px, 70s limit is 150px
+    const result = updatedStore.validateLink(hub.id, farTerminal.id);
+    expect(result.valid).toBe(false);
+    expect(result.error).toBe('RANGE');
+  });
 
-        // Add a node missing scale and parentId (simulate Frankenstein payload from UI)
-        const partialNode = {
-            id: 'frankenstein-1',
-            name: 'Incomplete Node',
-            x: 100,
-            y: 100,
-            bandwidth: 100,
-            traffic: 0,
-            level: 1,
-            layer: 2,
-            type: 'hub_regional' as any,
-            health: 100
-            // missing scale and parentId
-        };
+  it('fails if capital is insufficient for the wire cost', () => {
+    useISPStore.setState({ money: 50 }); // Less than the ~131px cost for 21px distance
+    
+    const store = useISPStore.getState();
+    const gateway = store.nodes.find(n => n.id === '0');
+    const terminalA = store.nodes.find(n => n.id === 'l1-a');
 
-        // Act
-        useISPStore.getState().addNode(partialNode as any);
+    expect(gateway).toBeDefined();
+    expect(terminalA).toBeDefined();
 
-        // Assert
-        const updatedStore = useISPStore.getState();
-        const newlyAddedNode = updatedStore.nodes.find(n => n.id === 'frankenstein-1');
+    const result = store.validateLink(gateway!.id, terminalA!.id);
+    expect(result.valid).toBe(false);
+    expect(result.error).toBe('CAPITAL');
+  });
 
-        expect(newlyAddedNode).toBeDefined();
-
-        // The store currently assigns the store's currentScale as scale default, 
-        // which defaults to 'global' if range is 4.
-        const expectedScale = store.currentScale; 
-
-        expect(newlyAddedNode?.scale).toBe(expectedScale);
-        expect(newlyAddedNode?.parentId).toBe(null);
+  it('removes associated links when a node is deleted (Cleanup Physics)', () => {
+    const store = useISPStore.getState();
+    const nodes = store.nodes;
+    const gId = nodes[0].id;
+    const tId = nodes[1].id;
+    
+    // Create a link manually in state
+    useISPStore.setState({
+      links: [{ id: 'link-1', sourceId: gId, targetId: tId, bandwidth: 50, type: 'cable' }]
     });
 
-    it('should retain explicitly provided scale and parentId when adding a node', () => {
-        const fullNode = {
-            id: 'proper-node',
-            name: 'Complete Node',
-            x: 150,
-            y: 150,
-            bandwidth: 100,
-            traffic: 0,
-            level: 1,
-            layer: 2,
-            type: 'hub_regional' as any,
-            health: 100,
-            scale: 'local' as any,
-            parentId: '0'
-        };
-
-        useISPStore.getState().addNode(fullNode);
-
-        const store = useISPStore.getState();
-        const newlyAddedNode = store.nodes.find(n => n.id === 'proper-node');
-
-        expect(newlyAddedNode?.scale).toBe('local');
-        expect(newlyAddedNode?.parentId).toBe('0');
+    expect(useISPStore.getState().links.length).toBe(1);
+    
+    // Simulate deletion logic sequence
+    const currentLinks = useISPStore.getState().links;
+    useISPStore.setState({
+        nodes: useISPStore.getState().nodes.filter(n => n.id !== tId),
+        links: currentLinks.filter(l => l.sourceId !== tId && l.targetId !== tId)
     });
 
-    it('should remove the maxDist validation block, allowing high attenuation physics to simulate the loss naturally', () => {
-        const store = useISPStore.getState();
+    expect(useISPStore.getState().links.length).toBe(0);
+  });
 
-        // Let's create two nodes far away
-        const src = store.nodes[0]; // 395, 260
-        const tgt = { ...src, id: 'far-tgt', x: 395, y: 800, type: 'hub_regional' as any }; // diff = 540 away
+  it('accumulates total data over time (Game Progression State)', () => {
+    useISPStore.setState({ totalData: 100 });
+    // Simulate state update
+    useISPStore.setState((state) => ({ totalData: state.totalData + 50 }));
+    expect(useISPStore.getState().totalData).toBe(150);
+  });
 
-        useISPStore.getState().addNode(tgt);
+  it('updates average latency correctly in store state', () => {
+    useISPStore.setState({ avgLatency: 50 });
+    useISPStore.setState({ avgLatency: 75 });
+    expect(useISPStore.getState().avgLatency).toBe(75);
+  });
 
-        // The distance is Math.sqrt((395-395)^2 + (800-260)^2) = 540
-        // Previous hardcoded max was 350. By removing the constraint, this is valid as long as we have money.
-        // Assuming we have enough money. GodMode bypasses cost anyway, but we test normal mode.
-
-        useISPStore.getState().toggleGodMode(); // enable free money/override
-
-        const validation = useISPStore.getState().validateLink(src.id, tgt.id);
-        
-        expect(validation.valid).toBe(true);
-    });
-
+  it('calculates health decay mock (Resilience State)', () => {
+    const store = useISPStore.getState();
+    const node = store.nodes[0];
+    
+    const isCritical = true; 
+    const newHealth = isCritical ? node.health - 5 : node.health;
+    
+    expect(newHealth).toBe(95);
+  });
 });

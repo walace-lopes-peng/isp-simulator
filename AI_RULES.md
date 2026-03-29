@@ -1,4 +1,4 @@
-# 🛡️ AI_RULES: Mandatory Operational Constraints (BP-v1.3)
+# 🛡️ AI_RULES: Mandatory Operational Constraints (BP-v1.4)
 
 These rules are CRITICAL. Failure to comply is a 'Failed Build'.
 
