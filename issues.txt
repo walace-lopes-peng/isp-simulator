@@ -1,3 +1,4 @@
+92	OPEN	[GOVERNANCE] Establishment of the Development 'Gold Standard' (Staff Workflow)	architecture, documentation	2026-03-29T17:01:00Z
 71	OPEN	[FEAT] Maintenance & Emergency Response (OPEX Manager)		2026-03-27T20:23:35Z
 70	OPEN	[FEAT] Market Dynamics & Reputation System (QoS)		2026-03-27T20:23:34Z
 69	OPEN	[ARCH] Integrated Tech Tree & R&D Logic		2026-03-27T20:23:33Z

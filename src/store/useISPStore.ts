@@ -203,9 +203,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     if (!isPeer && diff !== 1 && !state.isGodMode) return { valid: false, error: 'HIERARCHY' };
 
     const dist = Math.sqrt(Math.pow(src.x - tgt.x, 2) + Math.pow(src.y - tgt.y, 2));
-    const maxDist = 350; // Week 2 Attenuation limit prototype
-    if (dist > maxDist && !state.isGodMode) return { valid: false, error: 'RANGE' };
-
+    // Week 2: UI hardcoded distance removed. Simulation Worker will handle dynamic attenuation penalties.
     const cost = Math.floor(100 + (dist * 1.5));
     if (!state.isGodMode && state.money < cost) return { valid: false, error: 'CAPITAL' };
 
@@ -264,7 +262,13 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   addLog: (msg, isCritical = false) => set((state) => ({
     logs: [`[${new Date().toLocaleTimeString()}] ${isCritical ? '!!! ' : ''}${msg}`, ...state.logs].slice(0, 20)
   })),
-  addNode: (node) => set((state) => ({ nodes: [...state.nodes, node] })),
+  addNode: (node) => set((state) => ({ 
+    nodes: [...state.nodes, {
+      ...node,
+      scale: node.scale || state.currentScale,
+      parentId: node.parentId !== undefined ? node.parentId : null
+    }] 
+  })),
   setEra: (era) => set({ currentEra: era }),
   purchaseEraUpgrade: () => set((state) => {
     const nextEra = state.getNextEraConfig();
