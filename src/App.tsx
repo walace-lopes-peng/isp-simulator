@@ -178,11 +178,16 @@ const LogPanel = () => {
 // --- LOGISTIC MAP ---
 
 const LogisticMap = () => {
+  const nodes = useISPStore(state => state.nodes);
+  const links = useISPStore(state => state.links);
+  const rangeLevel = useISPStore(state => state.rangeLevel);
+  const currentScale = useISPStore(state => state.currentScale);
+  const selectedNodeId = useISPStore(state => state.selectedNodeId);
+  const dragSourceId = useISPStore(state => state.dragSourceId);
+  const dragPos = useISPStore(state => state.dragPos);
+
   const { 
-    nodes, links, rangeLevel, selectNode, selectedNodeId, 
-    setRange, dragSourceId, dragPos, 
-    startDragging, setDragPos, endDragging, validateLink,
-    money, addNode, addLog
+    selectNode, setRange, startDragging, setDragPos, endDragging, validateLink, addNode, addLog 
   } = useISPStore();
   
   const currentRange = RANGE_PRESETS[rangeLevel];
@@ -251,6 +256,7 @@ const LogisticMap = () => {
             return;
         }
 
+        const { money } = useISPStore.getState();
         if (money >= cost) {
             const nodeTypeLookup: Record<RangeLevel, any> = {
                 1: 'hub_local',
@@ -259,7 +265,15 @@ const LogisticMap = () => {
                 4: 'backbone'
             };
 
-            const newNode = {
+            let assignedParentId: string | null = null;
+            if (currentScale === 'local') {
+               const sortedGlobalHubs = [...nodes]
+                 .filter(n => n.scale === 'global')
+                 .sort((a,b) => Math.hypot(a.x - svgP.x, b.y - svgP.y) - Math.hypot(b.x - svgP.x, b.y - svgP.y));
+               if (sortedGlobalHubs.length > 0) assignedParentId = sortedGlobalHubs[0].id;
+            }
+
+            const newNode: any = {
                 id: `node-${Date.now()}`,
                 name: `New Hub ${nodes.length}`,
                 bandwidth: 50,
@@ -269,7 +283,9 @@ const LogisticMap = () => {
                 type: nodeTypeLookup[rangeLevel as RangeLevel],
                 health: 100,
                 x: Math.round(svgP.x),
-                y: Math.round(svgP.y)
+                y: Math.round(svgP.y),
+                scale: currentScale,
+                parentId: assignedParentId
             };
             addNode(newNode);
             addLog(`Built ${newNode.type} at [${newNode.x}, ${newNode.y}]`, false);
@@ -351,6 +367,7 @@ const LogisticMap = () => {
             const src = nodes.find(n => n.id === link.sourceId);
             const tgt = nodes.find(n => n.id === link.targetId);
             if (!src || !tgt || src.layer > maxTier || tgt.layer > maxTier) return null;
+            if (src.scale !== currentScale || tgt.scale !== currentScale) return null;
             const load = (tgt.traffic / tgt.bandwidth);
             const strokeColor = getLoadColor(load);
             const dx = tgt.x - src.x;
@@ -397,7 +414,7 @@ const LogisticMap = () => {
           })()}
 
           {[1, 2, 3, 4].map(layerNum => {
-            const layerNodes = nodes.filter(n => n.layer === layerNum);
+            const layerNodes = nodes.filter(n => n.layer === layerNum && n.scale === currentScale);
             if (layerNum === 1 && rangeLevel === 4) return null;
             if (layerNum > maxTier) return null;
 

@@ -17,6 +17,8 @@ interface ISPNode {
   hazard?: string;
   latency?: number;
   signalStrength?: number;
+  scale: string;
+  parentId: string | null;
 }
 
 interface ISPLink {
@@ -34,7 +36,6 @@ interface WorkerState {
   tickRate: number;
   demandGrid: any[];
   era: any;
-}
 }
 
 // Simple Min-Priority Queue for Dijkstra
@@ -197,14 +198,34 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
     };
   });
 
+  const finalNodes = updatedNodes.map(node => {
+    if (node.parentId) {
+      const parent = updatedNodes.find(n => n.id === node.parentId);
+      if (parent && parent.id !== '0') {
+        const isParentOffline = parent.traffic === 0 || (parent.signalStrength ?? 0) < 10;
+        if (isParentOffline) {
+          return { 
+            ...node, 
+            traffic: 0, 
+            hazard: 'ISOLATED_UPSTREAM', 
+            latency: 0, 
+            signalStrength: 0,
+            health: Math.max(0, node.health - 5 * dT) 
+          };
+        }
+      }
+    }
+    return node;
+  });
+
   // 3. Link OPEX
   totalMaintenanceCost += (links.length * 5) * dT;
 
   // 4. Revenue Calculation (Scaled by Demand & Health)
-  const avgHealth = updatedNodes.length > 0 ? healthSum / updatedNodes.length : 100;
+  const avgHealth = finalNodes.length > 0 ? healthSum / finalNodes.length : 100;
   const healthMultiplier = avgHealth < 50 ? 0.5 : 1.0;
   
-  const rawRevenue = updatedNodes.reduce((sum, n) => {
+  const rawRevenue = finalNodes.reduce((sum, n) => {
     let nodeRevenue = (nodeRevenueMap[n.id] || 0) * (n.signalStrength! / 100) * healthMultiplier * dT;
     
     // Legacy fallback
@@ -217,11 +238,11 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
   }, 0);
 
   const revenue = Math.floor(rawRevenue);
-  const totalLoad = updatedNodes.reduce((sum, n) => sum + n.traffic, 0);
+  const totalLoad = finalNodes.reduce((sum, n) => sum + n.traffic, 0);
 
   // Send result back to main thread
   self.postMessage({
-    nodes: updatedNodes,
+    nodes: finalNodes,
     revenue,
     totalMaintenanceCost: Math.floor(totalMaintenanceCost),
     totalLoad,

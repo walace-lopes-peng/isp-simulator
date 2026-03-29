@@ -36,6 +36,8 @@ export interface ISPNode {
   region?: string;
   latency?: number;
   signalStrength?: number;
+  scale: 'local' | 'regional' | 'national' | 'global';
+  parentId: string | null;
 }
 export interface DemandCell {
   x: number;
@@ -123,13 +125,13 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   totalData: 0,
   demandGrid: [],
   nodes: [
-    { id: '0', name: 'CORE GATEWAY', x: 395, y: 260, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'backbone', health: 100 },
-    { id: 'l2-0', name: 'West Coast Hub', x: 110, y: 280, bandwidth: 200, traffic: 0, level: 1, layer: 2, type: 'hub_regional', health: 100 },
-    { id: 'l2-1', name: 'East Coast Hub', x: 220, y: 280, bandwidth: 200, traffic: 0, level: 1, layer: 2, type: 'hub_regional', health: 100 },
-    { id: 'l3-0', name: 'Sampa Hub', x: 265, y: 590, bandwidth: 1000, traffic: 0, level: 1, layer: 3, type: 'backbone', health: 100 },
-    { id: 'l3-1', name: 'Tokyo Exchange', x: 715, y: 290, bandwidth: 1000, traffic: 0, level: 1, layer: 3, type: 'backbone', health: 100 },
-    { id: 'l4-0', name: 'Transatlantic Cable', x: 300, y: 310, bandwidth: 5000, traffic: 0, level: 1, layer: 4, type: 'backbone', health: 100 },
-    { id: 'l4-1', name: 'Pacific Link', x: 730, y: 610, bandwidth: 2000, traffic: 0, level: 1, layer: 4, type: 'backbone', health: 100 },
+    { id: '0', name: 'CORE GATEWAY', x: 395, y: 260, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'backbone', health: 100, scale: 'global', parentId: null },
+    { id: 'l2-0', name: 'West Coast Hub', x: 110, y: 280, bandwidth: 200, traffic: 0, level: 1, layer: 2, type: 'hub_regional', health: 100, scale: 'global', parentId: null },
+    { id: 'l2-1', name: 'East Coast Hub', x: 220, y: 280, bandwidth: 200, traffic: 0, level: 1, layer: 2, type: 'hub_regional', health: 100, scale: 'global', parentId: null },
+    { id: 'l3-0', name: 'Sampa Hub', x: 265, y: 590, bandwidth: 1000, traffic: 0, level: 1, layer: 3, type: 'backbone', health: 100, scale: 'global', parentId: null },
+    { id: 'l3-1', name: 'Tokyo Exchange', x: 715, y: 290, bandwidth: 1000, traffic: 0, level: 1, layer: 3, type: 'backbone', health: 100, scale: 'global', parentId: null },
+    { id: 'l4-0', name: 'Transatlantic Cable', x: 300, y: 310, bandwidth: 5000, traffic: 0, level: 1, layer: 4, type: 'backbone', health: 100, scale: 'global', parentId: null },
+    { id: 'l4-1', name: 'Pacific Link', x: 730, y: 610, bandwidth: 2000, traffic: 0, level: 1, layer: 4, type: 'backbone', health: 100, scale: 'global', parentId: null },
   ],
   links: [],
   selectedNodeId: null,
@@ -296,7 +298,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   resetTopology: () => set((state) => ({
     links: [],
     nodes: [
-      { id: '0', name: 'CORE GATEWAY', x: 395, y: 260, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'backbone', health: 100 },
+      { id: '0', name: 'CORE GATEWAY', x: 395, y: 260, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'backbone', health: 100, scale: 'global', parentId: null },
     ]
   })),
   generateDemand: () => {
