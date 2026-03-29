@@ -11,22 +11,29 @@ Unblocks #[Number]
 
 [Por que essa alteração é necessária? O que ela resolve? Exemplo: "O sistema de zoom cortava o Core Node da visibilidade do BFS."]
 
-## What was Changed
+## 🏗️ Descrição Técnica (O "Código Sênior")
+[Racional por trás das decisões arquiteturais. Como a lógica foi desacoplada? Como a Store e os Workers interagem?]
 
-### [Nome do Arquivo 1]
-- **[O que mudou e porquê]**: [Detalhes da alteração lógica ou visual, citando o Zustand ou Tailwind.]
+### Alterações em Destaque:
+- **[Componente/Store]**: [Racional e lógica aplicada.]
 
-### [Nome do Arquivo 2]
-- **[O que mudou e porquê]**: [Detalhes.]
+## 🧪 Relatório de Testes (Vitest)
+[Resumo da execução dos testes unitários e de integração.]
+- [ ] Todos os testes passaram (`npm test`).
+- [ ] Cobertura de testes mantida ou aumentada.
 
-## QA Checklist
-Validado manualmente no simulador local (Vite/React):
+## 🕹️ Manual QA Runbook (Walkthrough)
+[Guia passo-a-passo para validação manual no navegador.]
+1. Inicie o servidor: `npm run dev`.
+2. Abra o simulador no navegador.
+3. [Ação 1]: [Resultado esperado].
+4. [Ação 2]: [Resultado esperado].
 
-- [ ] Lógica foi inserida puramente no `useISPStore.ts`, sem estado local complexo no React.
-- [ ] Nós isolados registram "0" tráfego corretamente.
-- [ ] `connectNodes` e algoritmos topológicos continuam calculando com casting de tipagem seguro `String(id)`.
-- [ ] Componente visual utiliza apenas Tailwind dentro do padrão das eras (`theme-70s`, etc).
-- [ ] O deploy/build local via `npm run build` passa sem erros.
+## ✅ Gold Standard Checklist
+- [ ] **TDD**: O arquivo de teste foi proposto antes da implementação?
+- [ ] **Desacoplamento**: Lógica pesada está no `SimulationWorker.ts`?
+- [ ] **Tipagem**: TypeScript `interface` e `types` estão rigorosamente definidos?
+- [ ] **Auditoria**: Performance e resiliência foram verificadas?
 
-## Impacto no Ship Path
-[Como isso avança o Roadmap? É um bloqueador resolvido do MVP? Prepara terreno para eventos aleatórios e Tech Tree?]
+## 🚀 Impacto no Roadmap
+[Como isso avança o MVP? Resolve bloqueadores de eras ou física?]

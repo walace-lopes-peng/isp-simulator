@@ -32,6 +32,8 @@ interface WorkerState {
   links: ISPLink[];
   rangeLevel: number;
   tickRate: number;
+  attenuation?: number;
+  era?: any;
 }
 
 // Simple Min-Priority Queue for Dijkstra
@@ -46,9 +48,9 @@ class MinHeap {
 }
 
 self.onmessage = (e: MessageEvent<WorkerState>) => {
-  const { nodes, links, rangeLevel, tickRate } = e.data;
+  const { nodes, links, rangeLevel, tickRate, attenuation, era } = e.data;
   const dT = tickRate / 1000;
-  const K_ATTENUATION = 0.002; // Attenuation constant for copper (70s)
+  const K_ATTENUATION = attenuation ?? era?.modifiers?.signalAttenuation ?? 0.002;
 
   // 1. Dijkstra Pathfinding (Path of Least Resistance)
   const dists: Record<string, number> = {};

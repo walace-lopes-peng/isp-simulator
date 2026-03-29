@@ -36,6 +36,8 @@ export interface ISPNode {
   region?: string;
   latency?: number;
   signalStrength?: number;
+  scale?: 'local' | 'regional' | 'global';
+  parentId?: string | null;
 }
 
 export interface ISPLink {
@@ -62,10 +64,12 @@ interface ISPStore {
   totalData: number;
   logs: string[];
   rangeLevel: RangeLevel;
+  currentScale: 'local' | 'regional' | 'global';
   selectedNodeId: string | null;
   isLinking: boolean;
   isGodMode: boolean;
   tickRate: number;
+  attenuation: number;
   networkHealth: number;
   avgLatency: number;
   
@@ -122,7 +126,9 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   selectedNodeId: null,
   isLinking: false,
   rangeLevel: 1,
+  currentScale: 'local',
   tickRate: 16,
+  attenuation: 0.002,
   logs: ['[SYSTEM] Graph Topology Online. Drag a node to Connect or Build.'],
   isGodMode: false,
   networkHealth: 100,
@@ -178,8 +184,8 @@ export const useISPStore = create<ISPStore>((set, get) => ({
       set({ canUpgradeEra: canUpgrade });
     }
 
-    // Extend worker message later to support attenuation modifier
-    worker.postMessage({ nodes, links, rangeLevel, tickRate });
+    const era = get().getCurrentEraConfig();
+    worker.postMessage({ nodes, links, rangeLevel, tickRate, era });
   },
 
   validateLink: (srcId, tgtId) => {
@@ -199,9 +205,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     if (!isPeer && diff !== 1 && !state.isGodMode) return { valid: false, error: 'HIERARCHY' };
 
     const dist = Math.sqrt(Math.pow(src.x - tgt.x, 2) + Math.pow(src.y - tgt.y, 2));
-    const maxDist = 350; // Week 2 Attenuation limit prototype
-    if (dist > maxDist && !state.isGodMode) return { valid: false, error: 'RANGE' };
-
+    // Physical attenuation handles the loss, but we check for capital sufficiency
     const cost = Math.floor(100 + (dist * 1.5));
     if (!state.isGodMode && state.money < cost) return { valid: false, error: 'CAPITAL' };
 
@@ -251,11 +255,23 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     };
   }),
   selectNode: (id) => set({ selectedNodeId: id }),
-  setRange: (level) => set({ rangeLevel: level }),
+  setRange: (level) => {
+    const scales: Record<number, 'local' | 'regional' | 'global'> = { 1: 'local', 2: 'regional', 3: 'global', 4: 'global' };
+    set({ rangeLevel: level, currentScale: scales[level] || 'global' });
+  },
   addLog: (msg, isCritical = false) => set((state) => ({
     logs: [`[${new Date().toLocaleTimeString()}] ${isCritical ? '!!! ' : ''}${msg}`, ...state.logs].slice(0, 20)
   })),
-  addNode: (node) => set((state) => ({ nodes: [...state.nodes, node] })),
+  addNode: (node) => set((state) => ({ 
+    nodes: [
+      ...state.nodes, 
+      { 
+        ...node, 
+        scale: node.scale || state.currentScale, 
+        parentId: node.parentId !== undefined ? node.parentId : null 
+      }
+    ] 
+  })),
   setEra: (era) => set({ currentEra: era }),
   purchaseEraUpgrade: () => set((state) => {
     const nextEra = state.getNextEraConfig();
