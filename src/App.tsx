@@ -346,7 +346,7 @@ const LogisticMap = () => {
           ref={svgRef}
           viewBox={currentRange.viewBox} 
           preserveAspectRatio="xMidYMid meet" 
-          className="w-full h-full max-h-[85vh] aspect-square drop-shadow-2xl overflow-visible rounded-lg border border-white/10 shadow-inner bg-[#040d1a] map-svg"
+          className="w-full h-full max-h-[85vh] aspect-square drop-shadow-2xl rounded-lg border border-white/10 shadow-inner bg-[#040d1a] map-svg"
           onPointerMove={handlePointerMove}
           onPointerUp={() => handlePointerUp({} as any)}
           onClick={handleMapClick}
