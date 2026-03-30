@@ -1,15 +1,15 @@
-const { execSync } = require('child_process');
-const fs = require('fs');
-
 const REPO = process.env.GITHUB_REPOSITORY;
 const TOKEN = process.env.GITHUB_TOKEN;
+const SPRINT_ISSUE_NUMBER = 27;
 
-async function gh(path) {
+async function gh(path, options = {}) {
   const res = await fetch(`https://api.github.com/repos/${REPO}${path}`, {
     headers: {
       Authorization: `Bearer ${TOKEN}`,
       Accept: 'application/vnd.github+json',
+      'Content-Type': 'application/json',
     },
+    ...options,
   });
   return res.json();
 }
@@ -25,10 +25,10 @@ function prStatus(pr) {
 }
 
 function priorityOrder(item) {
-  const labelNames = item.labels.map(l => l.name);
-  if (labelNames.includes('P0-blocker')) return 0;
-  if (labelNames.includes('P1-high')) return 1;
-  if (labelNames.includes('P2-medium')) return 2;
+  const names = item.labels.map(l => l.name);
+  if (names.includes('P0-blocker')) return 0;
+  if (names.includes('P1-high')) return 1;
+  if (names.includes('P2-medium')) return 2;
   return 3;
 }
 
@@ -36,22 +36,12 @@ function isBlocker(item) {
   return item.labels.some(l => ['P0-blocker', 'v1-blocker'].includes(l.name));
 }
 
-function row(item, type) {
-  const title = `[${item.title}](${item.html_url})`;
-  if (type === 'pr') {
-    return `| #${item.number} | ${title} | ${prStatus(item)} |`;
-  }
-  return `| #${item.number} | ${title} | ${labels(item)} |`;
+function issueRow(item) {
+  return `| #${item.number} | [${item.title}](${item.html_url}) | ${labels(item)} |`;
 }
 
-function inject(content, tag, rows) {
-  const block = rows.length
-    ? rows.join('\n')
-    : '| — | No items | — |';
-  return content.replace(
-    new RegExp(`<!-- ${tag}_START -->([\\s\\S]*?)<!-- ${tag}_END -->`),
-    `<!-- ${tag}_START -->\n${block}\n<!-- ${tag}_END -->`
-  );
+function prRow(pr) {
+  return `| #${pr.number} | [${pr.title}](${pr.html_url}) | ${prStatus(pr)} |`;
 }
 
 async function main() {
@@ -60,7 +50,8 @@ async function main() {
     gh('/pulls?state=open&per_page=100'),
   ]);
 
-  const onlyIssues = issues.filter(i => !i.pull_request);
+  const onlyIssues = issues
+    .filter(i => !i.pull_request && i.number !== SPRINT_ISSUE_NUMBER);
 
   const blockers = onlyIssues
     .filter(isBlocker)
@@ -73,19 +64,54 @@ async function main() {
   const upNext = rest.slice(0, 5);
   const backlog = rest.slice(5);
 
-  let content = fs.readFileSync('SPRINT.md', 'utf8');
-  content = content.replace(
-    /> Last updated: .*/,
-    `> Last updated: ${new Date().toUTCString()}`
-  );
+  const issueHeader = '| # | Title | Labels |\n| :--- | :--- | :--- |';
+  const prHeader   = '| # | Title | Status |\n| :--- | :--- | :--- |';
 
-  content = inject(content, 'BLOCKERS', blockers.map(i => row(i, 'issue')));
-  content = inject(content, 'PRS', prs.map(p => row(p, 'pr')));
-  content = inject(content, 'UPNEXT', upNext.map(i => row(i, 'issue')));
-  content = inject(content, 'BACKLOG', backlog.map(i => row(i, 'issue')));
+  const updated = new Date().toUTCString();
 
-  fs.writeFileSync('SPRINT.md', content);
-  console.log('SPRINT.md updated.');
+  const body = `# Sprint Board
+
+> Last updated: ${updated}
+
+---
+
+## Blockers
+
+> Must be resolved before anything else.
+
+${issueHeader}
+${blockers.length ? blockers.map(issueRow).join('\n') : '| — | No blockers | — |'}
+
+---
+
+## Pull Requests
+
+${prHeader}
+${prs.length ? prs.map(prRow).join('\n') : '| — | No open PRs | — |'}
+
+---
+
+## Up Next
+
+> Top ${upNext.length} ready issues, sorted by priority.
+
+${issueHeader}
+${upNext.length ? upNext.map(issueRow).join('\n') : '| — | No items | — |'}
+
+---
+
+## Backlog
+
+${issueHeader}
+${backlog.length ? backlog.map(issueRow).join('\n') : '| — | Empty | — |'}
+`;
+
+  await gh(`/issues/${SPRINT_ISSUE_NUMBER}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ body }),
+  });
+
+  console.log(`Sprint board (issue #${SPRINT_ISSUE_NUMBER}) updated.`);
 }
 
 main().catch(e => { console.error(e); process.exit(1); });
