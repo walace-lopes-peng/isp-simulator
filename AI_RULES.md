@@ -1,4 +1,4 @@
-# 🛡️ AI_RULES: Mandatory Operational Constraints (BP-v1.3)
+# 🛡️ AI_RULES: Mandatory Operational Constraints (BP-v1.4)
 
 These rules are CRITICAL. Failure to comply is a 'Failed Build'.
 
@@ -18,9 +18,11 @@ These rules are CRITICAL. Failure to comply is a 'Failed Build'.
 - **DUMB UI**: React components are for rendering ONLY.
 - **COORDINATES**: Use absolute `x,y` only.
 
-## 4. Error Handling
-- **FATAL**: Violation results in immediate session REVERT.
-- **LINTER**: Run `node scripts/ai-linter.js` before PR.
+## 5. THE GOLD STANDARD (Staff Workflow) (CRITICAL)
+- **TDD MANDATORY**: Propose a Vitest `test` file that fails before implementing logic.
+- **SEVEN-STEP AUDIT**: Self-audit for performance (leaks) and resilience (edge cases).
+- **PR RUNBOOK**: Every PR MUST include a "Manual QA Runbook" (Step-by-step).
+- **ARCHITECTURE**: Separation of concerns (Zustand logic vs. Worker physics) is non-negotiable.
 
 ---
-*Senior Lead Authorization: ANCHORED BP-v1.3 — TOKEN-SAVER ACTIVE*
+*Senior Lead Authorization: ANCHORED BP-v1.4 — GOLD STANDARD ACTIVE*
