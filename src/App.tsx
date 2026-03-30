@@ -1,20 +1,13 @@
 import React, { useEffect, useRef } from 'react';
 import { useISPStore, RANGE_PRESETS, RangeLevel } from './store/useISPStore';
 import DebugConsole from './components/DebugConsole';
-<<<<<<< HEAD
-=======
 import EraWrapper from './components/EraWrapper';
->>>>>>> dev
 
 // --- UI COMPONENTS ---
 
 const TopBar = () => {
-<<<<<<< HEAD
-  const { money, currentEra, totalData, nodes, networkHealth } = useISPStore();
-=======
   const { money, totalData, nodes, networkHealth, canUpgradeEra, purchaseEraUpgrade, isGodMode } = useISPStore();
   const eraConfig = useISPStore(state => state.getCurrentEraConfig());
->>>>>>> dev
   const traffic = nodes.reduce((sum, n) => sum + n.traffic, 0);
   const bandwidth = nodes.reduce((sum, n) => sum + n.bandwidth, 0);
   const loadRatio = bandwidth > 0 ? traffic / bandwidth : 0;
@@ -27,13 +20,8 @@ const TopBar = () => {
     <div className="era-topbar h-14 w-full flex items-center justify-between px-6 border-b border-white/10 fixed top-0 z-50 glass-panel">
       <div className="flex items-center gap-8">
         <div>
-<<<<<<< HEAD
-          <h1 className={`text-xs font-black tracking-widest uppercase ${currentEra === '90s' ? 'text-white' : 'text-emerald-500'}`}>Logistic Map // Core</h1>
-          <p className={`text-[8px] font-mono ${currentEra === '90s' ? 'text-white/70' : 'text-slate-500'}`}>SYSTEM_REVENUE_ACTIVE</p>
-=======
           <h1 className="era-title text-xs font-black tracking-widest uppercase text-emerald-500">Logistic Map // Core</h1>
           <p className="era-subtitle text-[8px] font-mono text-slate-500">SYSTEM_REVENUE_ACTIVE</p>
->>>>>>> dev
         </div>
         <div className="h-8 w-px bg-white/5" />
         <div className="flex gap-6 items-center">
@@ -87,11 +75,7 @@ const TopBar = () => {
 };
 
 const Sidebar = () => {
-<<<<<<< HEAD
-  const { selectedNodeId, nodes, links, upgradeNode, money, selectNode, isLinking, toggleLinking, currentEra, isGodMode } = useISPStore();
-=======
   const { selectedNodeId, nodes, links, upgradeNode, money, selectNode, isLinking, toggleLinking, isGodMode } = useISPStore();
->>>>>>> dev
   const node = nodes.find(n => n.id === selectedNodeId);
 
   if (!node) return (
@@ -200,11 +184,7 @@ const LogPanel = () => {
 const LogisticMap = () => {
   const { 
     nodes, links, rangeLevel, selectNode, selectedNodeId, 
-<<<<<<< HEAD
-    setRange, currentEra, dragSourceId, dragPos, 
-=======
     setRange, dragSourceId, dragPos, 
->>>>>>> dev
     startDragging, setDragPos, endDragging, validateLink,
     money, addNode, addLog
   } = useISPStore();
@@ -212,6 +192,7 @@ const LogisticMap = () => {
   const currentRange = RANGE_PRESETS[rangeLevel];
   const maxTier = rangeLevel;
   const svgRef = useRef<SVGSVGElement>(null);
+  const eraConfig = useISPStore(state => state.getCurrentEraConfig());
 
   const getSVGPoint = (e: React.PointerEvent) => {
     if (!svgRef.current) return { x: 0, y: 0 };
@@ -388,11 +369,8 @@ const LogisticMap = () => {
                 className="transition-all duration-1000 opacity-60 link-flow thematic-link"
                 stroke={strokeColor}
                 strokeWidth={1 + (link.bandwidth / 1000) * 1.5}
-<<<<<<< HEAD
-                filter={currentEra === 'modern' ? "url(#glow)" : "none"}
-                strokeDasharray={currentEra === '70s' ? "2,2" : "none"}
-=======
->>>>>>> dev
+                filter={eraConfig.id === 'modern' ? "url(#glow)" : "none"}
+                strokeDasharray={eraConfig.id === '70s' ? "2,2" : "none"}
               />
             );
           })}
@@ -471,11 +449,7 @@ const LogisticMap = () => {
 };
 
 const App = () => {
-<<<<<<< HEAD
-  const { tick, currentEra, tickRate } = useISPStore();
-=======
   const { tick, tickRate } = useISPStore();
->>>>>>> dev
 
   useEffect(() => {
     const timer = setInterval(() => tick(), tickRate);
