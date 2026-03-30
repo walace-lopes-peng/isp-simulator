@@ -1,10 +1,10 @@
 import React from 'react';
-import { useISPStore, ISPNode, Era } from '../store/useISPStore';
+import { useISPStore, ISPNode } from '../store/useISPStore';
 import './NetworkNode.css';
 
 interface NetworkNodeProps {
   node: ISPNode;
-  eraOverride?: Era; // Optional override for demonstration purposes
+  eraOverride?: string; // Optional override for demonstration purposes
 }
 
 export const NetworkNode: React.FC<NetworkNodeProps> = ({ node, eraOverride }) => {

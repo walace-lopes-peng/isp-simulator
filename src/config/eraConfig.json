@@ -1,0 +1,88 @@
+{
+  "eras": [
+    {
+      "id": "70s",
+      "displayName": "The Pioneer Era",
+      "startYear": 1970,
+      "endYear": 1979,
+      "uiTheme": "theme-70s",
+      "unlockedHardware": ["copper-v1", "acoustic-coupler"],
+      "modifiers": {
+        "signalAttenuation": 1.5,
+        "revenueMultiplier": 1.0,
+        "maintenanceCost": 0.5
+      },
+      "unlockCondition": { "totalData": 0, "money": 0 }
+    },
+    {
+      "id": "80s",
+      "displayName": "The Enterprise Boom",
+      "startYear": 1980,
+      "endYear": 1989,
+      "uiTheme": "theme-80s",
+      "unlockedHardware": ["coaxial", "dns-v1"],
+      "modifiers": {
+        "signalAttenuation": 1.2,
+        "revenueMultiplier": 1.2,
+        "maintenanceCost": 0.8
+      },
+      "unlockCondition": { "totalData": 5000, "money": 20000 }
+    },
+    {
+      "id": "90s",
+      "displayName": "The DotCom Era",
+      "startYear": 1990,
+      "endYear": 1999,
+      "uiTheme": "theme-90s",
+      "unlockedHardware": ["fiber-v1", "dial-up"],
+      "modifiers": {
+        "signalAttenuation": 0.8,
+        "revenueMultiplier": 1.5,
+        "maintenanceCost": 1.2
+      },
+      "unlockCondition": { "totalData": 50000, "money": 100000 }
+    },
+    {
+      "id": "00s",
+      "displayName": "The Broadband Boom",
+      "startYear": 2000,
+      "endYear": 2009,
+      "uiTheme": "theme-00s",
+      "unlockedHardware": ["adsl", "fiber-home"],
+      "modifiers": {
+        "signalAttenuation": 0.5,
+        "revenueMultiplier": 2.0,
+        "maintenanceCost": 2.0
+      },
+      "unlockCondition": { "totalData": 250000, "money": 300000 }
+    },
+    {
+      "id": "2010s",
+      "displayName": "Cloud & Mobile",
+      "startYear": 2010,
+      "endYear": 2019,
+      "uiTheme": "theme-2010s",
+      "unlockedHardware": ["4g", "cdn-edge"],
+      "modifiers": {
+        "signalAttenuation": 0.2,
+        "revenueMultiplier": 3.0,
+        "maintenanceCost": 3.5
+      },
+      "unlockCondition": { "totalData": 1000000, "money": 1500000 }
+    },
+    {
+      "id": "modern",
+      "displayName": "The Edge Era",
+      "startYear": 2020,
+      "endYear": 2029,
+      "uiTheme": "theme-modern",
+      "unlockedHardware": ["5g", "quantum-link"],
+      "modifiers": {
+        "signalAttenuation": 0.05,
+        "revenueMultiplier": 5.0,
+        "maintenanceCost": 5.0
+      },
+      "unlockCondition": { "totalData": 5000000, "money": 5000000 }
+    }
+  ]
+}

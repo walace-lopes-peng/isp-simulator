@@ -1,6 +1,27 @@
 import { create } from 'zustand';
+import eraConfigData from '../config/eraConfig.json';
 
+<<<<<<< HEAD
 export type Era = '70s' | '90s' | 'modern';
+=======
+export interface EraConfig {
+  id: string;
+  displayName: string;
+  startYear: number;
+  endYear: number;
+  uiTheme: string;
+  unlockedHardware: string[];
+  modifiers: {
+    signalAttenuation: number;
+    revenueMultiplier: number;
+    maintenanceCost: number;
+  };
+  unlockCondition: { totalData: number; money: number };
+}
+
+export const ERAS_CONFIG = eraConfigData.eras as EraConfig[];
+
+>>>>>>> dev
 export type RangeLevel = 1 | 2 | 3 | 4;
 export type ISPNodeType = 'terminal' | 'hub_local' | 'hub_regional' | 'backbone';
 
@@ -38,7 +59,8 @@ export const RANGE_PRESETS = {
 
 interface ISPStore {
   money: number;
-  currentEra: Era;
+  currentEra: string;
+  canUpgradeEra: boolean;
   nodes: ISPNode[];
   links: ISPLink[];
   totalData: number;
@@ -59,7 +81,10 @@ interface ISPStore {
   tick: () => void;
   upgradeNode: (id: string) => void;
   addNode: (node: ISPNode) => void;
-  setEra: (era: Era) => void;
+  setEra: (era: string) => void;
+  purchaseEraUpgrade: () => void;
+  getCurrentEraConfig: () => EraConfig;
+  getNextEraConfig: () => EraConfig | null;
   addLog: (msg: string, isCritical?: boolean) => void;
   setRange: (level: RangeLevel) => void;
   selectNode: (id: string | null) => void;
@@ -86,6 +111,10 @@ interface ISPStore {
 export const useISPStore = create<ISPStore>((set, get) => ({
   money: 5000,
   currentEra: '70s',
+<<<<<<< HEAD
+=======
+  canUpgradeEra: false,
+>>>>>>> dev
   totalData: 0,
   nodes: [
     { id: '0', name: 'CORE GATEWAY', x: 395, y: 260, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'backbone', health: 100 },
@@ -108,6 +137,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   dragSourceId: null,
   dragPos: null,
 
+<<<<<<< HEAD
   worker: null,
   initWorker: () => {
     if (get().worker) return;
@@ -140,7 +170,76 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     
     if (state.links.some(l => (l.sourceId === srcId && l.targetId === tgtId) || (l.sourceId === tgtId && l.targetId === srcId))) {
       return { valid: false, error: 'REDUNDANT' };
+=======
+  getCurrentEraConfig: () => {
+    const eraId = get().currentEra;
+    return ERAS_CONFIG.find(e => e.id === eraId) || ERAS_CONFIG[0];
+  },
+
+  getNextEraConfig: () => {
+    const eraId = get().currentEra;
+    const currentIndex = ERAS_CONFIG.findIndex(e => e.id === eraId);
+    if (currentIndex >= 0 && currentIndex < ERAS_CONFIG.length - 1) {
+      return ERAS_CONFIG[currentIndex + 1];
+>>>>>>> dev
     }
+    return null;
+  },
+
+  worker: null,
+  initWorker: () => {
+    if (get().worker) return;
+    const worker = new Worker(new URL('../systems/SimulationWorker.ts', import.meta.url));
+    worker.onmessage = (e) => {
+      const { nodes, revenue, totalMaintenanceCost, totalLoad, networkHealth, avgLatency } = e.data;
+      const state = get();
+      const eraConfig = state.getCurrentEraConfig();
+      const adjustedRevenue = revenue * eraConfig.modifiers.revenueMultiplier;
+      const adjustedCost = totalMaintenanceCost * eraConfig.modifiers.maintenanceCost;
+
+      set({ 
+        nodes, 
+        money: state.isGodMode ? state.money : (state.money + adjustedRevenue - adjustedCost), 
+        totalData: state.totalData + Math.floor(totalLoad / 10),
+        networkHealth,
+        avgLatency
+      });
+    };
+    set({ worker });
+  },
+
+  tick: () => {
+    const { worker, nodes, links, rangeLevel, tickRate, initWorker, totalData, money } = get();
+    if (!worker) { initWorker(); return; }
+    
+    // Check for Era Upgrade availability
+    const nextEra = get().getNextEraConfig();
+    const canUpgrade = nextEra ? (totalData >= nextEra.unlockCondition.totalData && money >= nextEra.unlockCondition.money) : false;
+    
+    if (canUpgrade !== get().canUpgradeEra) {
+      set({ canUpgradeEra: canUpgrade });
+    }
+
+    // Pass current era config to the worker for adaptive physics (Issue #96)
+    const era = get().getCurrentEraConfig();
+    worker.postMessage({ nodes, links, rangeLevel, tickRate, era });
+  },
+
+  validateLink: (srcId, tgtId) => {
+    const state = get();
+    const src = state.nodes.find(n => n.id === srcId);
+    const tgt = state.nodes.find(n => n.id === tgtId);
+    if (!src || !tgt || srcId === tgtId) return { valid: false, error: 'INCOMPATIBLE' };
+    
+    if (state.links.some(l => (l.sourceId === srcId && l.targetId === tgtId) || (l.sourceId === tgtId && l.targetId === srcId))) {
+      return { valid: false, error: 'REDUNDANT' };
+    }
+
+    const hierarchy = { 'terminal': 0, 'hub_local': 1, 'hub_regional': 2, 'backbone': 3 };
+    const getHierarchy = (node: ISPNode) => hierarchy[node.type] ?? (node.id === '0' ? 3 : 2);
+    const diff = Math.abs(getHierarchy(src) - getHierarchy(tgt));
+    const isPeer = getHierarchy(src) === getHierarchy(tgt) && getHierarchy(src) !== 0;
+    if (!isPeer && diff !== 1 && !state.isGodMode) return { valid: false, error: 'HIERARCHY' };
 
     const hierarchy = { 'terminal': 0, 'hub_local': 1, 'hub_regional': 2, 'backbone': 3 };
     const getHierarchy = (node: ISPNode) => hierarchy[node.type] ?? (node.id === '0' ? 3 : 2);
@@ -170,8 +269,19 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   },
 
   connectNodes: (srcId, tgtId) => {
+<<<<<<< HEAD
     const { valid, cost } = get().validateLink(srcId, tgtId);
     if (!valid && !get().isGodMode) return;
+=======
+    const { valid, error, cost } = get().validateLink(srcId, tgtId);
+    if (!valid) {
+      if (get().isGodMode) {
+        get().addLog(`[GOD_MODE] Bypassing ${error} error for ${srcId} -> ${tgtId}`, true);
+      } else {
+        return;
+      }
+    }
+>>>>>>> dev
     
     const newLink: ISPLink = {
       id: `link-${Date.now()}`,
@@ -194,6 +304,14 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     if (!node) return state;
     const cost = Math.floor(50 * Math.pow(1.15, node.level));
     if (!state.isGodMode && state.money < cost) return state;
+<<<<<<< HEAD
+=======
+    
+    if (state.money < cost && state.isGodMode) {
+      state.addLog(`[GOD_MODE] Bypassing CAPITAL error for ${node.name} upgrade`, true);
+    }
+
+>>>>>>> dev
     return {
       money: state.isGodMode ? state.money : state.money - cost,
       nodes: state.nodes.map(n => n.id === id ? { ...n, level: n.level + 1, bandwidth: Math.floor(n.bandwidth * 1.4) } : n),
@@ -207,8 +325,32 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   })),
   addNode: (node) => set((state) => ({ nodes: [...state.nodes, node] })),
   setEra: (era) => set({ currentEra: era }),
+<<<<<<< HEAD
   addMoney: (amount) => set((state) => ({ money: state.money + amount })),
   toggleGodMode: () => set((state) => ({ isGodMode: !state.isGodMode })),
+=======
+  purchaseEraUpgrade: () => set((state) => {
+    const nextEra = state.getNextEraConfig();
+    if (!nextEra || !state.canUpgradeEra) return state;
+    
+    if (state.isGodMode && !state.canUpgradeEra) {
+       state.addLog(`[GOD_MODE] Bypassing UNLOCK requirements for ${nextEra.displayName}`, true);
+    }
+
+    return {
+      money: state.isGodMode ? state.money : state.money - nextEra.unlockCondition.money,
+      currentEra: nextEra.id,
+      canUpgradeEra: false,
+      logs: [`[SYS_UPGRADE] Epoch Shifted: ${nextEra.displayName}`, ...state.logs].slice(0, 20)
+    };
+  }),
+  addMoney: (amount) => set((state) => ({ money: state.money + amount })),
+  toggleGodMode: () => {
+    const newStatus = !get().isGodMode;
+    get().addLog(`[SYSTEM] God Mode: ${newStatus ? 'ACTIVATED' : 'DEACTIVATED'}`, !newStatus);
+    set({ isGodMode: newStatus });
+  },
+>>>>>>> dev
   setTickRate: (rate) => set({ tickRate: rate }),
   resetTopology: () => set((state) => ({
     links: [],

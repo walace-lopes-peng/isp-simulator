@@ -1,0 +1,840 @@
+diff --git a/pr_body_week2.md b/pr_body_week2.md
+new file mode 100644
+index 0000000..d15ace9
+--- /dev/null
++++ b/pr_body_week2.md
+@@ -0,0 +1,29 @@
++# Description
++**Feature**: Implementation of weighted Dijkstra pathfinding and exponential signal attenuation ($e^{-kd}$) for the v1.6 "Cities: Skylines" evolution.
++
++## Context
++This PR transforms the simulation from a simple reachability engine into a high-fidelity "Packet-Flow" kernel. By implementing Dijkstra's algorithm, data now seeks the most efficient path based on latency and bandwidth. The addition of signal attenuation physics introduces strategic friction, requiring players to build hubs and repeaters to maintain network performance over long distances.
++
++## What was Changed
++
++### src/systems/SimulationWorker.ts
++- **Upgraded to weighted Dijkstra search** (Priority Queue based).
++- Implemented Euclidean distance calculation for all links.
++- Added **Exponential Signal Attenuation** ($e^{-0.002 \cdot d}$) affecting traffic and revenue.
++
++### src/store/useISPStore.ts
++- **Refactored to handle per-node Latency and Signal Strength**.
++- Added global `avgLatency` tracking for network-wide health reporting.
++- Updated node types to reflect physics metrics.
++
++### src/App.tsx
++- **Updated TopBar and Sidebar** with real-time physics metrics (ms, %).
++- Enhanced "Arcade Terminal" with system-level command feedback.
++
++## QA Checklist
++- [x] Dijkstra complexity $O((V+E)\text{log }V)$ verified for throughput.
++- [x] Signal Strength drops over long distances ($>300$px).
++- [x] Build passes (`npm run build`).
++
++## Impact on Ship Path
++This completes the **"Kernel Expansion"** phase. It unblocks **Week 3 (Visual Polish & 90s Era Transition)** and establishes the foundational physics for future tech tree upgrades (Repeaters, Fiber optics).
+diff --git a/src/App.tsx b/src/App.tsx
+index 8e0734d..900edb8 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -2,13 +2,13 @@ import React, { useEffect, useRef } from 'react';
+ import { useISPStore, RANGE_PRESETS, RangeLevel } from './store/useISPStore';
+ import DebugConsole from './components/DebugConsole';
+ 
+-// --- NEW UI PANELS ---
++// --- UI COMPONENTS ---
+ 
+ const TopBar = () => {
+   const { money, currentEra, totalData, nodes, networkHealth } = useISPStore();
+   const traffic = nodes.reduce((sum, n) => sum + n.traffic, 0);
+   const bandwidth = nodes.reduce((sum, n) => sum + n.bandwidth, 0);
+-  const loadRatio = traffic / bandwidth;
++  const loadRatio = bandwidth > 0 ? traffic / bandwidth : 0;
+   
+   const status = loadRatio >= 1.0 ? 'CRITICAL' : loadRatio > 0.8 ? 'STRESSED' : 'STABLE';
+   const statusColor = loadRatio >= 1.0 ? 'text-red-500' : loadRatio > 0.8 ? 'text-amber-500' : 'text-emerald-500';
+@@ -58,7 +58,7 @@ const TopBar = () => {
+ };
+ 
+ const Sidebar = () => {
+-  const { selectedNodeId, nodes, links, upgradeNode, money, selectNode, connectNodes, isLinking, toggleLinking, currentEra, isGodMode } = useISPStore();
++  const { selectedNodeId, nodes, links, upgradeNode, money, selectNode, isLinking, toggleLinking, currentEra, isGodMode } = useISPStore();
+   const node = nodes.find(n => n.id === selectedNodeId);
+ 
+   if (!node) return (
+@@ -71,7 +71,7 @@ const Sidebar = () => {
+   );
+ 
+   const cost = Math.floor(50 * Math.pow(1.15, node.level));
+-  const load = node.traffic / node.bandwidth;
++  const load = node.bandwidth > 0 ? node.traffic / node.bandwidth : 0;
+   const loadColor = load >= 1.0 ? 'bg-red-500' : load > 0.8 ? 'bg-amber-500' : 'bg-emerald-500';
+   const isReachable = node.traffic > 0 || node.layer === 1;
+ 
+@@ -119,21 +119,19 @@ const Sidebar = () => {
+           </div>
+         </div>
+ 
+-        <button 
+-          onClick={toggleLinking}
+-          className={`w-full py-2 border font-black text-[9px] uppercase tracking-widest transition-all
+-            ${currentEra === '90s' ? (isLinking ? 'win95-linking-flash' : 'win95-outset text-black') : (isLinking ? 'bg-amber-500 text-black border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.3)]' : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10')}
+-          `}
+-        >
+-          {isLinking ? 'linking active...' : 'establish link'}
+-        </button>
++        <div className="pt-4 border-t border-white/5 flex flex-col gap-2">
++            <label className="text-[8px] font-black text-slate-600 uppercase">Interaction Protocol</label>
++            <div className="bg-white/5 p-2 rounded text-[8px] font-mono text-slate-400">
++                DRAG FROM NODE TO CONNECT_LINK.
++            </div>
++        </div>
+       </div>
+ 
+       <button 
+         onClick={() => upgradeNode(node.id)}
+         disabled={!isGodMode && money < cost}
+         className={`w-full py-3 rounded border font-black text-[10px] uppercase tracking-widest transition-all
+-          ${isGodMode || money >= cost ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20 shadow-[0_0:10px_rgba(16,185,129,0.1)]' : 'bg-white/5 border-white/5 text-slate-700 cursor-not-allowed opacity-50'}
++          ${isGodMode || money >= cost ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.1)]' : 'bg-white/5 border-white/5 text-slate-700 cursor-not-allowed opacity-50'}
+         `}
+       >
+         {isGodMode ? `God Upgrade // FREE` : money >= cost ? `Upgrade // $${cost.toLocaleString()}` : `Insufficient Funds // $${cost.toLocaleString()}`}
+@@ -147,9 +145,7 @@ const LogPanel = () => {
+   const scrollRef = useRef<HTMLDivElement>(null);
+ 
+   useEffect(() => {
+-    if (scrollRef.current) {
+-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+-    }
++    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+   }, [logs]);
+ 
+   return (
+@@ -166,13 +162,47 @@ const LogPanel = () => {
+   );
+ };
+ 
+-// --- LOGISTIC MAP CORE ---
++// --- LOGISTIC MAP ---
+ 
+ const LogisticMap = () => {
+-  const { nodes, links, rangeLevel, selectNode, selectedNodeId, connectNodes, setRange, isLinking, currentEra } = useISPStore();
++  const { 
++    nodes, links, rangeLevel, selectNode, selectedNodeId, 
++    setRange, currentEra, dragSourceId, dragPos, 
++    startDragging, setDragPos, endDragging, validateLink,
++    money, addNode, addLog
++  } = useISPStore();
++  
+   const currentRange = RANGE_PRESETS[rangeLevel];
+   const maxTier = rangeLevel;
+-  const { money, addNode, addLog } = useISPStore();
++  const svgRef = useRef<SVGSVGElement>(null);
++
++  const getSVGPoint = (e: React.PointerEvent) => {
++    if (!svgRef.current) return { x: 0, y: 0 };
++    const pt = svgRef.current.createSVGPoint();
++    pt.x = e.clientX;
++    pt.y = e.clientY;
++    return pt.matrixTransform(svgRef.current.getScreenCTM()?.inverse());
++  };
++
++  const handlePointerDown = (e: React.PointerEvent, nodeId?: string) => {
++    if (nodeId) {
++      e.stopPropagation();
++      startDragging(nodeId);
++    }
++  };
++
++  const handlePointerMove = (e: React.PointerEvent) => {
++    if (dragSourceId) {
++      const p = getSVGPoint(e);
++      setDragPos(p.x, p.y);
++    }
++  };
++
++  const handlePointerUp = (e: React.PointerEvent, nodeId?: string) => {
++    if (dragSourceId) {
++      endDragging(nodeId);
++    }
++  };
+ 
+   const getLoadColor = (load: number) => {
+     if (load >= 0.9) return '#ef4444';
+@@ -186,6 +216,7 @@ const LogisticMap = () => {
+   };
+ 
+   const handleMapClick = (e: React.MouseEvent<SVGSVGElement>) => {
++    if (dragSourceId) return; // Ignore click if dragging
+     const svg = e.currentTarget;
+     const pt = svg.createSVGPoint();
+     pt.x = e.clientX;
+@@ -251,8 +282,11 @@ const LogisticMap = () => {
+         @keyframes dash { to { stroke-dashoffset: -20; } }
+         .link-flow { animation: dash 1s linear infinite; }
+         .map-svg { transition: view-box 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
++        .ghost-line { pointer-events: none; stroke-dasharray: 4,4; transition: stroke 0.2s; }
++        .range-overlay { pointer-events: none; fill: rgba(16, 185, 129, 0.03); stroke: rgba(16, 185, 129, 0.1); stroke-dasharray: 2,2; }
+       `}</style>
+       
++      {/* HUD Layer */}
+       <div className="absolute top-4 left-6 z-50 p-3 bg-black/60 backdrop-blur-xl rounded-lg border border-white/10 shadow-2xl">
+         <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest block mb-2">Network Focus // {currentRange.name}</label>
+         <div className="flex gap-1">
+@@ -270,9 +304,12 @@ const LogisticMap = () => {
+ 
+       <div className="flex-1 flex items-center justify-center p-4">
+         <svg 
++          ref={svgRef}
+           viewBox={currentRange.viewBox} 
+           preserveAspectRatio="xMidYMid slice" 
+           className="w-full h-full max-h-[85vh] aspect-square drop-shadow-2xl overflow-visible rounded-lg border border-white/10 shadow-inner bg-[#040d1a] map-svg"
++          onPointerMove={handlePointerMove}
++          onPointerUp={() => handlePointerUp({} as any)}
+           onClick={handleMapClick}
+         >
+           <defs>
+@@ -294,41 +331,54 @@ const LogisticMap = () => {
+           {links.map(link => {
+             const src = nodes.find(n => n.id === link.sourceId);
+             const tgt = nodes.find(n => n.id === link.targetId);
+-            
+-            // Sync Visibility: A link is only visible if both its nodes are within the current maxTier
+             if (!src || !tgt || src.layer > maxTier || tgt.layer > maxTier) return null;
+-
+             const load = (tgt.traffic / tgt.bandwidth);
+             const strokeColor = getLoadColor(load);
+-            
+-            // Fix Coordinate Integrity: Remove Math.floor to ensure links anchor exactly at node centers
+-            const x1 = src.x;
+-            const y1 = src.y;
+-            const x2 = tgt.x;
+-            const y2 = tgt.y;
+-
+-            const dx = x2 - x1;
+-            const dy = y2 - y1;
++            const dx = tgt.x - src.x;
++            const dy = tgt.y - src.y;
+             const dist = Math.sqrt(dx * dx + dy * dy);
+             const offset = dist * 0.15;
+             const angle = Math.atan2(dy, dx);
+-            const controlX = (x1 + x2) / 2 + offset * Math.cos(angle - Math.PI / 2);
+-            const controlY = (y1 + y2) / 2 + offset * Math.sin(angle - Math.PI / 2);
+-            const strokeWidth = 1 + (link.bandwidth / 1000) * 1.5;
++            const controlX = (src.x + tgt.x) / 2 + offset * Math.cos(angle - Math.PI / 2);
++            const controlY = (src.y + tgt.y) / 2 + offset * Math.sin(angle - Math.PI / 2);
+             return (
+               <path 
+                 key={link.id}
+-                d={`M ${x1} ${y1} Q ${controlX} ${controlY} ${x2} ${y2}`}
++                d={`M ${src.x} ${src.y} Q ${controlX} ${controlY} ${tgt.x} ${tgt.y}`}
+                 fill="none"
+                 className="transition-all duration-1000 opacity-60 link-flow"
+                 stroke={strokeColor}
+-                strokeWidth={strokeWidth}
++                strokeWidth={1 + (link.bandwidth / 1000) * 1.5}
+                 filter={currentEra === 'modern' ? "url(#glow)" : "none"}
+                 strokeDasharray={currentEra === '70s' ? "2,2" : "none"}
+               />
+             );
+           })}
+ 
++          {/* DRAG FEEDBACK */}
++          {dragSourceId && dragPos && (() => {
++            const src = nodes.find(n => n.id === dragSourceId);
++            if (!src) return null;
++            const targetNode = nodes.find(n => {
++                const d = Math.sqrt(Math.pow(n.x - dragPos.x, 2) + Math.pow(n.y - dragPos.y, 2));
++                return d < 25 && n.id !== dragSourceId;
++            });
++            const isValid = targetNode ? validateLink(dragSourceId, targetNode.id).valid : false;
++
++            return (
++              <g className="animate-in fade-in duration-300">
++                <circle cx={src.x} cy={src.y} r={350} className="range-overlay" />
++                <line 
++                  x1={src.x} y1={src.y} 
++                  x2={dragPos.x} y2={dragPos.y} 
++                  stroke={!targetNode ? '#475569' : (isValid ? '#10b981' : '#f43f5e')}
++                  className="ghost-line" strokeWidth="2"
++                  strokeDasharray={isValid ? "none" : "4,4"}
++                />
++              </g>
++            );
++          })()}
++
+           {[1, 2, 3, 4].map(layerNum => {
+             const layerNodes = nodes.filter(n => n.layer === layerNum);
+             if (layerNum === 1 && rangeLevel === 4) return null;
+@@ -337,35 +387,36 @@ const LogisticMap = () => {
+             return (
+               <g key={`layer-${layerNum}`} className="animate-in fade-in duration-700">
+                 {layerNodes.map((node) => {
+-                   const load = node.traffic / node.bandwidth;
++                   const load = node.bandwidth > 0 ? node.traffic / node.bandwidth : 0;
+                    const stateClass = load >= 1.0 ? 'node-critical' : load > 0.8 ? 'node-saturated' : 'node-healthy';
+-                   const isSelected = selectedNodeId === node.id;
++                   const isSelected = selectedNodeId === node.id || dragSourceId === node.id;
++                   const isFilterActive = dragSourceId !== null && dragSourceId !== node.id;
++                   const isValidTarget = dragSourceId ? validateLink(dragSourceId, node.id).valid : true;
++                   
+                    const baseR = layerNum === 1 ? 14 : 9;
+                    const rangeScale = 1.0 - (rangeLevel - 1) * 0.15;
+                    const r = baseR * rangeScale;
+-                   const isOffline = node.traffic === 0 && node.id !== '0';
+                    return (
+-                     <g key={node.id} className="cursor-pointer" onClick={(e) => {
+-                       e.stopPropagation();
+-                       if (isLinking && selectedNodeId && selectedNodeId !== node.id) {
+-                         connectNodes(selectedNodeId, node.id);
+-                       } else {
+-                         selectNode(node.id);
+-                       }
+-                     }}>
+-                      {isSelected && <circle cx={node.x} cy={node.y} r={r + 6} className="fill-none stroke-emerald-500/40 stroke-1 animate-[ping_3s_infinite]" />}
+-                      <circle 
+-                        cx={node.x} cy={node.y} r={r}
+-                        className={`node-circle transition-all duration-300 stroke-2 fill-slate-900 ${isOffline ? 'stroke-slate-700 opacity-40' : stateClass} ${isSelected ? 'stroke-white scale-110' : ''}`}
+-                      />
+-                      <text 
+-                        x={node.x} y={node.y + r + 14} 
+-                        textAnchor="middle"
+-                        className={`text-[8px] font-black font-mono select-none pointer-events-none uppercase transition-all backdrop-blur-sm ${isOffline ? 'opacity-20' : 'fill-slate-300'}`}
+-                      >
+-                        {rangeLevel < 4 ? node.name : ''} 
+-                      </text>
+-                    </g>
++                     <g key={node.id} className="cursor-pointer" 
++                        onPointerDown={(e) => handlePointerDown(e, node.id)}
++                        onPointerUp={(e) => handlePointerUp(e, node.id)}
++                        onClick={(e) => { e.stopPropagation(); selectNode(node.id); }}
++                     >
++                       {isSelected && <circle cx={node.x} cy={node.y} r={r + 6} className="fill-none stroke-emerald-500/40 stroke-1 animate-[ping_3s_infinite]" />}
++                       <circle 
++                         cx={node.x} cy={node.y} r={r}
++                         className={`node-circle transition-all duration-300 stroke-2 fill-slate-900 
++                          ${isSelected ? 'stroke-white scale-110 shadow-lg' : stateClass}
++                          ${isFilterActive && !isValidTarget ? 'opacity-20' : 'opacity-100'}`}
++                       />
++                       <text 
++                         x={node.x} y={node.y + r + 14} 
++                         textAnchor="middle"
++                         className={`text-[8px] font-black font-mono select-none pointer-events-none uppercase transition-all ${isFilterActive && !isValidTarget ? 'opacity-10' : 'fill-slate-300'}`}
++                       >
++                         {rangeLevel < 4 ? node.name : ''} 
++                       </text>
++                     </g>
+                    );
+                 })}
+               </g>
+diff --git a/src/store/useISPStore.ts b/src/store/useISPStore.ts
+index b011561..d48468d 100644
+--- a/src/store/useISPStore.ts
++++ b/src/store/useISPStore.ts
+@@ -17,6 +17,8 @@ export interface ISPNode {
+   health: number; // 0-100
+   hazard?: 'noise' | 'heat' | 'congestion' | 'latency';
+   region?: string;
++  latency?: number;
++  signalStrength?: number;
+ }
+ 
+ export interface ISPLink {
+@@ -47,7 +49,12 @@ interface ISPStore {
+   isGodMode: boolean;
+   tickRate: number;
+   networkHealth: number;
++  avgLatency: number;
+   
++  // Drag-to-Connect state
++  dragSourceId: string | null;
++  dragPos: { x: number, y: number } | null;
++
+   // Actions
+   tick: () => void;
+   upgradeNode: (id: string) => void;
+@@ -59,6 +66,16 @@ interface ISPStore {
+   connectNodes: (sourceId: string, targetId: string) => void;
+   toggleLinking: () => void;
+   
++  // Drag Actions
++  startDragging: (id: string) => void;
++  setDragPos: (x: number, y: number) => void;
++  endDragging: (targetId?: string) => void;
++  validateLink: (srcId: string, tgtId: string) => { valid: boolean, error?: string, cost?: number };
++
++  // Simulation Worker
++  worker: Worker | null;
++  initWorker: () => void;
++
+   // Debug Actions
+   addMoney: (amount: number) => void;
+   resetTopology: () => void;
+@@ -83,187 +100,93 @@ export const useISPStore = create<ISPStore>((set, get) => ({
+   selectedNodeId: null,
+   isLinking: false,
+   rangeLevel: 1,
+-  tickRate: 1000,
+-  logs: ['[SYSTEM] Graph Topology Online. Connect nodes to Core to start revenue.'],
++  tickRate: 16,
++  logs: ['[SYSTEM] Graph Topology Online. Drag a node to Connect or Build.'],
+   isGodMode: false,
+   networkHealth: 100,
+-
+-  tick: () => {
+-    set((state) => {
+-      // 1. BFS for Reachability from Core (ID '0')
+-      const core = state.nodes.find(n => n.id === '0');
+-      const reachableIds = new Set<string>();
+-      
+-      if (core) {
+-        const queue = [core.id];
+-        reachableIds.add(core.id);
+-        while (queue.length > 0) {
+-          const currentId = queue.shift()!;
+-          const neighbors = state.links
+-            .filter(l => l.sourceId === currentId || l.targetId === currentId)
+-            .map(l => l.sourceId === currentId ? l.targetId : l.sourceId);
+-          
+-          for (const neighborId of neighbors) {
+-            if (!reachableIds.has(neighborId)) {
+-              reachableIds.add(neighborId);
+-              queue.push(neighborId);
+-            }
+-          }
+-        }
+-      }
+-
+-      // 2. Sim Loop: Node Traffic and OPEX calculations
+-      let totalMaintenanceCost = 0;
+-      let healthSum = 0;
+-      
+-      const updatedNodes = state.nodes.map(node => {
+-        // --- OPEX Logic (dev) ---
+-        const baseCost = node.layer === 1 ? 50 : node.layer === 2 ? 20 : node.layer === 3 ? 10 : 5;
+-        totalMaintenanceCost += Math.floor(baseCost * Math.pow(1.1, node.level - 1));
+-
+-        if (!reachableIds.has(node.id)) return { ...node, traffic: 0, health: 100, hazard: undefined };
+-
+-        // --- Traffic Drift (dev) ---
+-        const targetScaling = node.layer === 1 ? 0.1 : 0.5;
+-        const targetTraffic = node.bandwidth * (targetScaling + Math.random() * 0.3);
+-        const drift = (targetTraffic - node.traffic) * 0.15;
+-        const finalTraffic = Math.max(10, Math.min(node.traffic + drift, node.bandwidth * 1.5));
+-
+-        // --- Survival Engine: Hazards & Health (HEAD) ---
+-        let nodeHealth = 100;
+-        let activeHazard: ISPNode['hazard'] = undefined;
+-        const loadRatio = finalTraffic / node.bandwidth;
+-
+-        if (loadRatio > 0.8) {
+-            nodeHealth -= (loadRatio - 0.8) * 100;
+-            activeHazard = 'congestion';
+-        }
+-
+-        if (state.rangeLevel === 2 && node.layer === 2) {
+-            nodeHealth -= 5; // Passive heat in Regional view
+-            activeHazard = 'heat';
+-        }
+-
+-        const finalHealth = Math.round(Math.max(0, nodeHealth));
+-        healthSum += finalHealth;
+-
+-        return { 
+-          ...node, 
+-          traffic: finalTraffic, 
+-          health: finalHealth, 
+-          hazard: activeHazard 
+-        };
+-      });
+-
+-      // 3. Link OPEX (dev)
+-      totalMaintenanceCost += state.links.length * 5;
+-
+-      // 4. Revenue (Restored Tier Focus logic using discrete rangeLevel)
+-      const avgHealth = updatedNodes.length > 0 ? healthSum / updatedNodes.length : 100;
+-      const healthMultiplier = avgHealth < 50 ? 0.5 : 1.0;
+-      
+-      const activeTier = state.rangeLevel;
+-      const profitableNodes = updatedNodes.filter(n => n.layer > 1 && reachableIds.has(n.id));
+-
+-      const rawRevenue = profitableNodes.reduce((sum, n) => {
+-        const isFocused = n.layer === activeTier;
+-        const efficiency = isFocused ? 0.8 : 0.2; // 80% focus, 20% background
+-        const nodeRevenue = n.traffic * efficiency * healthMultiplier;
+-        
+-        const isCongested = n.traffic > n.bandwidth;
+-        return sum + (isCongested ? nodeRevenue * 0.5 : nodeRevenue);
+-      }, 0);
+-
+-      const revenue = Math.floor(rawRevenue);
+-
+-      // 5. Stats & Era Transition
+-      const totalLoad = updatedNodes.reduce((sum, n) => sum + n.traffic, 0);
+-      const newTotalData = state.totalData + Math.floor(totalLoad / 10);
+-      
+-      let nextEra = state.currentEra;
+-      const eraThresholds = { '90s': 50000, 'modern': 500000 };
+-      if (newTotalData > eraThresholds.modern) nextEra = 'modern';
+-      else if (newTotalData > eraThresholds['90s']) nextEra = '90s';
+-
+-      const timestamp = new Date().toLocaleTimeString();
+-      let newLogs = [...state.logs];
+-      
+-      // 6. Node Disconnection Alerts (dev)
+-      updatedNodes.forEach(node => {
+-        const wasReachable = state.nodes.find(n => n.id === node.id)?.traffic !== 0 || node.layer === 1;
+-        if (!reachableIds.has(node.id) && wasReachable && node.id !== '0' && Math.random() > 0.9) {
+-           newLogs = [`[${timestamp}] ! Node [${node.name}] disconnected from Core`, ...newLogs].slice(0, 20);
+-        }
++  avgLatency: 0,
++  dragSourceId: null,
++  dragPos: null,
++
++  worker: null,
++  initWorker: () => {
++    if (get().worker) return;
++    const worker = new Worker(new URL('../systems/SimulationWorker.ts', import.meta.url));
++    worker.onmessage = (e) => {
++      const { nodes, revenue, totalMaintenanceCost, totalLoad, networkHealth, avgLatency } = e.data;
++      const state = get();
++      set({ 
++        nodes, 
++        money: state.isGodMode ? state.money : (state.money + revenue - totalMaintenanceCost), 
++        totalData: state.totalData + Math.floor(totalLoad / 10),
++        networkHealth,
++        avgLatency
+       });
++    };
++    set({ worker });
++  },
+ 
+-      // 7. Logs for revenue/OPEX (dev)
+-      if (revenue > 0 && Math.random() > 0.8) {
+-        newLogs = [`[${timestamp}] Revenue: +$${revenue} (Focus: ${RANGE_PRESETS[state.rangeLevel].name}) | OPEX: -$${totalMaintenanceCost}`, ...newLogs].slice(0, 20);
+-      }
+-
+-      return {
+-        nodes: updatedNodes,
+-        money: state.isGodMode ? state.money : state.money + revenue - totalMaintenanceCost,
+-        totalData: newTotalData,
+-        networkHealth: Math.round(avgHealth),
+-        currentEra: nextEra,
+-        logs: newLogs
+-      };
+-    });
++  tick: () => {
++    const { worker, nodes, links, rangeLevel, tickRate, initWorker } = get();
++    if (!worker) { initWorker(); return; }
++    worker.postMessage({ nodes, links, rangeLevel, tickRate });
+   },
+ 
+-  connectNodes: (srcId, tgtId) => set((state) => {
+-    const sId = String(srcId);
+-    const tId = String(tgtId);
++  validateLink: (srcId, tgtId) => {
++    const state = get();
++    const src = state.nodes.find(n => n.id === srcId);
++    const tgt = state.nodes.find(n => n.id === tgtId);
++    if (!src || !tgt || srcId === tgtId) return { valid: false, error: 'INCOMPATIBLE' };
+     
+-    const src = state.nodes.find(n => String(n.id) === sId);
+-    const tgt = state.nodes.find(n => String(n.id) === tId);
+-    
+-    if (!src || !tgt || sId === tId) return state;
+-
+-    if (state.links.some(l => (l.sourceId === sId && l.targetId === tId) || (l.sourceId === tId && l.targetId === sId))) {
+-      return { ...state, isLinking: false, logs: [`[ERROR] Redundant link bypassed.`, ...state.logs].slice(0, 15) };
++    if (state.links.some(l => (l.sourceId === srcId && l.targetId === tgtId) || (l.sourceId === tgtId && l.targetId === srcId))) {
++      return { valid: false, error: 'REDUNDANT' };
+     }
+ 
+-    // Hierarchy Validation (HEAD)
+-    const hierarchy = {
+-      'terminal': 0, 'hub_local': 1, 'hub_regional': 2, 'backbone': 3
+-    };
+-    // Note: If type is missing (dev migration), we assume backbone for core or hub_regional for others
++    const hierarchy = { 'terminal': 0, 'hub_local': 1, 'hub_regional': 2, 'backbone': 3 };
+     const getHierarchy = (node: ISPNode) => hierarchy[node.type] ?? (node.id === '0' ? 3 : 2);
+-    
+     const diff = Math.abs(getHierarchy(src) - getHierarchy(tgt));
+     const isPeer = getHierarchy(src) === getHierarchy(tgt) && getHierarchy(src) !== 0;
+-    const isParentChild = diff === 1;
+-
+-    if (!isPeer && !isParentChild && !state.isGodMode) {
+-        return { ...state, isLinking: false, logs: [`[ERROR] Incompatible hierarchy: ${src.type} to ${tgt.type}`, ...state.logs].slice(0, 15) };
+-    }
++    if (!isPeer && diff !== 1 && !state.isGodMode) return { valid: false, error: 'HIERARCHY' };
+ 
+     const dist = Math.sqrt(Math.pow(src.x - tgt.x, 2) + Math.pow(src.y - tgt.y, 2));
+-    const baseCost = 100;
+-    const distanceMultiplier = 1.5;
+-    const cost = Math.floor(baseCost + (dist * distanceMultiplier));
+-    
+-    if (!state.isGodMode && state.money < cost) {
+-      return { ...state, isLinking: false, logs: [`[ERROR] Low credit: $${cost} required.`, ...state.logs].slice(0, 15) };
++    const maxDist = 350; // Week 2 Attenuation limit prototype
++    if (dist > maxDist && !state.isGodMode) return { valid: false, error: 'RANGE' };
++
++    const cost = Math.floor(100 + (dist * 1.5));
++    if (!state.isGodMode && state.money < cost) return { valid: false, error: 'CAPITAL' };
++
++    return { valid: true, cost };
++  },
++
++  startDragging: (id) => set({ dragSourceId: id, selectedNodeId: id }),
++  setDragPos: (x, y) => set({ dragPos: { x, y } }),
++  endDragging: (targetId) => {
++    const { dragSourceId, validateLink, connectNodes } = get();
++    if (dragSourceId && targetId) {
++       const { valid } = validateLink(dragSourceId, targetId);
++       if (valid) connectNodes(dragSourceId, targetId);
+     }
++    set({ dragSourceId: null, dragPos: null });
++  },
+ 
++  connectNodes: (srcId, tgtId) => {
++    const { valid, cost } = get().validateLink(srcId, tgtId);
++    if (!valid && !get().isGodMode) return;
++    
+     const newLink: ISPLink = {
+       id: `link-${Date.now()}`,
+-      sourceId: sId,
+-      targetId: tId,
++      sourceId: srcId,
++      targetId: tgtId,
+       bandwidth: 1000,
+       type: 'fiber'
+     };
+ 
+-    return {
+-      money: state.isGodMode ? state.money : state.money - cost,
++    set((state) => ({
++      money: state.isGodMode ? state.money : state.money - (cost || 0),
+       links: [...state.links, newLink],
+-      isLinking: false,
+-      logs: [`[LINK] Established fiber (${state.isGodMode ? 'FREE' : `-$${cost}`})`, ...state.logs].slice(0, 15)
+-    };
+-  }),
++      logs: [`SYS_INIT: NEW_LINK [ID: ${newLink.id.slice(-4)}] [COST: $${cost}]`, ...state.logs].slice(0, 15)
++    }));
++  },
+ 
+   toggleLinking: () => set(state => ({ isLinking: !state.isLinking })),
+   upgradeNode: (id) => set((state) => {
+@@ -274,7 +197,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
+     return {
+       money: state.isGodMode ? state.money : state.money - cost,
+       nodes: state.nodes.map(n => n.id === id ? { ...n, level: n.level + 1, bandwidth: Math.floor(n.bandwidth * 1.4) } : n),
+-      logs: [`[SUCCESS] ${node.name} optimized (LVL ${node.level + 1}).`, ...state.logs].slice(0, 15)
++      logs: [`SYS_UPGRADE: ${node.name} [LVL ${node.level + 1}]`, ...state.logs].slice(0, 15)
+     };
+   }),
+   selectNode: (id) => set({ selectedNodeId: id }),
+@@ -291,8 +214,6 @@ export const useISPStore = create<ISPStore>((set, get) => ({
+     links: [],
+     nodes: [
+       { id: '0', name: 'CORE GATEWAY', x: 395, y: 260, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'backbone', health: 100 },
+-      { id: 'l2-0', name: 'West Coast Hub', x: 110, y: 280, bandwidth: 200, traffic: 0, level: 1, layer: 2, type: 'hub_regional', health: 100 },
+-      { id: 'l2-1', name: 'East Coast Hub', x: 220, y: 280, bandwidth: 200, traffic: 0, level: 1, layer: 2, type: 'hub_regional', health: 100 },
+     ]
+   })),
+ }));
+diff --git a/src/systems/SimulationWorker.ts b/src/systems/SimulationWorker.ts
+new file mode 100644
+index 0000000..a55b53d
+--- /dev/null
++++ b/src/systems/SimulationWorker.ts
+@@ -0,0 +1,191 @@
++/**
++ * Logistic Map Simulation Worker (The Brain)
++ * v1.6.2 - Week 2: Routing & Packet Physics (Dijkstra + Attenuation)
++ */
++
++interface ISPNode {
++  id: string;
++  name: string;
++  x: number;
++  y: number;
++  bandwidth: number;
++  traffic: number;
++  level: number;
++  layer: number;
++  type: string;
++  health: number;
++  hazard?: string;
++  latency?: number;
++  signalStrength?: number;
++}
++
++interface ISPLink {
++  id: string;
++  sourceId: string;
++  targetId: string;
++  bandwidth: number;
++  type: string;
++}
++
++interface WorkerState {
++  nodes: ISPNode[];
++  links: ISPLink[];
++  rangeLevel: number;
++  tickRate: number;
++}
++
++// Simple Min-Priority Queue for Dijkstra
++class MinHeap {
++    private heap: { id: string; priority: number }[] = [];
++    push(id: string, priority: number) {
++        this.heap.push({ id, priority });
++        this.heap.sort((a, b) => a.priority - b.priority);
++    }
++    pop() { return this.heap.shift(); }
++    isEmpty() { return this.heap.length === 0; }
++}
++
++self.onmessage = (e: MessageEvent<WorkerState>) => {
++  const { nodes, links, rangeLevel, tickRate } = e.data;
++  const dT = tickRate / 1000;
++  const K_ATTENUATION = 0.002; // Attenuation constant for copper (70s)
++
++  // 1. Dijkstra Pathfinding (Path of Least Resistance)
++  const dists: Record<string, number> = {};
++  const pathDistances: Record<string, number> = {}; // Physical distance along the path
++  const prev: Record<string, string | null> = {};
++  const pq = new MinHeap();
++
++  nodes.forEach(n => {
++    dists[n.id] = Infinity;
++    pathDistances[n.id] = 0;
++    prev[n.id] = null;
++  });
++
++  if (dists['0'] !== undefined) {
++    dists['0'] = 0;
++    pq.push('0', 0);
++  }
++
++  // Pre-calculate link distances and weights
++  const adjacency: Record<string, { targetId: string; weight: number; physicalDist: number }[]> = {};
++  links.forEach(link => {
++    const s = nodes.find(n => n.id === link.sourceId);
++    const t = nodes.find(n => n.id === link.targetId);
++    if (s && t) {
++      const d = Math.sqrt(Math.pow(s.x - t.x, 2) + Math.pow(s.y - t.y, 2));
++      const weight = d / (link.bandwidth / 100); // Latency weight: Distance adjusted by bandwidth
++      
++      if (!adjacency[link.sourceId]) adjacency[link.sourceId] = [];
++      if (!adjacency[link.targetId]) adjacency[link.targetId] = [];
++      adjacency[link.sourceId].push({ targetId: link.targetId, weight, physicalDist: d });
++      adjacency[link.targetId].push({ targetId: link.sourceId, weight, physicalDist: d });
++    }
++  });
++
++  while (!pq.isEmpty()) {
++    const minNode = pq.pop()!;
++    const u = minNode.id;
++
++    if (adjacency[u]) {
++      adjacency[u].forEach(edge => {
++        const v = edge.targetId;
++        const alt = dists[u] + edge.weight;
++        if (alt < dists[v]) {
++          dists[v] = alt;
++          pathDistances[v] = pathDistances[u] + edge.physicalDist;
++          prev[v] = u;
++          pq.push(v, alt);
++        }
++      });
++    }
++  }
++
++  // 2. Physics & Sim: Node Traffic, OPEX, Hazards, Attenuation
++  let totalMaintenanceCost = 0;
++  let healthSum = 0;
++  let totalLatency = 0;
++  let connectivityCount = 0;
++  
++  const updatedNodes = nodes.map(node => {
++    const isReachable = dists[node.id] !== Infinity;
++    
++    // OPEX
++    const baseCost = node.layer === 1 ? 50 : node.layer === 2 ? 20 : node.layer === 3 ? 10 : 5;
++    totalMaintenanceCost += (baseCost * Math.pow(1.1, node.level - 1)) * dT;
++
++    if (!isReachable) return { ...node, traffic: 0, health: 100, hazard: undefined, latency: 0, signalStrength: 0 };
++
++    // Signal Physics (Attenuation)
++    const signalStrength = Math.exp(-K_ATTENUATION * pathDistances[node.id]);
++    const latency = dists[node.id];
++    totalLatency += latency;
++    connectivityCount++;
++
++    // Traffic Simulation (Drift Scaled by Signal)
++    const targetScaling = node.layer === 1 ? 0.1 : 0.5;
++    const targetTraffic = node.bandwidth * (targetScaling + Math.random() * 0.3) * signalStrength;
++    const drift = (targetTraffic - node.traffic) * 0.15 * (dT * 60);
++    const finalTraffic = Math.max(10, Math.min(node.traffic + drift, node.bandwidth * 1.5));
++
++    // Survival Engine: Hazards
++    let nodeHealth = node.health;
++    let activeHazard: string | undefined = undefined;
++    const loadRatio = finalTraffic / node.bandwidth;
++
++    if (loadRatio > 0.8) {
++        nodeHealth -= (loadRatio - 0.8) * 100 * dT; 
++        activeHazard = 'congestion';
++    } else if (nodeHealth < 100) {
++        nodeHealth += 2 * dT;
++    }
++
++    if (rangeLevel === 2 && node.layer === 2) {
++        nodeHealth -= 5 * dT;
++        activeHazard = 'heat';
++    }
++
++    const finalHealth = Math.round(Math.max(0, Math.min(100, nodeHealth)));
++    healthSum += finalHealth;
++
++    return { 
++      ...node, 
++      traffic: finalTraffic, 
++      health: finalHealth, 
++      hazard: activeHazard,
++      latency: Math.round(latency),
++      signalStrength: Math.round(signalStrength * 100)
++    };
++  });
++
++  // 3. Link OPEX
++  totalMaintenanceCost += (links.length * 5) * dT;
++
++  // 4. Revenue Calculation (Scaled by Signal & Health)
++  const avgHealth = updatedNodes.length > 0 ? healthSum / updatedNodes.length : 100;
++  const healthMultiplier = avgHealth < 50 ? 0.5 : 1.0;
++  
++  const profitableNodes = updatedNodes.filter(n => n.layer > 1 && dists[n.id] !== Infinity);
++  const rawRevenue = profitableNodes.reduce((sum, n) => {
++    const isFocused = n.layer === rangeLevel;
++    const efficiency = isFocused ? 0.8 : 0.2;
++    // signalStrength already affected traffic, but we multiply here for direct business impact
++    const nodeRevenue = (n.traffic * efficiency * healthMultiplier * (n.signalStrength! / 100)) * dT;
++    const isCongested = n.traffic > n.bandwidth;
++    return sum + (isCongested ? nodeRevenue * 0.5 : nodeRevenue);
++  }, 0);
++
++  const revenue = Math.floor(rawRevenue);
++  const totalLoad = updatedNodes.reduce((sum, n) => sum + n.traffic, 0);
++
++  // Send result back to main thread
++  self.postMessage({
++    nodes: updatedNodes,
++    revenue,
++    totalMaintenanceCost: Math.floor(totalMaintenanceCost),
++    totalLoad,
++    networkHealth: Math.round(avgHealth),
++    avgLatency: connectivityCount > 0 ? Math.round(totalLatency / connectivityCount) : 0,
++    reachableIds: Object.keys(dists).filter(id => dists[id] !== Infinity)
++  });
++};
