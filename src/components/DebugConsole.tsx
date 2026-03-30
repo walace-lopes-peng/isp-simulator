@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useISPStore, Era } from '../store/useISPStore';
+import { useISPStore, ERAS_CONFIG } from '../store/useISPStore';
 
 const DebugConsole: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
+  const [position, setPosition] = useState({ x: 24, y: window.innerHeight - 450 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
   const { 
     money, 
     addMoney, 
@@ -23,15 +27,59 @@ const DebugConsole: React.FC = () => {
       }
     };
 
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isDragging) {
+        setPosition({
+          x: e.clientX - dragOffset.x,
+          y: e.clientY - dragOffset.y
+        });
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, dragOffset]);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    const rect = (e.currentTarget as HTMLElement).parentElement?.getBoundingClientRect();
+    if (rect) {
+      setIsDragging(true);
+      setDragOffset({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      });
+    }
+  };
 
   if (!isVisible) return null;
 
   return (
-    <div className="fixed bottom-20 left-6 z-[100] w-72 bg-black/80 backdrop-blur-xl border border-emerald-500/30 p-4 rounded-lg shadow-[0_0_30px_rgba(16,185,129,0.1)] font-mono animate-in fade-in slide-in-from-bottom-4 duration-300">
-      <div className="flex items-center justify-between mb-4 border-b border-white/10 pb-2">
+    <div 
+      className={`fixed z-[100] w-72 bg-black/80 backdrop-blur-xl border border-emerald-500/30 p-4 rounded-lg shadow-[0_0_30px_rgba(16,185,129,0.1)] font-mono ${!isDragging ? 'animate-in fade-in slide-in-from-bottom-4 duration-300' : ''}`}
+      style={{ 
+        left: 0, 
+        top: 0, 
+        transform: `translate3d(${position.x}px, ${position.y}px, 0)`,
+        willChange: 'transform'
+      }}
+    >
+      <div 
+        onMouseDown={handleMouseDown}
+        className="flex items-center justify-between mb-4 border-b border-white/10 pb-2 cursor-move select-none"
+      >
         <h3 className="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-2">
           <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
           Developer Debug Suite
@@ -62,14 +110,14 @@ const DebugConsole: React.FC = () => {
         {/* Era Manipulation */}
         <div>
           <label className="text-[8px] font-black text-slate-500 uppercase tracking-tighter mb-2 block">Era Simulation</label>
-          <div className="flex gap-2">
-            {(['70s', '90s', 'modern'] as Era[]).map(era => (
+          <div className="flex flex-wrap gap-2">
+            {ERAS_CONFIG.map(era => (
               <button 
-                key={era}
-                onClick={() => { setEra(era); addLog(`DEBUG: Era jumped to ${era}`, false); }}
-                className={`flex-1 py-1 border text-[8px] uppercase transition-all ${currentEra === era ? 'bg-white/20 border-white/40 text-white font-bold' : 'bg-white/5 border-white/5 text-slate-500 hover:bg-white/10'}`}
+                key={era.id}
+                onClick={() => { setEra(era.id); addLog(`DEBUG: Era jumped to ${era.id}`, false); }}
+                className={`flex-1 min-w-[30%] py-1 border text-[8px] uppercase transition-all ${currentEra === era.id ? 'bg-white/20 border-white/40 text-white font-bold' : 'bg-white/5 border-white/5 text-slate-500 hover:bg-white/10'}`}
               >
-                {era}
+                {era.id}
               </button>
             ))}
           </div>

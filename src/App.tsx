@@ -1,11 +1,20 @@
 import React, { useEffect, useRef } from 'react';
 import { useISPStore, RANGE_PRESETS, RangeLevel } from './store/useISPStore';
 import DebugConsole from './components/DebugConsole';
+<<<<<<< HEAD
+=======
+import EraWrapper from './components/EraWrapper';
+>>>>>>> dev
 
 // --- UI COMPONENTS ---
 
 const TopBar = () => {
+<<<<<<< HEAD
   const { money, currentEra, totalData, nodes, networkHealth } = useISPStore();
+=======
+  const { money, totalData, nodes, networkHealth, canUpgradeEra, purchaseEraUpgrade, isGodMode } = useISPStore();
+  const eraConfig = useISPStore(state => state.getCurrentEraConfig());
+>>>>>>> dev
   const traffic = nodes.reduce((sum, n) => sum + n.traffic, 0);
   const bandwidth = nodes.reduce((sum, n) => sum + n.bandwidth, 0);
   const loadRatio = bandwidth > 0 ? traffic / bandwidth : 0;
@@ -15,11 +24,16 @@ const TopBar = () => {
   const healthColor = networkHealth < 50 ? 'text-red-500' : networkHealth < 80 ? 'text-amber-400' : 'text-emerald-400';
 
   return (
-    <div className={`h-14 w-full flex items-center justify-between px-6 border-b border-white/10 ${currentEra === '90s' ? 'win95-outset' : 'bg-black/40 backdrop-blur-md'} fixed top-0 z-50 glass-panel`}>
+    <div className="era-topbar h-14 w-full flex items-center justify-between px-6 border-b border-white/10 fixed top-0 z-50 glass-panel">
       <div className="flex items-center gap-8">
         <div>
+<<<<<<< HEAD
           <h1 className={`text-xs font-black tracking-widest uppercase ${currentEra === '90s' ? 'text-white' : 'text-emerald-500'}`}>Logistic Map // Core</h1>
           <p className={`text-[8px] font-mono ${currentEra === '90s' ? 'text-white/70' : 'text-slate-500'}`}>SYSTEM_REVENUE_ACTIVE</p>
+=======
+          <h1 className="era-title text-xs font-black tracking-widest uppercase text-emerald-500">Logistic Map // Core</h1>
+          <p className="era-subtitle text-[8px] font-mono text-slate-500">SYSTEM_REVENUE_ACTIVE</p>
+>>>>>>> dev
         </div>
         <div className="h-8 w-px bg-white/5" />
         <div className="flex gap-6 items-center">
@@ -49,8 +63,23 @@ const TopBar = () => {
           <span className="text-[9px] text-slate-500 uppercase font-bold block">Network Status</span>
           <span className={`text-[10px] font-black tracking-tighter ${statusColor}`}>{status} // {(loadRatio * 100).toFixed(0)}% LOAD</span>
         </div>
-        <div className="px-3 py-1 bg-white/5 border border-white/10 rounded">
-          <span className="text-[10px] font-black text-slate-400 uppercase italic">{currentEra} ERA</span>
+        <div className="flex gap-2 items-center">
+          {isGodMode && (
+            <div className="px-2 py-1 bg-amber-500 text-black rounded font-black text-[9px] uppercase tracking-wider animate-pulse shadow-[0_0_10px_rgba(245,158,11,0.5)]">
+              GOD MODE ACTIVE
+            </div>
+          )}
+          {canUpgradeEra && (
+            <button 
+              onClick={purchaseEraUpgrade}
+              className="px-3 py-1 bg-amber-500/20 text-amber-500 border border-amber-500/50 rounded font-black text-[9px] uppercase tracking-wider hover:bg-amber-500/40 animate-pulse"
+            >
+              UPGRADE ERA
+            </button>
+          )}
+          <div className="px-3 py-1 bg-white/5 border border-white/10 rounded">
+            <span className="text-[10px] font-black text-slate-400 uppercase italic">{eraConfig.displayName}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -58,7 +87,11 @@ const TopBar = () => {
 };
 
 const Sidebar = () => {
+<<<<<<< HEAD
   const { selectedNodeId, nodes, links, upgradeNode, money, selectNode, isLinking, toggleLinking, currentEra, isGodMode } = useISPStore();
+=======
+  const { selectedNodeId, nodes, links, upgradeNode, money, selectNode, isLinking, toggleLinking, isGodMode } = useISPStore();
+>>>>>>> dev
   const node = nodes.find(n => n.id === selectedNodeId);
 
   if (!node) return (
@@ -167,7 +200,11 @@ const LogPanel = () => {
 const LogisticMap = () => {
   const { 
     nodes, links, rangeLevel, selectNode, selectedNodeId, 
+<<<<<<< HEAD
     setRange, currentEra, dragSourceId, dragPos, 
+=======
+    setRange, dragSourceId, dragPos, 
+>>>>>>> dev
     startDragging, setDragPos, endDragging, validateLink,
     money, addNode, addLog
   } = useISPStore();
@@ -348,11 +385,14 @@ const LogisticMap = () => {
                 key={link.id}
                 d={`M ${src.x} ${src.y} Q ${controlX} ${controlY} ${tgt.x} ${tgt.y}`}
                 fill="none"
-                className="transition-all duration-1000 opacity-60 link-flow"
+                className="transition-all duration-1000 opacity-60 link-flow thematic-link"
                 stroke={strokeColor}
                 strokeWidth={1 + (link.bandwidth / 1000) * 1.5}
+<<<<<<< HEAD
                 filter={currentEra === 'modern' ? "url(#glow)" : "none"}
                 strokeDasharray={currentEra === '70s' ? "2,2" : "none"}
+=======
+>>>>>>> dev
               />
             );
           })}
@@ -431,7 +471,11 @@ const LogisticMap = () => {
 };
 
 const App = () => {
+<<<<<<< HEAD
   const { tick, currentEra, tickRate } = useISPStore();
+=======
+  const { tick, tickRate } = useISPStore();
+>>>>>>> dev
 
   useEffect(() => {
     const timer = setInterval(() => tick(), tickRate);
@@ -439,7 +483,7 @@ const App = () => {
   }, [tick, tickRate]);
 
   return (
-    <div className={`theme-${currentEra} h-screen flex flex-col bg-slate-950 text-slate-200 font-sans selection:bg-emerald-500/30 overflow-hidden`}>
+    <EraWrapper>
       <TopBar />
       
       <div className="flex-1 flex pt-14 relative min-h-0">
@@ -460,7 +504,7 @@ const App = () => {
             ))}
         </div>
       </footer>
-    </div>
+    </EraWrapper>
   );
 };
 
