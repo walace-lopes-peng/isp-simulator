@@ -364,7 +364,7 @@ const LogisticMap = () => {
             </filter>
           </defs>
           
-          <image href="/assets/world-map.png" width="800" height="800" opacity="0.4" preserveAspectRatio="xMidYMid slice" />
+          <image href="/assets/world-map.png" width="800" height="800" opacity="0.6" preserveAspectRatio="xMidYMid meet" />
           <rect width="800" height="800" fill="url(#grid)" pointerEvents="none" />
 
           {links.map(link => {
