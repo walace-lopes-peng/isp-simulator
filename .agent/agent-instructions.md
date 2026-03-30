@@ -3,7 +3,7 @@
 ## 1. 🛡️ TOKEN CONSERVATION (MANDATORY)
 - **Zero Chatter**: No intros ("Sure!"), no summaries, no "Hope this helps." Start with code/data.
 - **Partial Diffs**: Never output full files. Use `// ...` for unchanged code. Max 30 lines/snippet.
-- **Brevity**: Explanations must be $\le$ 2 sentences. If code is clear, 0 sentences.
+- **Brevity**: Explanations must be ≤ 2 sentences. If code is clear, 0 sentences.
 - **Incremental**: Ask before scanning the full repo.
 
 ## 2. 🛠️ TECHNICAL GUARDRAILS

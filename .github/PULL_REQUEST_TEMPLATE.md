@@ -1,32 +1,30 @@
-# Description Let's keep the ISP engine running smoothly.
+# 🏗️ Technical Description (Sênior Código)
 
-[Feature/Fix]: [Short description]
+Provide a brief, high-level overview of the architectural changes and the technical rationale.
 
-Resolve a Issue #[Number], que bloqueava [qualquer contexto]. 
+## 🛡️ Implementation Alignment (Gold Standard)
+- **TDD Activity**: List the tests created for this feature.
+- **Store/Worker State**: Verify that physics logic is decoupled from UI.
+- **Audit**: Provide a brief performance and edge-case assessment.
 
-Closes #[Number]
-Unblocks #[Number]
+## ✨ Featured Changes
+- **[Component/File]**: Summary of impact.
 
-## Context
+## 🧪 Test Report (Vitest)
+Execução local com `npm test` concluída com sucesso:
+- [ ] Todos os testes passaram (X/X)
+- [ ] Cobertura: [Path] (X/X)
 
-[Por que essa alteração é necessária? O que ela resolve? Exemplo: "O sistema de zoom cortava o Core Node da visibilidade do BFS."]
+## 🕹️ Manual QA Runbook (Walkthrough)
+Please provide a step-by-step checklist for human verification:
+1. [Step 1]
+2. [Step 2]
+3. [Confirm Result]
 
-## What was Changed
+## ✅ Gold Standard Checklist
+- [ ] TDD (Test-Driven Development) confirmed.
+- [ ] Separation of React/Zustand logic maintained.
+- [ ] Critical path audited for coordinate drift/scalability.
 
-### [Nome do Arquivo 1]
-- **[O que mudou e porquê]**: [Detalhes da alteração lógica ou visual, citando o Zustand ou Tailwind.]
-
-### [Nome do Arquivo 2]
-- **[O que mudou e porquê]**: [Detalhes.]
-
-## QA Checklist
-Validado manualmente no simulador local (Vite/React):
-
-- [ ] Lógica foi inserida puramente no `useISPStore.ts`, sem estado local complexo no React.
-- [ ] Nós isolados registram "0" tráfego corretamente.
-- [ ] `connectNodes` e algoritmos topológicos continuam calculando com casting de tipagem seguro `String(id)`.
-- [ ] Componente visual utiliza apenas Tailwind dentro do padrão das eras (`theme-70s`, etc).
-- [ ] O deploy/build local via `npm run build` passa sem erros.
-
-## Impacto no Ship Path
-[Como isso avança o Roadmap? É um bloqueador resolvido do MVP? Prepara terreno para eventos aleatórios e Tech Tree?]
+---
+*Reference Milestone: [BP-v1.4]*

@@ -46,22 +46,19 @@ export interface ISPLink {
   type: 'cable' | 'fiber' | 'satellite';
 }
 
-export const STARTING_POINTS = {
-  us_east: { name: "New York (US East)", x: 248, y: 318 },
-  us_west: { name: "San Francisco (US West)", x: 110, y: 280 },
-  europe: { name: "London (Europe)", x: 410, y: 210 },
-  sampa: { name: "São Paulo (LATAM)", x: 265, y: 590 },
-  tokyo: { name: "Tokyo (APAC)", x: 715, y: 290 }
-} as const;
-
-export const DEFAULT_START = STARTING_POINTS.us_east;
-
 export const RANGE_PRESETS = {
-  1: { name: 'LOCAL', viewBox: `${DEFAULT_START.x - 60} ${DEFAULT_START.y - 60} 120 120`, tier: 1 },
+  1: { name: 'LOCAL', viewBox: '250 150 300 300', tier: 1 },
   2: { name: 'REGIONAL', viewBox: '50 100 400 300', tier: 2 },
   3: { name: 'NATIONAL', viewBox: '0 0 800 600', tier: 3 },
   4: { name: 'GLOBAL', viewBox: '0 0 800 800', tier: 4 },
 } as const;
+
+export const STARTING_POINTS = {
+  us_east: { name: "New York (US East)", x: 248, y: 318 },
+  us_west: { name: "San Francisco (US West)", x: 110, y: 280 },
+};
+
+const DEFAULT_START = STARTING_POINTS.us_east;
 
 interface ISPStore {
   money: number;
@@ -79,11 +76,9 @@ interface ISPStore {
   networkHealth: number;
   avgLatency: number;
   
-  // Drag-to-Connect state
   dragSourceId: string | null;
   dragPos: { x: number, y: number } | null;
 
-  // Actions
   tick: () => void;
   upgradeNode: (id: string) => void;
   addNode: (node: ISPNode) => void;
@@ -97,17 +92,14 @@ interface ISPStore {
   connectNodes: (sourceId: string, targetId: string) => void;
   toggleLinking: () => void;
   
-  // Drag Actions
   startDragging: (id: string) => void;
   setDragPos: (x: number, y: number) => void;
   endDragging: (targetId?: string) => void;
   validateLink: (srcId: string, tgtId: string) => { valid: boolean, error?: string, cost?: number };
 
-  // Simulation Worker
   worker: Worker | null;
   initWorker: () => void;
 
-  // Debug Actions
   addMoney: (amount: number) => void;
   resetTopology: () => void;
   toggleGodMode: () => void;
@@ -129,25 +121,19 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   isLinking: false,
   rangeLevel: 1,
   tickRate: 16,
-  logs: ['[SYSTEM] Graph Topology Online. Drag a node to Connect or Build.'],
+  logs: ['[SYSTEM] Graph Topology Online.'],
   isGodMode: false,
   networkHealth: 100,
   avgLatency: 0,
   dragSourceId: null,
   dragPos: null,
 
-  getCurrentEraConfig: () => {
-    const eraId = get().currentEra;
-    return ERAS_CONFIG.find(e => e.id === eraId) || ERAS_CONFIG[0];
-  },
+  getCurrentEraConfig: () => ERAS_CONFIG.find(e => e.id === get().currentEra) || ERAS_CONFIG[0],
 
   getNextEraConfig: () => {
     const eraId = get().currentEra;
     const currentIndex = ERAS_CONFIG.findIndex(e => e.id === eraId);
-    if (currentIndex >= 0 && currentIndex < ERAS_CONFIG.length - 1) {
-      return ERAS_CONFIG[currentIndex + 1];
-    }
-    return null;
+    return (currentIndex >= 0 && currentIndex < ERAS_CONFIG.length - 1) ? ERAS_CONFIG[currentIndex + 1] : null;
   },
 
   worker: null,
@@ -157,13 +143,9 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     worker.onmessage = (e) => {
       const { nodes, revenue, totalMaintenanceCost, totalLoad, networkHealth, avgLatency } = e.data;
       const state = get();
-      const eraConfig = state.getCurrentEraConfig();
-      const adjustedRevenue = revenue * eraConfig.modifiers.revenueMultiplier;
-      const adjustedCost = totalMaintenanceCost * eraConfig.modifiers.maintenanceCost;
-
       set({ 
         nodes, 
-        money: state.isGodMode ? state.money : (state.money + adjustedRevenue - adjustedCost), 
+        money: state.isGodMode ? state.money : (state.money + revenue - totalMaintenanceCost), 
         totalData: state.totalData + Math.floor(totalLoad / 10),
         networkHealth,
         avgLatency
@@ -176,15 +158,11 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     const { worker, nodes, links, rangeLevel, tickRate, initWorker, totalData, money } = get();
     if (!worker) { initWorker(); return; }
     
-    // Check for Era Upgrade availability
     const nextEra = get().getNextEraConfig();
     const canUpgrade = nextEra ? (totalData >= nextEra.unlockCondition.totalData && money >= nextEra.unlockCondition.money) : false;
     
-    if (canUpgrade !== get().canUpgradeEra) {
-      set({ canUpgradeEra: canUpgrade });
-    }
+    if (canUpgrade !== get().canUpgradeEra) set({ canUpgradeEra: canUpgrade });
 
-    // Pass current era config to the worker for adaptive physics (Issue #96)
     const era = get().getCurrentEraConfig();
     worker.postMessage({ nodes, links, rangeLevel, tickRate, era });
   },
@@ -200,16 +178,14 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     }
 
     const hierarchy = { 'terminal': 0, 'hub_local': 1, 'hub_regional': 2, 'backbone': 3 };
-    const getHierarchy = (node: ISPNode) => hierarchy[node.type] ?? (node.id === '0' ? 3 : 2);
+    const getHierarchy = (node: ISPNode) => hierarchy[node.type] ?? 0;
     const diff = Math.abs(getHierarchy(src) - getHierarchy(tgt));
     const isPeer = getHierarchy(src) === getHierarchy(tgt) && getHierarchy(src) !== 0;
     if (!isPeer && diff !== 1 && !state.isGodMode) return { valid: false, error: 'HIERARCHY' };
 
     const dist = Math.sqrt(Math.pow(src.x - tgt.x, 2) + Math.pow(src.y - tgt.y, 2));
-    
-    // Era-Aware Connectivity Range (Issue #99.1)
-    const eraId = state.currentEra;
-    const eraIndex = ERAS_CONFIG.findIndex(e => e.id === eraId);
+    const eraConfig = get().getCurrentEraConfig();
+    const eraIndex = ERAS_CONFIG.indexOf(eraConfig!);
     const maxDist = 150 + (eraIndex * 100); 
     
     if (dist > maxDist && !state.isGodMode) return { valid: false, error: 'RANGE' };
@@ -232,27 +208,21 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   },
 
   connectNodes: (srcId, tgtId) => {
-    const { valid, error, cost } = get().validateLink(srcId, tgtId);
-    if (!valid) {
-      if (get().isGodMode) {
-        get().addLog(`[GOD_MODE] Bypassing ${error} error for ${srcId} -> ${tgtId}`, true);
-      } else {
-        return;
-      }
-    }
+    const { valid, cost } = get().validateLink(srcId, tgtId);
+    if (!valid && !get().isGodMode) return;
     
     const newLink: ISPLink = {
       id: `link-${Date.now()}`,
       sourceId: srcId,
       targetId: tgtId,
       bandwidth: 1000,
-      type: 'fiber'
+      type: 'cable'
     };
 
     set((state) => ({
       money: state.isGodMode ? state.money : state.money - (cost || 0),
       links: [...state.links, newLink],
-      logs: [`SYS_INIT: NEW_LINK [ID: ${newLink.id.slice(-4)}] [COST: $${cost}]`, ...state.logs].slice(0, 15)
+      logs: [`SYS_LINK: NEW_LINK [COST: $${cost}]`, ...state.logs].slice(0, 15)
     }));
   },
 
@@ -262,11 +232,6 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     if (!node) return state;
     const cost = Math.floor(50 * Math.pow(1.15, node.level));
     if (!state.isGodMode && state.money < cost) return state;
-    
-    if (state.money < cost && state.isGodMode) {
-      state.addLog(`[GOD_MODE] Bypassing CAPITAL error for ${node.name} upgrade`, true);
-    }
-
     return {
       money: state.isGodMode ? state.money : state.money - cost,
       nodes: state.nodes.map(n => n.id === id ? { ...n, level: n.level + 1, bandwidth: Math.floor(n.bandwidth * 1.4) } : n),
@@ -284,10 +249,6 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     const nextEra = state.getNextEraConfig();
     if (!nextEra || !state.canUpgradeEra) return state;
     
-    if (state.isGodMode && !state.canUpgradeEra) {
-       state.addLog(`[GOD_MODE] Bypassing UNLOCK requirements for ${nextEra.displayName}`, true);
-    }
-
     return {
       money: state.isGodMode ? state.money : state.money - nextEra.unlockCondition.money,
       currentEra: nextEra.id,
@@ -296,14 +257,11 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     };
   }),
   addMoney: (amount) => set((state) => ({ money: state.money + amount })),
-  toggleGodMode: () => {
-    const newStatus = !get().isGodMode;
-    get().addLog(`[SYSTEM] God Mode: ${newStatus ? 'ACTIVATED' : 'DEACTIVATED'}`, !newStatus);
-    set({ isGodMode: newStatus });
-  },
+  toggleGodMode: () => set((state) => ({ isGodMode: !state.isGodMode })),
   setTickRate: (rate) => set({ tickRate: rate }),
   resetTopology: () => set((state) => ({
     links: [],
+    canUpgradeEra: false,
     nodes: [
       { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'hub_local', health: 100 },
       { id: 'l1-a', name: 'LOCAL TERMINAL A', x: DEFAULT_START.x + 15, y: DEFAULT_START.y - 15, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100 },

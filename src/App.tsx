@@ -192,6 +192,7 @@ const LogisticMap = () => {
   const currentRange = RANGE_PRESETS[rangeLevel];
   const maxTier = rangeLevel;
   const svgRef = useRef<SVGSVGElement>(null);
+  const eraConfig = useISPStore(state => state.getCurrentEraConfig());
 
   const getSVGPoint = (e: React.PointerEvent) => {
     if (!svgRef.current) return { x: 0, y: 0 };
@@ -387,6 +388,8 @@ const LogisticMap = () => {
                 className="transition-all duration-1000 opacity-60 link-flow thematic-link"
                 stroke={strokeColor}
                 strokeWidth={1 + (link.bandwidth / 1000) * 1.5}
+                filter={eraConfig.id === 'modern' ? "url(#glow)" : "none"}
+                strokeDasharray={eraConfig.id === '70s' ? "2,2" : "none"}
               />
             );
           })}
