@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import eraConfigData from '../config/eraConfig.json';
+import { NODE_TEMPLATES } from '../config/nodeRegistry';
 import type { ISPNodeType } from '../config/nodeRegistry';
 export type { ISPNodeType };
 
@@ -83,6 +84,9 @@ interface ISPStore {
   dragSourceId: string | null;
   dragPos: { x: number, y: number } | null;
 
+  activeDevNodeType: string;
+  setActiveDevNodeType: (type: string) => void;
+
   isHubCreationEnabled: boolean;
   toggleHubCreation: () => void;
 
@@ -134,7 +138,17 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   avgLatency: 0,
   dragSourceId: null,
   dragPos: null,
+  activeDevNodeType: NODE_TEMPLATES[0].type,
   isHubCreationEnabled: false,
+  isHubDeletionEnabled: false,
+
+  setActiveDevNodeType: (type: string) => {
+    if (NODE_TEMPLATES.some(t => t.type === type)) {
+      set({ activeDevNodeType: type });
+    } else {
+      console.warn(`[DEV] Attempted to set invalid node type: ${type}`);
+    }
+  },
 
   toggleHubCreation: () => set(state => ({ isHubCreationEnabled: !state.isHubCreationEnabled })),
 
