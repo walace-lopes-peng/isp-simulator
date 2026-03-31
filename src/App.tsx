@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { useISPStore, RANGE_PRESETS, RangeLevel, ERAS_CONFIG, EraConfig } from './store/useISPStore';
+import { useISPStore, RANGE_PRESETS, RangeLevel, ERAS_CONFIG, EraConfig, ISPNode, ISPNodeType } from './store/useISPStore';
+import { NODE_TEMPLATES } from './config/nodeRegistry';
 import DebugConsole from './components/DebugConsole';
 import EraWrapper from './components/EraWrapper';
 
@@ -186,7 +187,8 @@ const LogisticMap = () => {
     nodes, links, rangeLevel, selectNode, selectedNodeId, 
     setRange, dragSourceId, dragPos, 
     startDragging, setDragPos, endDragging, validateLink,
-    money, addNode, addLog, isHubCreationEnabled, isHubDeletionEnabled, removeNode
+    money, addNode, addLog, isHubCreationEnabled, isHubDeletionEnabled, removeNode,
+    activeDevNodeType
   } = useISPStore();
   
   const currentRange = RANGE_PRESETS[rangeLevel];
@@ -270,27 +272,28 @@ const LogisticMap = () => {
     }
 
     if (isHubCreationEnabled) {
-        const nodeTypeLookup: Record<RangeLevel, any> = {
-            1: 'hub_local',
-            2: 'hub_regional',
-            3: 'backbone',
-            4: 'backbone'
-        };
+        const template = NODE_TEMPLATES.find(t => t.type === activeDevNodeType);
+        
+        if (!template) {
+            addLog(`[WARNING] Invalid activeDevNodeType: ${activeDevNodeType}`, true);
+            return;
+        }
 
-        const newNode = {
+        const newNode: ISPNode = {
             id: `node-${Date.now()}`,
             name: `New Hub ${nodes.length}`,
-            bandwidth: 50,
+            bandwidth: template.baseBandwidth,
             traffic: 0,
             level: 1,
-            layer: maxTier,
-            type: nodeTypeLookup[rangeLevel as RangeLevel],
+            layer: template.hierarchyLevel,
+            type: template.type,
             health: 100,
             x: Math.round(svgP.x),
-            y: Math.round(svgP.y)
+            y: Math.round(svgP.y),
+            isDevSpawned: true
         };
         addNode(newNode);
-        addLog(`Built ${newNode.type} at [${newNode.x}, ${newNode.y}]`, false);
+        addLog(`[DEV] Built ${template.displayName} at [${newNode.x}, ${newNode.y}]`, false);
     }
   };
 
