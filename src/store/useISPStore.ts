@@ -91,8 +91,12 @@ interface ISPStore {
 
   isHubCreationEnabled: boolean;
   toggleHubCreation: () => void;
+  isHubDeletionEnabled: boolean;
+  toggleHubDeletion: () => void;
 
   tick: () => void;
+  removeNode: (id: string) => void;
+  syncNodeMarkers: () => void;
   upgradeNode: (id: string) => void;
   addNode: (node: ISPNode) => void;
   setEra: (era: string) => void;
@@ -152,7 +156,15 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     }
   },
 
-  toggleHubCreation: () => set(state => ({ isHubCreationEnabled: !state.isHubCreationEnabled })),
+  toggleHubCreation: () => set(state => ({ 
+    isHubCreationEnabled: !state.isHubCreationEnabled, 
+    isHubDeletionEnabled: false 
+  })),
+
+  toggleHubDeletion: () => set(state => ({ 
+    isHubDeletionEnabled: !state.isHubDeletionEnabled, 
+    isHubCreationEnabled: false 
+  })),
 
   getCurrentEraConfig: () => ERAS_CONFIG.find(e => e.id === get().currentEra) || ERAS_CONFIG[0],
 

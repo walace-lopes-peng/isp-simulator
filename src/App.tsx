@@ -186,7 +186,7 @@ const LogisticMap = () => {
     nodes, links, rangeLevel, selectNode, selectedNodeId, 
     setRange, dragSourceId, dragPos, 
     startDragging, setDragPos, endDragging, validateLink,
-    money, addNode, addLog, isHubCreationEnabled
+    money, addNode, addLog, isHubCreationEnabled, isHubDeletionEnabled, removeNode
   } = useISPStore();
   
   const currentRange = RANGE_PRESETS[rangeLevel];
@@ -249,6 +249,8 @@ const LogisticMap = () => {
       selectNode(null); // Click map to deselect
       return;
     }
+    
+    if (isHubDeletionEnabled) return; // Don't create when deleting
     
     const svg = e.currentTarget;
     const pt = svg.createSVGPoint();
@@ -435,10 +437,17 @@ const LogisticMap = () => {
                    const isGateway = node.id === '0';
 
                    return (
-                     <g key={node.id} className="cursor-pointer" 
+                     <g key={node.id} className={`cursor-${isHubDeletionEnabled ? 'crosshair' : 'pointer'}`} 
                         onPointerDown={(e) => handlePointerDown(e, node.id)}
                         onPointerUp={(e) => handlePointerUp(e, node.id)}
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isHubDeletionEnabled) {
+                            removeNode(node.id);
+                          } else {
+                            selectNode(node.id);
+                          }
+                        }}
                      >
                        {isSelected && (
                          isGateway ? 

@@ -19,7 +19,9 @@ const DebugConsole: React.FC = () => {
     setEra,
     addLog,
     isHubCreationEnabled,
-    toggleHubCreation
+    toggleHubCreation,
+    isHubDeletionEnabled,
+    toggleHubDeletion
   } = useISPStore();
 
   useEffect(() => {
@@ -106,12 +108,20 @@ const DebugConsole: React.FC = () => {
             >
               God Mode: {isGodMode ? 'ON' : 'OFF'}
             </button>
-            <button 
-              onClick={() => { toggleHubCreation(); addLog(`DEBUG: Create Hub Mode ${!isHubCreationEnabled ? 'ON' : 'OFF'}`, false); }}
-              className={`py-1.5 border text-[9px] uppercase transition-all ${isHubCreationEnabled ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-400' : 'bg-white/5 border-white-10 text-slate-400 hover:bg-white/10'}`}
-            >
-              Create Hub: {isHubCreationEnabled ? 'ON' : 'OFF'}
-            </button>
+            <div className="flex gap-1 w-full">
+              <button 
+                onClick={() => { toggleHubCreation(); addLog(`DEBUG: Create Hub Mode ${!isHubCreationEnabled ? 'ON' : 'OFF'}`, false); }}
+                className={`flex-1 py-1.5 border text-[9px] uppercase transition-all ${isHubCreationEnabled ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-400' : 'bg-white/5 border-white-10 text-slate-400 hover:bg-white/10'}`}
+              >
+                Create Hub: {isHubCreationEnabled ? 'ON' : 'OFF'}
+              </button>
+              <button 
+                onClick={() => { toggleHubDeletion(); addLog(`DEBUG: Delete Hub Mode ${!isHubDeletionEnabled ? 'ON' : 'OFF'}`, false); }}
+                className={`flex-1 py-1.5 border text-[9px] uppercase transition-all ${isHubDeletionEnabled ? 'bg-red-500/20 border-red-500/40 text-red-400' : 'bg-white/5 border-white-10 text-slate-400 hover:bg-white/10'}`}
+              >
+                Delete Hub: {isHubDeletionEnabled ? 'ON' : 'OFF'}
+              </button>
+            </div>
           </div>
         </div>
 
