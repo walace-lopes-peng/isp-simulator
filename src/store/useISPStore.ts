@@ -82,6 +82,9 @@ interface ISPStore {
   dragSourceId: string | null;
   dragPos: { x: number, y: number } | null;
 
+  isHubCreationEnabled: boolean;
+  toggleHubCreation: () => void;
+
   tick: () => void;
   upgradeNode: (id: string) => void;
   addNode: (node: ISPNode) => void;
@@ -130,6 +133,9 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   avgLatency: 0,
   dragSourceId: null,
   dragPos: null,
+  isHubCreationEnabled: false,
+
+  toggleHubCreation: () => set(state => ({ isHubCreationEnabled: !state.isHubCreationEnabled })),
 
   getCurrentEraConfig: () => ERAS_CONFIG.find(e => e.id === get().currentEra) || ERAS_CONFIG[0],
 

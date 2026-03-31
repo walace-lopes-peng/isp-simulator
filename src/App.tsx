@@ -186,7 +186,7 @@ const LogisticMap = () => {
     nodes, links, rangeLevel, selectNode, selectedNodeId, 
     setRange, dragSourceId, dragPos, 
     startDragging, setDragPos, endDragging, validateLink,
-    money, addNode, addLog
+    money, addNode, addLog, isHubCreationEnabled
   } = useISPStore();
   
   const currentRange = RANGE_PRESETS[rangeLevel];
@@ -268,7 +268,7 @@ const LogisticMap = () => {
         return;
     }
 
-    if (money >= cost) {
+    if (isHubCreationEnabled && money >= cost) {
         const nodeTypeLookup: Record<RangeLevel, any> = {
             1: 'hub_local',
             2: 'hub_regional',

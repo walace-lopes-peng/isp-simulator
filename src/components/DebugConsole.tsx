@@ -17,7 +17,9 @@ const DebugConsole: React.FC = () => {
     setTickRate, 
     currentEra, 
     setEra,
-    addLog
+    addLog,
+    isHubCreationEnabled,
+    toggleHubCreation
   } = useISPStore();
 
   useEffect(() => {
@@ -103,6 +105,12 @@ const DebugConsole: React.FC = () => {
               className={`py-1.5 border text-[9px] uppercase transition-all ${isGodMode ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' : 'bg-white/5 border-white-10 text-slate-400 hover:bg-white/10'}`}
             >
               God Mode: {isGodMode ? 'ON' : 'OFF'}
+            </button>
+            <button 
+              onClick={() => { toggleHubCreation(); addLog(`DEBUG: Create Hub Mode ${!isHubCreationEnabled ? 'ON' : 'OFF'}`, false); }}
+              className={`py-1.5 border text-[9px] uppercase transition-all ${isHubCreationEnabled ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-400' : 'bg-white/5 border-white-10 text-slate-400 hover:bg-white/10'}`}
+            >
+              Create Hub: {isHubCreationEnabled ? 'ON' : 'OFF'}
             </button>
           </div>
         </div>
