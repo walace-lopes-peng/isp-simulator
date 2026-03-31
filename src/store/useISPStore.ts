@@ -38,6 +38,8 @@ export interface ISPNode {
   region?: string;
   latency?: number;
   signalStrength?: number;
+  isDevSpawned?: boolean;
+  isCore?: boolean;
 }
 
 export interface ISPLink {
@@ -123,9 +125,9 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   canUpgradeEra: false,
   totalData: 0,
   nodes: [
-    { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'hub_local', health: 100 },
-    { id: 'l1-a', name: 'LOCAL TERMINAL A', x: DEFAULT_START.x + 15, y: DEFAULT_START.y - 15, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100 },
-    { id: 'l1-b', name: 'LOCAL TERMINAL B', x: DEFAULT_START.x - 15, y: DEFAULT_START.y + 15, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100 },
+    { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'hub_local', health: 100, isCore: true },
+    { id: 'l1-a', name: 'LOCAL TERMINAL A', x: DEFAULT_START.x + 15, y: DEFAULT_START.y - 15, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100, isCore: true },
+    { id: 'l1-b', name: 'LOCAL TERMINAL B', x: DEFAULT_START.x - 15, y: DEFAULT_START.y + 15, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100, isCore: true },
   ],
   links: [],
   selectedNodeId: null,
@@ -250,6 +252,19 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     }));
   },
 
+  removeNode: (id: string) => {
+    const node = get().nodes.find(n => n.id === id);
+    if (node?.isDevSpawned === true && node.isCore !== true) {
+      set(state => ({
+        nodes: state.nodes.filter(n => n.id !== id),
+        links: state.links.filter(l => l.sourceId !== id && l.targetId !== id),
+        selectedNodeId: state.selectedNodeId === id ? null : state.selectedNodeId,
+        dragSourceId: state.dragSourceId === id ? null : state.dragSourceId,
+        logs: [`[SYSTEM] Hub ${id} removed by dev tool`, ...state.logs].slice(0, 15)
+      }));
+    }
+  },
+
   toggleLinking: () => set(state => ({ isLinking: !state.isLinking })),
   upgradeNode: (id) => set((state) => {
     const node = state.nodes.find(n => n.id === id);
@@ -267,7 +282,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   addLog: (msg, isCritical = false) => set((state) => ({
     logs: [`[${new Date().toLocaleTimeString()}] ${isCritical ? '!!! ' : ''}${msg}`, ...state.logs].slice(0, 20)
   })),
-  addNode: (node) => set((state) => ({ nodes: [...state.nodes, node] })),
+  addNode: (node) => set((state) => ({ nodes: [...state.nodes, { ...node, isDevSpawned: true }] })),
   setEra: (era) => set({ currentEra: era }),
   purchaseEraUpgrade: () => set((state) => {
     const nextEra = state.getNextEraConfig();
@@ -287,9 +302,9 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     links: [],
     canUpgradeEra: false,
     nodes: [
-      { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'hub_local', health: 100 },
-      { id: 'l1-a', name: 'LOCAL TERMINAL A', x: DEFAULT_START.x + 15, y: DEFAULT_START.y - 15, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100 },
-      { id: 'l1-b', name: 'LOCAL TERMINAL B', x: DEFAULT_START.x - 15, y: DEFAULT_START.y + 15, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100 },
+      { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'hub_local', health: 100, isCore: true },
+      { id: 'l1-a', name: 'LOCAL TERMINAL A', x: DEFAULT_START.x + 15, y: DEFAULT_START.y - 15, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100, isCore: true },
+      { id: 'l1-b', name: 'LOCAL TERMINAL B', x: DEFAULT_START.x - 15, y: DEFAULT_START.y + 15, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100, isCore: true },
     ]
   })),
 }));
