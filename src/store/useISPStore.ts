@@ -265,6 +265,21 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     }
   },
 
+  syncNodeMarkers: () => set(state => {
+    let rescuedCount = 0;
+    const newNodes = state.nodes.map(n => {
+      if (!n.isCore && !n.isDevSpawned) {
+        rescuedCount++;
+        return { ...n, isDevSpawned: true };
+      }
+      return n;
+    });
+    return {
+      nodes: newNodes,
+      logs: [`[DEV] ${rescuedCount} nodes rescued and marked as deletable`, ...state.logs].slice(0, 20)
+    };
+  }),
+
   toggleLinking: () => set(state => ({ isLinking: !state.isLinking })),
   upgradeNode: (id) => set((state) => {
     const node = state.nodes.find(n => n.id === id);
