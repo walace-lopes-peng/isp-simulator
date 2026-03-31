@@ -25,7 +25,8 @@ const DebugConsole: React.FC = () => {
     toggleHubDeletion,
     activeDevNodeType,
     setActiveDevNodeType,
-    rangeLevel
+    rangeLevel,
+    syncNodeMarkers
   } = useISPStore();
 
   useEffect(() => {
@@ -76,7 +77,7 @@ const DebugConsole: React.FC = () => {
 
   return (
     <div 
-      className={`fixed z-[100] w-72 bg-black/80 backdrop-blur-xl border border-emerald-500/30 p-4 rounded-lg shadow-[0_0_30px_rgba(16,185,129,0.1)] font-mono ${!isDragging ? 'animate-in fade-in slide-in-from-bottom-4 duration-300' : ''}`}
+      className={`fixed z-100 w-72 bg-black/80 backdrop-blur-xl border border-emerald-500/30 p-4 rounded-lg shadow-[0_0_30px_rgba(16,185,129,0.1)] font-mono ${!isDragging ? 'animate-in fade-in slide-in-from-bottom-4 duration-300' : ''}`}
       style={{ 
         left: 0, 
         top: 0, 
@@ -112,7 +113,7 @@ const DebugConsole: React.FC = () => {
             >
               God Mode: {isGodMode ? 'ON' : 'OFF'}
             </button>
-            <div className="flex gap-1 w-full">
+            <div className="flex gap-1 w-full col-span-2">
               <button 
                 onClick={() => { toggleHubCreation(); addLog(`DEBUG: Create Hub Mode ${!isHubCreationEnabled ? 'ON' : 'OFF'}`, false); }}
                 className={`flex-1 py-1.5 border text-[9px] uppercase transition-all ${isHubCreationEnabled ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-400' : 'bg-white/5 border-white-10 text-slate-400 hover:bg-white/10'}`}
@@ -140,7 +141,7 @@ const DebugConsole: React.FC = () => {
             </div>
             <button 
               onClick={() => { toggleHubDeletion(); addLog(`DEBUG: Delete Hub Mode ${!isHubDeletionEnabled ? 'ON' : 'OFF'}`, false); }}
-              className={`py-1.5 border text-[9px] uppercase transition-all ${isHubDeletionEnabled ? 'bg-red-500/20 border-red-500/40 text-red-400' : 'bg-white/5 border-white-10 text-slate-400 hover:bg-white/10'}`}
+              className={`col-span-2 py-1.5 border text-[9px] uppercase transition-all ${isHubDeletionEnabled ? 'bg-red-500/20 border-red-500/40 text-red-400' : 'bg-white/5 border-white-10 text-slate-400 hover:bg-white/10'}`}
             >
               Delete Hub: {isHubDeletionEnabled ? 'ON' : 'OFF'}
             </button>
@@ -181,8 +182,14 @@ const DebugConsole: React.FC = () => {
           </div>
         </div>
 
-        {/* Destructive Tools */}
-        <div className="pt-2 border-t border-white/5">
+        {/* Utilities */}
+        <div className="pt-2 border-t border-white/5 space-y-2">
+          <button 
+            onClick={() => syncNodeMarkers()}
+            className="w-full py-1.5 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[9px] uppercase hover:bg-cyan-500/20 transition-all font-bold"
+          >
+            Rescue Broken Nodes
+          </button>
           <button 
             onClick={() => { if(confirm("Reset entire topology?")) { resetTopology(); addLog("DEBUG: Topology wiped", true); } }}
             className="w-full py-1.5 bg-red-500/10 border border-red-500/20 text-red-400 text-[9px] uppercase hover:bg-red-500/20 transition-all font-bold"
