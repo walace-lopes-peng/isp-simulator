@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useISPStore, ERAS_CONFIG } from '../store/useISPStore';
+import { NODE_TEMPLATES } from '../config/nodeRegistry';
 
 const DebugConsole: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -21,7 +22,10 @@ const DebugConsole: React.FC = () => {
     isHubCreationEnabled,
     toggleHubCreation,
     isHubDeletionEnabled,
-    toggleHubDeletion
+    toggleHubDeletion,
+    activeDevNodeType,
+    setActiveDevNodeType,
+    rangeLevel
   } = useISPStore();
 
   useEffect(() => {
@@ -115,13 +119,31 @@ const DebugConsole: React.FC = () => {
               >
                 Create Hub: {isHubCreationEnabled ? 'ON' : 'OFF'}
               </button>
-              <button 
-                onClick={() => { toggleHubDeletion(); addLog(`DEBUG: Delete Hub Mode ${!isHubDeletionEnabled ? 'ON' : 'OFF'}`, false); }}
-                className={`flex-1 py-1.5 border text-[9px] uppercase transition-all ${isHubDeletionEnabled ? 'bg-red-500/20 border-red-500/40 text-red-400' : 'bg-white/5 border-white-10 text-slate-400 hover:bg-white/10'}`}
+              <select 
+                value={activeDevNodeType}
+                onChange={(e) => setActiveDevNodeType(e.target.value)}
+                className="flex-1 bg-black/60 border border-white/10 text-slate-300 text-[9px] uppercase px-1 outline-none relative z-100"
               >
-                Delete Hub: {isHubDeletionEnabled ? 'ON' : 'OFF'}
-              </button>
+                {NODE_TEMPLATES.map(t => {
+                  const isValidScope = t.availableInScopes.includes(rangeLevel);
+                  const eraIndex = ERAS_CONFIG.findIndex(e => e.id === currentEra);
+                  const unlockIndex = ERAS_CONFIG.findIndex(e => e.id === t.unlocksAtEra);
+                  const isUnlocked = unlockIndex <= eraIndex;
+                  return (
+                    <option key={t.type} value={t.type}>
+                      {!isValidScope ? '🔒 ' : !isUnlocked ? '⏳ ' : ''}
+                      {t.displayName}
+                    </option>
+                  );
+                })}
+              </select>
             </div>
+            <button 
+              onClick={() => { toggleHubDeletion(); addLog(`DEBUG: Delete Hub Mode ${!isHubDeletionEnabled ? 'ON' : 'OFF'}`, false); }}
+              className={`py-1.5 border text-[9px] uppercase transition-all ${isHubDeletionEnabled ? 'bg-red-500/20 border-red-500/40 text-red-400' : 'bg-white/5 border-white-10 text-slate-400 hover:bg-white/10'}`}
+            >
+              Delete Hub: {isHubDeletionEnabled ? 'ON' : 'OFF'}
+            </button>
           </div>
         </div>
 
