@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import eraConfigData from '../config/eraConfig.json';
+import type { ISPNodeType } from '../config/nodeRegistry';
+export type { ISPNodeType };
 
 export interface EraConfig {
   id: string;
@@ -19,7 +21,6 @@ export interface EraConfig {
 export const ERAS_CONFIG = eraConfigData.eras as EraConfig[];
 
 export type RangeLevel = 1 | 2 | 3 | 4;
-export type ISPNodeType = 'terminal' | 'hub_local' | 'hub_regional' | 'backbone';
 
 export interface ISPNode {
   id: string;
@@ -186,7 +187,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
       return { valid: false, error: 'REDUNDANT' };
     }
 
-    const hierarchy = { 'terminal': 0, 'hub_local': 1, 'hub_regional': 2, 'backbone': 3 };
+    const hierarchy: Record<string, number> = { 'terminal': 0, 'hub_local': 1, 'hub_regional': 2, 'backbone': 3 };
     const getHierarchy = (node: ISPNode) => hierarchy[node.type] ?? 0;
     const diff = Math.abs(getHierarchy(src) - getHierarchy(tgt));
     const isPeer = getHierarchy(src) === getHierarchy(tgt) && getHierarchy(src) !== 0;
