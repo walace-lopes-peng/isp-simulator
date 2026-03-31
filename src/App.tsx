@@ -256,19 +256,18 @@ const LogisticMap = () => {
     pt.y = e.clientY;
     const svgP = pt.matrixTransform(svg.getScreenCTM()?.inverse());
     
-    const cost = 500;
     const coverageRange = 250;
     const isWithinRange = nodes.some(n => {
         const d = Math.sqrt(Math.pow(n.x - svgP.x, 2) + Math.pow(n.y - svgP.y, 2));
         return d < coverageRange && (n.traffic > 0 || n.id === '0');
     });
 
-    if (!isWithinRange && nodes.length > 0) {
+    if (!isHubCreationEnabled && !isWithinRange && nodes.length > 0) {
         addLog("Area outside network coverage range", true);
         return;
     }
 
-    if (isHubCreationEnabled && money >= cost) {
+    if (isHubCreationEnabled) {
         const nodeTypeLookup: Record<RangeLevel, any> = {
             1: 'hub_local',
             2: 'hub_regional',
@@ -290,8 +289,6 @@ const LogisticMap = () => {
         };
         addNode(newNode);
         addLog(`Built ${newNode.type} at [${newNode.x}, ${newNode.y}]`, false);
-    } else {
-        addLog(`Insufficient funds to build new node ($${cost} required)`, true);
     }
   };
 
