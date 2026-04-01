@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import eraConfigData from '../config/eraConfig.json';
 import { NODE_TEMPLATES } from '../config/nodeRegistry';
 import type { ISPNodeType } from '../config/nodeRegistry';
+import { useTechStore } from './useTechStore';
+
 export type { ISPNodeType };
 
 export interface EraConfig {
@@ -29,6 +31,7 @@ export interface ISPNode {
   x: number;
   y: number;
   bandwidth: number;
+  baseBandwidth: number;
   traffic: number;
   level: number;
   layer: number; // 1: Local, 2: Regional, 3: National, 4: Global
@@ -95,7 +98,7 @@ interface ISPStore {
   isHubDeletionEnabled: boolean;
   toggleHubDeletion: () => void;
 
-  tick: () => void;
+  tick: () => Promise<void>;
   removeNode: (id: string) => void;
   syncNodeMarkers: () => void;
   upgradeNode: (id: string) => void;
@@ -132,9 +135,9 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   canUpgradeEra: false,
   totalData: 0,
   nodes: [
-    { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'hub_local', health: 100, isCore: true },
-    { id: 'l1-a', name: 'LOCAL TERMINAL A', x: DEFAULT_START.x + 15, y: DEFAULT_START.y - 15, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100, isCore: true },
-    { id: 'l1-b', name: 'LOCAL TERMINAL B', x: DEFAULT_START.x - 15, y: DEFAULT_START.y + 15, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100, isCore: true },
+    { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 500, baseBandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'hub_local', health: 100, isCore: true },
+    { id: 'l1-a', name: 'LOCAL TERMINAL A', x: DEFAULT_START.x + 15, y: DEFAULT_START.y - 15, bandwidth: 100, baseBandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100, isCore: true },
+    { id: 'l1-b', name: 'LOCAL TERMINAL B', x: DEFAULT_START.x - 15, y: DEFAULT_START.y + 15, bandwidth: 100, baseBandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100, isCore: true },
   ],
   links: [],
   selectedNodeId: null,
@@ -195,7 +198,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     set({ worker });
   },
 
-  tick: () => {
+  tick: async () => {
     const { worker, nodes, links, rangeLevel, tickRate, initWorker, totalData, money } = get();
     if (!worker) { initWorker(); return; }
     
@@ -204,7 +207,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     
     if (canUpgrade !== get().canUpgradeEra) set({ canUpgradeEra: canUpgrade });
 
-    // Step 2: TP generation (Option C)
+    // TP generation
     const allNodes = nodes.length;
     const activeNodes = nodes.filter(n => n.traffic > 0).length;
     const tpGain = Math.max(1, Math.floor((allNodes * 0.1) + (activeNodes * 0.4)));
@@ -213,7 +216,37 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     }
 
     const era = get().getCurrentEraConfig();
-    worker.postMessage({ nodes, links, rangeLevel, tickRate, era });
+    
+    // Tech Tree: Calculate effective multipliers
+    const multipliers = useTechStore.getState().getAggregateModifiers();
+    
+    // 1. Pass effective bandwidth to nodes
+    const nodesWithTech = nodes.map(n => ({
+      ...n,
+      bandwidth: Math.floor(n.bandwidth * multipliers.bandwidthMultiplier)
+    }));
+
+    // 2. Pass effective bandwidth/latency to links for routing
+    const linksWithTech = links.map(l => ({
+      ...l,
+      bandwidth: Math.floor(l.bandwidth * multipliers.bandwidthMultiplier)
+    }));
+
+    worker.postMessage({ 
+      nodes: nodesWithTech, 
+      links: linksWithTech, 
+      rangeLevel, 
+      tickRate, 
+      era,
+      techModifiers: multipliers 
+    });
+  },
+
+  canAdvanceEra: () => {
+    const nextEra = get().getNextEraConfig();
+    if (!nextEra) return false;
+    const { totalData, money } = get();
+    return totalData >= nextEra.unlockCondition.totalData && money >= nextEra.unlockCondition.money;
   },
 
   validateLink: (srcId, tgtId) => {
@@ -233,9 +266,8 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     if (!isPeer && diff !== 1 && !state.isGodMode) return { valid: false, error: 'HIERARCHY' };
 
     const dist = Math.sqrt(Math.pow(src.x - tgt.x, 2) + Math.pow(src.y - tgt.y, 2));
-    const eraConfig = get().getCurrentEraConfig();
-    const eraIndex = ERAS_CONFIG.indexOf(eraConfig!);
-    const maxDist = 150 + (eraIndex * 100); 
+    const techModifiers = useTechStore.getState().getAggregateModifiers();
+    const maxDist = techModifiers.maxDistance; 
     
     if (dist > maxDist && !state.isGodMode) return { valid: false, error: 'RANGE' };
 
@@ -311,7 +343,11 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     if (!state.isGodMode && state.money < cost) return state;
     return {
       money: state.isGodMode ? state.money : state.money - cost,
-      nodes: state.nodes.map(n => n.id === id ? { ...n, level: n.level + 1, bandwidth: Math.floor(n.bandwidth * 1.4) } : n),
+      nodes: state.nodes.map(n => n.id === id ? { 
+        ...n, 
+        level: n.level + 1, 
+        bandwidth: Math.floor(n.baseBandwidth * Math.pow(1.4, n.level)) 
+      } : n),
       logs: [`SYS_UPGRADE: ${node.name} [LVL ${node.level + 1}]`, ...state.logs].slice(0, 15)
     };
   }),
@@ -320,7 +356,11 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   addLog: (msg, isCritical = false) => set((state) => ({
     logs: [`[${new Date().toLocaleTimeString()}] ${isCritical ? '!!! ' : ''}${msg}`, ...state.logs].slice(0, 20)
   })),
-  addNode: (node) => set((state) => ({ nodes: [...state.nodes, { ...node, isDevSpawned: true }] })),
+  addNode: (node) => set((state) => {
+    const template = NODE_TEMPLATES.find(t => t.type === node.type);
+    const baseBandwidth = template?.baseBandwidth ?? node.bandwidth;
+    return { nodes: [...state.nodes, { ...node, baseBandwidth, isDevSpawned: true }] };
+  }),
   setEra: (era) => set({ currentEra: era }),
   purchaseEraUpgrade: () => set((state) => {
     const nextEra = state.getNextEraConfig();
@@ -343,10 +383,9 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     links: [],
     canUpgradeEra: false,
     nodes: [
-      { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'hub_local', health: 100, isCore: true },
-      { id: 'l1-a', name: 'LOCAL TERMINAL A', x: DEFAULT_START.x + 15, y: DEFAULT_START.y - 15, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100, isCore: true },
-      { id: 'l1-b', name: 'LOCAL TERMINAL B', x: DEFAULT_START.x - 15, y: DEFAULT_START.y + 15, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100, isCore: true },
+      { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 500, baseBandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'hub_local', health: 100, isCore: true },
+      { id: 'l1-a', name: 'LOCAL TERMINAL A', x: DEFAULT_START.x + 15, y: DEFAULT_START.y - 15, bandwidth: 100, baseBandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100, isCore: true },
+      { id: 'l1-b', name: 'LOCAL TERMINAL B', x: DEFAULT_START.x - 15, y: DEFAULT_START.y + 15, bandwidth: 100, baseBandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100, isCore: true },
     ]
   })),
 }));
-

@@ -20,11 +20,12 @@ describe('useISPStore Gold Standard', () => {
         expect(state.nodes.filter(n => n.type === 'terminal').length).toBe(2);
     });
 
-    it('should maintain the 150px initial range limit in 70s Pioneer Era', () => {
+    it('should maintain the hardware range limit (default 300px)', () => {
         const state = useISPStore.getState();
         const gatewayId = '0';
         const targetId = 'far-away';
-        state.addNode({ id: targetId, name: 'Far Hub', x: 448, y: 318, bandwidth: 200, traffic: 0, level: 1, layer: 2, type: 'hub_local', health: 100 });
+        // Distance: 648 - 248 = 400px (exceeds 300px baseline)
+        state.addNode({ id: targetId, name: 'Far Hub', x: 648, y: 318, bandwidth: 200, baseBandwidth: 200, traffic: 0, level: 1, layer: 2, type: 'hub_local', health: 100 });
         const { valid, error } = state.validateLink(gatewayId, targetId);
         expect(valid).toBe(false);
         expect(error).toBe('RANGE');
