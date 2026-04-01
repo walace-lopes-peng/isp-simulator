@@ -204,6 +204,14 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     
     if (canUpgrade !== get().canUpgradeEra) set({ canUpgradeEra: canUpgrade });
 
+    // Step 2: TP generation (Option C)
+    const allNodes = nodes.length;
+    const activeNodes = nodes.filter(n => n.traffic > 0).length;
+    const tpGain = Math.max(1, Math.floor((allNodes * 0.1) + (activeNodes * 0.4)));
+    if (tpGain > 0) {
+      get().addTechPoints(tpGain);
+    }
+
     const era = get().getCurrentEraConfig();
     worker.postMessage({ nodes, links, rangeLevel, tickRate, era });
   },

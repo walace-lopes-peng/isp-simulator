@@ -11,6 +11,8 @@ const DebugConsole: React.FC = () => {
   const { 
     money, 
     addMoney, 
+    techPoints,
+    addTechPoints,
     resetTopology, 
     isGodMode, 
     toggleGodMode, 
@@ -112,6 +114,18 @@ const DebugConsole: React.FC = () => {
               className={`py-1.5 border text-[9px] uppercase transition-all ${isGodMode ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' : 'bg-white/5 border-white-10 text-slate-400 hover:bg-white/10'}`}
             >
               God Mode: {isGodMode ? 'ON' : 'OFF'}
+            </button>
+            <button 
+              onClick={() => { addTechPoints(50); addLog('[DEV] Added 50 TP (total: ' + (techPoints + 50) + ')', false); }}
+              className="py-1.5 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[9px] uppercase hover:bg-cyan-500/20 transition-all font-bold"
+            >
+              Add 50 TP
+            </button>
+            <button 
+              onClick={() => { addTechPoints(999999); addLog('[DEV] Tech Points set to maximum', false); }}
+              className="py-1.5 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[9px] uppercase hover:bg-cyan-500/20 transition-all font-bold"
+            >
+              Set Max TP
             </button>
             <div className="flex gap-1 w-full col-span-2">
               <button 

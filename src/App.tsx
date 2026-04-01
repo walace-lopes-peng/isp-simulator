@@ -7,7 +7,7 @@ import EraWrapper from './components/EraWrapper';
 // --- UI COMPONENTS ---
 
 const TopBar = () => {
-  const { money, totalData, nodes, networkHealth, canUpgradeEra, purchaseEraUpgrade, isGodMode } = useISPStore();
+  const { money, techPoints, totalData, nodes, networkHealth, canUpgradeEra, purchaseEraUpgrade, isGodMode } = useISPStore();
   const eraConfig = useISPStore(state => state.getCurrentEraConfig());
   const traffic = nodes.reduce((sum, n) => sum + n.traffic, 0);
   const bandwidth = nodes.reduce((sum, n) => sum + n.bandwidth, 0);
@@ -29,6 +29,10 @@ const TopBar = () => {
           <div>
             <span className="text-[9px] text-slate-500 uppercase font-bold block">Available Capital</span>
             <span className="text-sm font-mono text-emerald-400 font-bold">${money.toLocaleString()}</span>
+          </div>
+          <div>
+            <span className="text-[9px] text-slate-500 uppercase font-bold block">Research Insight</span>
+            <span className="text-sm font-mono text-cyan-400 font-bold">TP: {techPoints.toLocaleString()}</span>
           </div>
           <div>
             <span className="text-[9px] text-slate-500 uppercase font-bold block">Total Data</span>
