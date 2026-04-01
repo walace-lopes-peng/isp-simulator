@@ -69,6 +69,7 @@ export const RANGE_PRESETS = {
 
 interface ISPStore {
   money: number;
+  techPoints: number;
   currentEra: string;
   canUpgradeEra: boolean;
   nodes: ISPNode[];
@@ -118,6 +119,7 @@ interface ISPStore {
   initWorker: () => void;
 
   addMoney: (amount: number) => void;
+  addTechPoints: (amount: number) => void;
   resetTopology: () => void;
   toggleGodMode: () => void;
   setTickRate: (rate: number) => void;
@@ -125,6 +127,7 @@ interface ISPStore {
 
 export const useISPStore = create<ISPStore>((set, get) => ({
   money: 5000,
+  techPoints: 50,
   currentEra: '70s',
   canUpgradeEra: false,
   totalData: 0,
@@ -323,6 +326,9 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     };
   }),
   addMoney: (amount) => set((state) => ({ money: state.money + amount })),
+  addTechPoints: (amount) => set((state) => ({ 
+    techPoints: Math.max(0, state.techPoints + amount) 
+  })),
   toggleGodMode: () => set((state) => ({ isGodMode: !state.isGodMode })),
   setTickRate: (rate) => set({ tickRate: rate }),
   resetTopology: () => set((state) => ({
