@@ -44,6 +44,14 @@ interface WorkerState {
   rangeLevel: number;
   tickRate: number;
   era: EraConfig;
+  techModifiers?: {
+    bandwidthMultiplier: number;
+    latencyMultiplier: number;
+    capacityMultiplier: number;
+    maxDistance: number;
+    signalQuality: number;
+    connectionReliability: number;
+  };
 }
 
 // Simple Min-Priority Queue for Dijkstra
@@ -58,8 +66,12 @@ class MinHeap {
 }
 
 self.onmessage = (e: MessageEvent<WorkerState>) => {
-  const { nodes, links, rangeLevel, tickRate, era } = e.data;
+  const { nodes, links, rangeLevel, tickRate, era, techModifiers } = e.data;
   const dT = tickRate / 1000;
+  
+  const LATENCY_MOD = techModifiers?.latencyMultiplier ?? 1.0;
+  const RELIABILITY_MOD = techModifiers?.connectionReliability ?? 0.7;
+  const QUALITY_MOD = techModifiers?.signalQuality ?? 0.5;
   
   // Physics Fix: Scale JSON attenuation (e.g., 1.5) to simulation constant k (e.g., 0.0015)
   // Base fallback 0.002 (copper) if config is missing.
@@ -89,7 +101,7 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
     const t = nodes.find(n => n.id === link.targetId);
     if (s && t) {
       const d = Math.sqrt(Math.pow(s.x - t.x, 2) + Math.pow(s.y - t.y, 2));
-      const weight = d / (link.bandwidth / 100); // Latency weight: Distance adjusted by bandwidth
+      const weight = (d / (link.bandwidth / 100)) * LATENCY_MOD; // Tech-aware Latency weight
       
       if (!adjacency[link.sourceId]) adjacency[link.sourceId] = [];
       if (!adjacency[link.targetId]) adjacency[link.targetId] = [];
@@ -149,7 +161,10 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
     const loadRatio = finalTraffic / node.bandwidth;
 
     if (loadRatio > 0.8) {
-        nodeHealth -= (loadRatio - 0.8) * 100 * dT; 
+        // High connectionReliability reduces health decay from congestion
+        const decayRate = (loadRatio - 0.8) * 100;
+        const mitigatedDecay = decayRate * (1 - (RELIABILITY_MOD - 0.7) * 2); // 0.7 is baseline
+        nodeHealth -= Math.max(10, mitigatedDecay) * dT; 
         activeHazard = 'congestion';
     } else if (nodeHealth < 100) {
         nodeHealth += 2 * dT;
@@ -185,7 +200,8 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
     const isFocused = n.layer === rangeLevel;
     const efficiency = isFocused ? 0.8 : 0.2;
     // signalStrength already affected traffic, but we multiply here for direct business impact
-    const nodeRevenue = (n.traffic * efficiency * healthMultiplier * (n.signalStrength! / 100)) * dT;
+    // tech-driven signalQuality further boosts revenue efficiency
+    const nodeRevenue = (n.traffic * efficiency * healthMultiplier * (n.signalStrength! / 100) * (QUALITY_MOD / 0.55)) * dT;
     const isCongested = n.traffic > n.bandwidth;
     return sum + (isCongested ? nodeRevenue * 0.5 : nodeRevenue);
   }, 0);

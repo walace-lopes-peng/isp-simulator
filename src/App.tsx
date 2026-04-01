@@ -287,6 +287,7 @@ const LogisticMap = () => {
             id: `node-${Date.now()}`,
             name: `New Hub ${nodes.length}`,
             bandwidth: template.baseBandwidth,
+            baseBandwidth: template.baseBandwidth,
             traffic: 0,
             level: 1,
             layer: template.hierarchyLevel,

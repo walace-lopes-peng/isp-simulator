@@ -49,10 +49,10 @@ describe('useISPStore validateLink Physics', () => {
     useISPStore.setState({
       nodes: [
         ...store.nodes,
-        { 
-          id: 'test-far', name: 'FAR TERMINAL', 
-          x: store.nodes[0].x + 300, y: store.nodes[0].y + 300, 
-          bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100 
+        {
+          id: 'test-far', name: 'FAR TERMINAL',
+          x: store.nodes[0].x + 300, y: store.nodes[0].y + 300,
+          bandwidth: 100, baseBandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100
         }
       ]
     });
