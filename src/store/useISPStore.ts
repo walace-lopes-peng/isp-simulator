@@ -1,5 +1,8 @@
 import { create } from 'zustand';
 import eraConfigData from '../config/eraConfig.json';
+import { NODE_TEMPLATES } from '../config/nodeRegistry';
+import type { ISPNodeType } from '../config/nodeRegistry';
+export type { ISPNodeType };
 
 export interface EraConfig {
   id: string;
@@ -19,7 +22,6 @@ export interface EraConfig {
 export const ERAS_CONFIG = eraConfigData.eras as EraConfig[];
 
 export type RangeLevel = 1 | 2 | 3 | 4;
-export type ISPNodeType = 'terminal' | 'hub_local' | 'hub_regional' | 'backbone';
 
 export interface ISPNode {
   id: string;
@@ -36,6 +38,8 @@ export interface ISPNode {
   region?: string;
   latency?: number;
   signalStrength?: number;
+  isDevSpawned?: boolean;
+  isCore?: boolean;
 }
 
 export interface ISPLink {
@@ -46,19 +50,22 @@ export interface ISPLink {
   type: 'cable' | 'fiber' | 'satellite';
 }
 
+export const STARTING_POINTS = {
+  us_east: { name: "New York (US East)", x: 248, y: 318 },
+  us_west: { name: "San Francisco (US West)", x: 110, y: 280 },
+  europe: { name: "London (Europe)", x: 410, y: 210 },
+  sampa: { name: "São Paulo (LATAM)", x: 265, y: 590 },
+  tokyo: { name: "Tokyo (APAC)", x: 715, y: 290 }
+} as const;
+
+export const DEFAULT_START = STARTING_POINTS.us_east;
+
 export const RANGE_PRESETS = {
-  1: { name: 'LOCAL', viewBox: '250 150 300 300', tier: 1 },
+  1: { name: 'LOCAL', viewBox: `${DEFAULT_START.x - 60} ${DEFAULT_START.y - 60} 120 120`, tier: 1 },
   2: { name: 'REGIONAL', viewBox: '50 100 400 300', tier: 2 },
   3: { name: 'NATIONAL', viewBox: '0 0 800 600', tier: 3 },
   4: { name: 'GLOBAL', viewBox: '0 0 800 800', tier: 4 },
 } as const;
-
-export const STARTING_POINTS = {
-  us_east: { name: "New York (US East)", x: 248, y: 318 },
-  us_west: { name: "San Francisco (US West)", x: 110, y: 280 },
-};
-
-const DEFAULT_START = STARTING_POINTS.us_east;
 
 interface ISPStore {
   money: number;
@@ -79,7 +86,17 @@ interface ISPStore {
   dragSourceId: string | null;
   dragPos: { x: number, y: number } | null;
 
+  activeDevNodeType: string;
+  setActiveDevNodeType: (type: string) => void;
+
+  isHubCreationEnabled: boolean;
+  toggleHubCreation: () => void;
+  isHubDeletionEnabled: boolean;
+  toggleHubDeletion: () => void;
+
   tick: () => void;
+  removeNode: (id: string) => void;
+  syncNodeMarkers: () => void;
   upgradeNode: (id: string) => void;
   addNode: (node: ISPNode) => void;
   setEra: (era: string) => void;
@@ -112,9 +129,9 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   canUpgradeEra: false,
   totalData: 0,
   nodes: [
-    { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'hub_local', health: 100 },
-    { id: 'l1-a', name: 'LOCAL TERMINAL A', x: DEFAULT_START.x + 15, y: DEFAULT_START.y - 15, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100 },
-    { id: 'l1-b', name: 'LOCAL TERMINAL B', x: DEFAULT_START.x - 15, y: DEFAULT_START.y + 15, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100 },
+    { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'hub_local', health: 100, isCore: true },
+    { id: 'l1-a', name: 'LOCAL TERMINAL A', x: DEFAULT_START.x + 15, y: DEFAULT_START.y - 15, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100, isCore: true },
+    { id: 'l1-b', name: 'LOCAL TERMINAL B', x: DEFAULT_START.x - 15, y: DEFAULT_START.y + 15, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100, isCore: true },
   ],
   links: [],
   selectedNodeId: null,
@@ -127,6 +144,27 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   avgLatency: 0,
   dragSourceId: null,
   dragPos: null,
+  activeDevNodeType: NODE_TEMPLATES[0].type,
+  isHubCreationEnabled: false,
+  isHubDeletionEnabled: false,
+
+  setActiveDevNodeType: (type: string) => {
+    if (NODE_TEMPLATES.some(t => t.type === type)) {
+      set({ activeDevNodeType: type });
+    } else {
+      console.warn(`[DEV] Attempted to set invalid node type: ${type}`);
+    }
+  },
+
+  toggleHubCreation: () => set(state => ({ 
+    isHubCreationEnabled: !state.isHubCreationEnabled, 
+    isHubDeletionEnabled: false 
+  })),
+
+  toggleHubDeletion: () => set(state => ({ 
+    isHubDeletionEnabled: !state.isHubDeletionEnabled, 
+    isHubCreationEnabled: false 
+  })),
 
   getCurrentEraConfig: () => ERAS_CONFIG.find(e => e.id === get().currentEra) || ERAS_CONFIG[0],
 
@@ -177,7 +215,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
       return { valid: false, error: 'REDUNDANT' };
     }
 
-    const hierarchy = { 'terminal': 0, 'hub_local': 1, 'hub_regional': 2, 'backbone': 3 };
+    const hierarchy: Record<string, number> = { 'terminal': 0, 'hub_local': 1, 'hub_regional': 2, 'backbone': 3 };
     const getHierarchy = (node: ISPNode) => hierarchy[node.type] ?? 0;
     const diff = Math.abs(getHierarchy(src) - getHierarchy(tgt));
     const isPeer = getHierarchy(src) === getHierarchy(tgt) && getHierarchy(src) !== 0;
@@ -226,6 +264,34 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     }));
   },
 
+  removeNode: (id: string) => {
+    const node = get().nodes.find(n => n.id === id);
+    if (node?.isDevSpawned === true && node.isCore !== true) {
+      set(state => ({
+        nodes: state.nodes.filter(n => n.id !== id),
+        links: state.links.filter(l => l.sourceId !== id && l.targetId !== id),
+        selectedNodeId: state.selectedNodeId === id ? null : state.selectedNodeId,
+        dragSourceId: state.dragSourceId === id ? null : state.dragSourceId,
+        logs: [`[SYSTEM] Hub ${id} removed by dev tool`, ...state.logs].slice(0, 15)
+      }));
+    }
+  },
+
+  syncNodeMarkers: () => set(state => {
+    let rescuedCount = 0;
+    const newNodes = state.nodes.map(n => {
+      if (!n.isCore && !n.isDevSpawned) {
+        rescuedCount++;
+        return { ...n, isDevSpawned: true };
+      }
+      return n;
+    });
+    return {
+      nodes: newNodes,
+      logs: [`[DEV] ${rescuedCount} nodes rescued and marked as deletable`, ...state.logs].slice(0, 20)
+    };
+  }),
+
   toggleLinking: () => set(state => ({ isLinking: !state.isLinking })),
   upgradeNode: (id) => set((state) => {
     const node = state.nodes.find(n => n.id === id);
@@ -243,7 +309,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   addLog: (msg, isCritical = false) => set((state) => ({
     logs: [`[${new Date().toLocaleTimeString()}] ${isCritical ? '!!! ' : ''}${msg}`, ...state.logs].slice(0, 20)
   })),
-  addNode: (node) => set((state) => ({ nodes: [...state.nodes, node] })),
+  addNode: (node) => set((state) => ({ nodes: [...state.nodes, { ...node, isDevSpawned: true }] })),
   setEra: (era) => set({ currentEra: era }),
   purchaseEraUpgrade: () => set((state) => {
     const nextEra = state.getNextEraConfig();
@@ -263,9 +329,10 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     links: [],
     canUpgradeEra: false,
     nodes: [
-      { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'hub_local', health: 100 },
-      { id: 'l1-a', name: 'LOCAL TERMINAL A', x: DEFAULT_START.x + 15, y: DEFAULT_START.y - 15, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100 },
-      { id: 'l1-b', name: 'LOCAL TERMINAL B', x: DEFAULT_START.x - 15, y: DEFAULT_START.y + 15, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100 },
+      { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'hub_local', health: 100, isCore: true },
+      { id: 'l1-a', name: 'LOCAL TERMINAL A', x: DEFAULT_START.x + 15, y: DEFAULT_START.y - 15, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100, isCore: true },
+      { id: 'l1-b', name: 'LOCAL TERMINAL B', x: DEFAULT_START.x - 15, y: DEFAULT_START.y + 15, bandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100, isCore: true },
     ]
   })),
 }));
+

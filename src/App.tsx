@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { useISPStore, RANGE_PRESETS, RangeLevel } from './store/useISPStore';
+import { useISPStore, RANGE_PRESETS, RangeLevel, ERAS_CONFIG, EraConfig, ISPNode, ISPNodeType } from './store/useISPStore';
+import { NODE_TEMPLATES } from './config/nodeRegistry';
 import DebugConsole from './components/DebugConsole';
 import EraWrapper from './components/EraWrapper';
 
@@ -186,7 +187,8 @@ const LogisticMap = () => {
     nodes, links, rangeLevel, selectNode, selectedNodeId, 
     setRange, dragSourceId, dragPos, 
     startDragging, setDragPos, endDragging, validateLink,
-    money, addNode, addLog
+    money, addNode, addLog, isHubCreationEnabled, isHubDeletionEnabled, removeNode,
+    activeDevNodeType
   } = useISPStore();
   
   const currentRange = RANGE_PRESETS[rangeLevel];
@@ -200,6 +202,12 @@ const LogisticMap = () => {
     pt.x = e.clientX;
     pt.y = e.clientY;
     return pt.matrixTransform(svgRef.current.getScreenCTM()?.inverse());
+  };
+
+  const getEraMaxDist = () => {
+    const eraId = useISPStore.getState().currentEra;
+    const eraIndex = ERAS_CONFIG.findIndex((e: EraConfig) => e.id === eraId);
+    return 150 + (eraIndex * 100);
   };
 
   const handlePointerDown = (e: React.PointerEvent, nodeId?: string) => {
@@ -236,59 +244,64 @@ const LogisticMap = () => {
   };
 
   const handleMapClick = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (dragSourceId) return; // Ignore click if dragging
+    if (dragSourceId) return; 
+    
+    // --- Interaction Guard ---
+    if (selectedNodeId) {
+      selectNode(null); // Click map to deselect
+      return;
+    }
+    
+    if (isHubDeletionEnabled) return; // Don't create when deleting
+    
     const svg = e.currentTarget;
     const pt = svg.createSVGPoint();
     pt.x = e.clientX;
     pt.y = e.clientY;
     const svgP = pt.matrixTransform(svg.getScreenCTM()?.inverse());
     
-    if (!selectedNodeId) {
-        const cost = 500;
-        const coverageRange = 250;
-        const isWithinRange = nodes.some(n => {
-            const d = Math.sqrt(Math.pow(n.x - svgP.x, 2) + Math.pow(n.y - svgP.y, 2));
-            return d < coverageRange && (n.traffic > 0 || n.id === '0');
-        });
+    const coverageRange = 250;
+    const isWithinRange = nodes.some(n => {
+        const d = Math.sqrt(Math.pow(n.x - svgP.x, 2) + Math.pow(n.y - svgP.y, 2));
+        return d < coverageRange && (n.traffic > 0 || n.id === '0');
+    });
 
-        if (!isWithinRange && nodes.length > 0) {
-            addLog("Area outside network coverage range", true);
+    if (!isHubCreationEnabled && !isWithinRange && nodes.length > 0) {
+        addLog("Area outside network coverage range", true);
+        return;
+    }
+
+    if (isHubCreationEnabled) {
+        const template = NODE_TEMPLATES.find(t => t.type === activeDevNodeType);
+        
+        if (!template) {
+            addLog(`[WARNING] Invalid activeDevNodeType: ${activeDevNodeType}`, true);
             return;
         }
 
-        if (money >= cost) {
-            const nodeTypeLookup: Record<RangeLevel, any> = {
-                1: 'hub_local',
-                2: 'hub_regional',
-                3: 'backbone',
-                4: 'backbone'
-            };
-
-            const newNode = {
-                id: `node-${Date.now()}`,
-                name: `New Hub ${nodes.length}`,
-                bandwidth: 50,
-                traffic: 0,
-                level: 1,
-                layer: maxTier,
-                type: nodeTypeLookup[rangeLevel as RangeLevel],
-                health: 100,
-                x: Math.round(svgP.x),
-                y: Math.round(svgP.y)
-            };
-            addNode(newNode);
-            addLog(`Built ${newNode.type} at [${newNode.x}, ${newNode.y}]`, false);
-        } else {
-            addLog(`Insufficient funds to build new node ($${cost} required)`, true);
-        }
+        const newNode: ISPNode = {
+            id: `node-${Date.now()}`,
+            name: `New Hub ${nodes.length}`,
+            bandwidth: template.baseBandwidth,
+            traffic: 0,
+            level: 1,
+            layer: template.hierarchyLevel,
+            type: template.type,
+            health: 100,
+            x: Math.round(svgP.x),
+            y: Math.round(svgP.y),
+            isDevSpawned: true
+        };
+        addNode(newNode);
+        addLog(`[DEV] Built ${template.displayName} at [${newNode.x}, ${newNode.y}]`, false);
     }
   };
 
   return (
     <div className="flex-1 relative flex flex-col min-h-0 min-w-0" onWheel={handleWheel}>
       <style>{`
-        @keyframes pulse-steady { 0%, 100% { opacity: 1; r: 4; } 50% { opacity: 0.7; r: 5; } }
-        @keyframes pulse-fast { 0%, 100% { opacity: 1; r: 4; } 50% { opacity: 0.5; r: 6; } }
+        @keyframes pulse-steady { 0%, 100% { opacity: 1; r: 5; } 50% { opacity: 0.7; r: 6; } }
+        @keyframes pulse-soft { 0%, 100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.1); opacity: 0.4; } }
         @keyframes glitch-flicker { 
           0%, 100% { opacity: 1; transform: translate(0); } 
           10%, 30% { opacity: 0; transform: translate(-2px, 1px); } 
@@ -296,9 +309,17 @@ const LogisticMap = () => {
           80% { opacity: 0.2; transform: translate(1px, 1px); }
         }
         .node-healthy { animation: pulse-steady 2s infinite ease-in-out; stroke: #22d3ee; }
-        .node-saturated { animation: pulse-fast 1s infinite ease-in-out; stroke: #fbbf24; }
+        .node-saturated { animation: pulse-steady 1s infinite ease-in-out; stroke: #fbbf24; }
         .node-critical { animation: glitch-flicker 0.4s infinite linear; stroke: #ef4444; }
-        .node-circle { transform-box: fill-box; transform-origin: center; }
+        .node-circle, .node-rect { 
+          transform-box: fill-box; 
+          transform-origin: center; 
+        }
+        .selection-glow {
+          animation: pulse-soft 2s infinite ease-in-out;
+          transform-box: fill-box;
+          transform-origin: center;
+        }
         @keyframes dash { to { stroke-dashoffset: -20; } }
         .link-flow { animation: dash 1s linear infinite; }
         .map-svg { transition: view-box 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
@@ -326,7 +347,7 @@ const LogisticMap = () => {
         <svg 
           ref={svgRef}
           viewBox={currentRange.viewBox} 
-          preserveAspectRatio="xMidYMid slice" 
+          preserveAspectRatio="xMidYMid meet" 
           className="w-full h-full max-h-[85vh] aspect-square drop-shadow-2xl overflow-visible rounded-lg border border-white/10 shadow-inner bg-[#040d1a] map-svg"
           onPointerMove={handlePointerMove}
           onPointerUp={() => handlePointerUp({} as any)}
@@ -387,7 +408,7 @@ const LogisticMap = () => {
 
             return (
               <g className="animate-in fade-in duration-300">
-                <circle cx={src.x} cy={src.y} r={350} className="range-overlay" />
+                <circle cx={src.x} cy={src.y} r={getEraMaxDist()} className="range-overlay" />
                 <line 
                   x1={src.x} y1={src.y} 
                   x2={dragPos.x} y2={dragPos.y} 
@@ -413,24 +434,55 @@ const LogisticMap = () => {
                    const isFilterActive = dragSourceId !== null && dragSourceId !== node.id;
                    const isValidTarget = dragSourceId ? validateLink(dragSourceId, node.id).valid : true;
                    
-                   const baseR = layerNum === 1 ? 14 : 9;
+                   const baseR = layerNum === 1 ? 5 : 4;
                    const rangeScale = 1.0 - (rangeLevel - 1) * 0.15;
                    const r = baseR * rangeScale;
+                   const isGateway = node.id === '0';
+
                    return (
-                     <g key={node.id} className="cursor-pointer" 
+                     <g key={node.id} className={`cursor-${isHubDeletionEnabled ? 'crosshair' : 'pointer'}`} 
                         onPointerDown={(e) => handlePointerDown(e, node.id)}
                         onPointerUp={(e) => handlePointerUp(e, node.id)}
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isHubDeletionEnabled) {
+                            removeNode(node.id);
+                          } else {
+                            selectNode(node.id);
+                          }
+                        }}
                      >
-                       {isSelected && <circle cx={node.x} cy={node.y} r={r + 6} className="fill-none stroke-emerald-500/40 stroke-1 animate-[ping_3s_infinite]" />}
-                       <circle 
-                         cx={node.x} cy={node.y} r={r}
-                         className={`node-circle transition-all duration-300 stroke-2 fill-slate-900 
-                          ${isSelected ? 'stroke-white scale-110 shadow-lg' : stateClass}
-                          ${isFilterActive && !isValidTarget ? 'opacity-20' : 'opacity-100'}`}
-                       />
+                       {isSelected && (
+                         isGateway ? 
+                         <rect x={node.x - r - 3} y={node.y - r - 3} width={r*2 + 6} height={r*2 + 6} className="fill-none stroke-emerald-500/60 stroke-2 selection-glow" /> :
+                         <circle cx={node.x} cy={node.y} r={r + 6} className="fill-none stroke-emerald-500/40 stroke-1 selection-glow" />
+                       )}
+                       
+                       {isGateway ? (
+                         <g>
+                           <rect 
+                             x={node.x - r} y={node.y - r} width={r * 2} height={r * 2}
+                             className={`node-rect transition-all duration-300 stroke-2 fill-slate-900 
+                              ${isSelected ? 'stroke-white scale-110 shadow-lg' : 'stroke-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.5)]'}
+                              ${isFilterActive && !isValidTarget ? 'opacity-20' : 'opacity-100'}`}
+                           />
+                           {/* 70s Mainframe Pattern */}
+                           <rect 
+                             x={node.x - r/2} y={node.y - r/2} width={r} height={r}
+                             className="fill-none stroke-emerald-500/40 stroke-[0.5px] pointer-events-none"
+                           />
+                         </g>
+                       ) : (
+                         <circle 
+                           cx={node.x} cy={node.y} r={r}
+                           className={`node-circle transition-all duration-300 stroke-2 fill-slate-900 
+                            ${isSelected ? 'stroke-white scale-110 shadow-lg' : stateClass}
+                            ${isFilterActive && !isValidTarget ? 'opacity-20' : 'opacity-100'}`}
+                         />
+                       )}
+                       
                        <text 
-                         x={node.x} y={node.y + r + 14} 
+                         x={node.x} y={node.y + r + 10} 
                          textAnchor="middle"
                          className={`text-[8px] font-black font-mono select-none pointer-events-none uppercase transition-all ${isFilterActive && !isValidTarget ? 'opacity-10' : 'fill-slate-300'}`}
                        >

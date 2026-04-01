@@ -12,6 +12,7 @@ describe('SimulationWorker Physics System', () => {
     });
 
     it('should calculate signal attenuation correctly under 1970s era conditions (/1000 scaling)', async () => {
+        // @ts-ignore - Dynamic import needed to ensure global.self is mocked before worker code runs
         await import('./SimulationWorker');
         const MOCK_1970S_ERA = {
             id: '70s',

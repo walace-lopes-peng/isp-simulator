@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useISPStore, ERAS_CONFIG } from '../store/useISPStore';
+import { NODE_TEMPLATES } from '../config/nodeRegistry';
 
 const DebugConsole: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -17,7 +18,15 @@ const DebugConsole: React.FC = () => {
     setTickRate, 
     currentEra, 
     setEra,
-    addLog
+    addLog,
+    isHubCreationEnabled,
+    toggleHubCreation,
+    isHubDeletionEnabled,
+    toggleHubDeletion,
+    activeDevNodeType,
+    setActiveDevNodeType,
+    rangeLevel,
+    syncNodeMarkers
   } = useISPStore();
 
   useEffect(() => {
@@ -68,7 +77,7 @@ const DebugConsole: React.FC = () => {
 
   return (
     <div 
-      className={`fixed z-[100] w-72 bg-black/80 backdrop-blur-xl border border-emerald-500/30 p-4 rounded-lg shadow-[0_0_30px_rgba(16,185,129,0.1)] font-mono ${!isDragging ? 'animate-in fade-in slide-in-from-bottom-4 duration-300' : ''}`}
+      className={`fixed z-100 w-72 bg-black/80 backdrop-blur-xl border border-emerald-500/30 p-4 rounded-lg shadow-[0_0_30px_rgba(16,185,129,0.1)] font-mono ${!isDragging ? 'animate-in fade-in slide-in-from-bottom-4 duration-300' : ''}`}
       style={{ 
         left: 0, 
         top: 0, 
@@ -103,6 +112,38 @@ const DebugConsole: React.FC = () => {
               className={`py-1.5 border text-[9px] uppercase transition-all ${isGodMode ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' : 'bg-white/5 border-white-10 text-slate-400 hover:bg-white/10'}`}
             >
               God Mode: {isGodMode ? 'ON' : 'OFF'}
+            </button>
+            <div className="flex gap-1 w-full col-span-2">
+              <button 
+                onClick={() => { toggleHubCreation(); addLog(`DEBUG: Create Hub Mode ${!isHubCreationEnabled ? 'ON' : 'OFF'}`, false); }}
+                className={`flex-1 py-1.5 border text-[9px] uppercase transition-all ${isHubCreationEnabled ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-400' : 'bg-white/5 border-white-10 text-slate-400 hover:bg-white/10'}`}
+              >
+                Create Hub: {isHubCreationEnabled ? 'ON' : 'OFF'}
+              </button>
+              <select 
+                value={activeDevNodeType}
+                onChange={(e) => setActiveDevNodeType(e.target.value)}
+                className="flex-1 bg-black/60 border border-white/10 text-slate-300 text-[9px] uppercase px-1 outline-none relative z-100"
+              >
+                {NODE_TEMPLATES.map(t => {
+                  const isValidScope = t.availableInScopes.includes(rangeLevel);
+                  const eraIndex = ERAS_CONFIG.findIndex(e => e.id === currentEra);
+                  const unlockIndex = ERAS_CONFIG.findIndex(e => e.id === t.unlocksAtEra);
+                  const isUnlocked = unlockIndex <= eraIndex;
+                  return (
+                    <option key={t.type} value={t.type}>
+                      {!isValidScope ? '🔒 ' : !isUnlocked ? '⏳ ' : ''}
+                      {t.displayName}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+            <button 
+              onClick={() => { toggleHubDeletion(); addLog(`DEBUG: Delete Hub Mode ${!isHubDeletionEnabled ? 'ON' : 'OFF'}`, false); }}
+              className={`col-span-2 py-1.5 border text-[9px] uppercase transition-all ${isHubDeletionEnabled ? 'bg-red-500/20 border-red-500/40 text-red-400' : 'bg-white/5 border-white-10 text-slate-400 hover:bg-white/10'}`}
+            >
+              Delete Hub: {isHubDeletionEnabled ? 'ON' : 'OFF'}
             </button>
           </div>
         </div>
@@ -141,8 +182,14 @@ const DebugConsole: React.FC = () => {
           </div>
         </div>
 
-        {/* Destructive Tools */}
-        <div className="pt-2 border-t border-white/5">
+        {/* Utilities */}
+        <div className="pt-2 border-t border-white/5 space-y-2">
+          <button 
+            onClick={() => syncNodeMarkers()}
+            className="w-full py-1.5 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[9px] uppercase hover:bg-cyan-500/20 transition-all font-bold"
+          >
+            Rescue Broken Nodes
+          </button>
           <button 
             onClick={() => { if(confirm("Reset entire topology?")) { resetTopology(); addLog("DEBUG: Topology wiped", true); } }}
             className="w-full py-1.5 bg-red-500/10 border border-red-500/20 text-red-400 text-[9px] uppercase hover:bg-red-500/20 transition-all font-bold"
