@@ -26,10 +26,33 @@ function prStatus(pr) {
 
 function priorityOrder(item) {
   const names = item.labels.map(l => l.name);
-  if (names.includes('P0-blocker')) return 0;
-  if (names.includes('P1-high')) return 1;
-  if (names.includes('P2-medium')) return 2;
-  return 3;
+  
+  // 1. Blockers (P0 or v1-blocker)
+  if (names.some(n => ['P0-blocker', 'v1-blocker'].includes(n))) return 0;
+  
+  // 2. Phase 1 issues
+  if (names.includes('phase-1')) {
+    if (names.includes('P1-high')) return 10;
+    return 20;
+  }
+  
+  // 3. P1-high without phase label
+  if (names.includes('P1-high') && !names.some(n => n.startsWith('phase-'))) {
+    return 30;
+  }
+  
+  // 4. Phase 2 with P1-high
+  if (names.includes('phase-2') && names.includes('P1-high')) {
+    return 40;
+  }
+  
+  // 5. P2-medium (default range)
+  if (names.includes('P2-medium')) return 50;
+  
+  // 6. Phase 3/4 or other tasks go to backlog
+  if (names.some(n => ['phase-3', 'phase-4'].includes(n))) return 1000;
+  
+  return 100; // General backlog
 }
 
 function isBlocker(item) {
@@ -53,16 +76,19 @@ async function main() {
   const onlyIssues = issues
     .filter(i => !i.pull_request && i.number !== SPRINT_ISSUE_NUMBER);
 
-  const blockers = onlyIssues
-    .filter(isBlocker)
-    .sort((a, b) => priorityOrder(a) - priorityOrder(b));
+  // Grouping by priority
+  const allSorted = onlyIssues.sort((a, b) => priorityOrder(a) - priorityOrder(b));
 
-  const rest = onlyIssues
-    .filter(i => !isBlocker(i))
-    .sort((a, b) => priorityOrder(a) - priorityOrder(b));
+  const blockers = allSorted.filter(isBlocker);
+  const others = allSorted.filter(i => !isBlocker(i));
 
-  const upNext = rest.slice(0, 5);
-  const backlog = rest.slice(5);
+  // Determine Up Next vs Backlog
+  // Phase 3 and 4 are strictly Backlog even if P is high
+  const upNextCandidate = others.filter(i => !i.labels.some(l => ['phase-3', 'phase-4'].includes(l.name)));
+  const strictlyBacklog = others.filter(i => i.labels.some(l => ['phase-3', 'phase-4'].includes(l.name)));
+
+  const upNext = upNextCandidate.slice(0, 5);
+  const backlog = [...upNextCandidate.slice(5), ...strictlyBacklog];
 
   const issueHeader = '| # | Title | Labels |\n| :--- | :--- | :--- |';
   const prHeader   = '| # | Title | Status |\n| :--- | :--- | :--- |';
