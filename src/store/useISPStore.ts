@@ -43,6 +43,7 @@ export interface ISPNode {
   signalStrength?: number;
   isDevSpawned?: boolean;
   isCore?: boolean;
+  uiColor?: string;
 }
 
 export interface ISPLink {
@@ -51,6 +52,7 @@ export interface ISPLink {
   targetId: string;
   bandwidth: number;
   type: 'cable' | 'fiber' | 'satellite';
+  uiColor?: string;
 }
 
 export const STARTING_POINTS = {
@@ -87,6 +89,7 @@ interface ISPStore {
   tickRate: number;
   networkHealth: number;
   avgLatency: number;
+  activePaths: Record<string, { path: string[], destination: string, pathD: string, sessId: string }[]>;
   
   dragSourceId: string | null;
   dragPos: { x: number, y: number } | null;
@@ -153,6 +156,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   isGodMode: false,
   networkHealth: 100,
   avgLatency: 0,
+  activePaths: {},
   dragSourceId: null,
   dragPos: null,
   activeDevNodeType: NODE_TEMPLATES[0].type,
@@ -238,6 +242,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
         tpAccumulator: newTpAccumulator - tpToAdd,
         networkHealth,
         avgLatency,
+        activePaths: e.data.activePaths || {},
         logs: newLogs.length > 0 ? [...newLogs, ...state.logs].slice(0, 20) : state.logs
       });
     };
