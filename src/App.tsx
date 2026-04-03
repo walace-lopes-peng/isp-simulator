@@ -316,49 +316,81 @@ const LogisticMap = () => {
 
   const renderNodeShape = (node: ISPNode, r: number, strokeColor: string, stateClass: string) => {
     const commonProps = {
-      className: `node-circle transition-all duration-300 stroke-2 fill-slate-900 ${stateClass}`,
+      className: `transition-all duration-300 stroke-2 ${stateClass}`,
       stroke: strokeColor,
     };
 
-    const shapes = [];
+    const icons = [];
     
     switch (node.type) {
-      case 'terminal':
-        shapes.push(
-          <circle 
-            key="main" cx={node.x} cy={node.y} r={r} 
-            {...commonProps} fill="transparent" strokeWidth={1.5}
-          />
-        );
-        break;
-      case 'hub_local':
-        shapes.push(<circle key="ring1" cx={node.x} cy={node.y} r={r * 1.7} fill="none" stroke={strokeColor} opacity={0.4} strokeDasharray={node.isDevSpawned ? "2,2" : "none"} />);
-        shapes.push(<circle key="main" cx={node.x} cy={node.y} r={r} {...commonProps} />);
-        break;
-      case 'hub_regional':
-        shapes.push(<circle key="ring2" cx={node.x} cy={node.y} r={r * 2.2} fill="none" stroke={strokeColor} opacity={0.2} strokeDasharray={node.isDevSpawned ? "2,2" : "none"} />);
-        shapes.push(<circle key="ring1" cx={node.x} cy={node.y} r={r * 1.6} fill="none" stroke={strokeColor} opacity={0.35} />);
-        shapes.push(<circle key="main" cx={node.x} cy={node.y} r={r} {...commonProps} />);
-        break;
-      case 'backbone':
-        shapes.push(
-          <g key="backbone-group" filter="url(#glow)">
-            <circle key="ring3" cx={node.x} cy={node.y} r={r * 2.6} fill="none" stroke={strokeColor} opacity={0.15} strokeDasharray={node.isDevSpawned ? "2,2" : "none"}  />
-            <circle key="ring2" cx={node.x} cy={node.y} r={r * 2.0} fill="none" stroke={strokeColor} opacity={0.25}  />
-            <circle key="ring1" cx={node.x} cy={node.y} r={r * 1.5} fill="none" stroke={strokeColor} opacity={0.4}  />
-            <circle key="main" cx={node.x} cy={node.y} r={r} {...commonProps} />
+      case 'terminal': {
+        const w = r * 1.2;
+        const h = r * 1.2;
+        const rh = r * 0.5;
+        icons.push(
+          <g key="terminal-icon" {...commonProps} fill={strokeColor}>
+            <rect x={node.x - w/2} y={node.y - h/2 + rh/2} width={w} height={h} />
+            <path d={`M ${node.x - w/2 - 2} ${node.y - h/2 + rh/2} L ${node.x} ${node.y - h/2 - rh/2} L ${node.x + w/2 + 2} ${node.y - h/2 + rh/2} Z`} />
           </g>
         );
         break;
+      }
+      case 'hub_local': {
+        const w = r * 2;
+        const h = r * 0.9;
+        const dotR = r * 0.15;
+        icons.push(
+          <g key="hub-local-icon" {...commonProps} fill={strokeColor}>
+            <rect x={node.x - w/2} y={node.y - h/2} width={w} height={h} rx={1} />
+            <circle cx={node.x - w/3} cy={node.y + h/2 + 2} r={dotR} />
+            <circle cx={node.x} cy={node.y + h/2 + 2} r={dotR} />
+            <circle cx={node.x + w/3} cy={node.y + h/2 + 2} r={dotR} />
+          </g>
+        );
+        break;
+      }
+      case 'hub_regional': {
+        const th = r * 1.5;
+        const tw = r * 0.2;
+        icons.push(
+          <g key="hub-regional-icon" {...commonProps} fill="none">
+            <rect x={node.x - tw/2} y={node.y - th/2} width={tw} height={th} fill={strokeColor} stroke="none" />
+            <path d={`M ${node.x - r*0.4} ${node.y - r*0.3} Q ${node.x} ${node.y - r*0.8} ${node.x + r*0.4} ${node.y - r*0.3}`} />
+            <path d={`M ${node.x - r*0.7} ${node.y - r*0.5} Q ${node.x} ${node.y - r*1.2} ${node.x + r*0.7} ${node.y - r*0.5}`} />
+            <path d={`M ${node.x - r*1.0} ${node.y - r*0.7} Q ${node.x} ${node.y - r*1.6} ${node.x + r*1.0} ${node.y - r*0.7}`} />
+          </g>
+        );
+        break;
+      }
+      case 'backbone': {
+        const w = r * 1.8;
+        const h = r * 0.35;
+        const gap = r * 0.15;
+        icons.push(
+          <g key="backbone-icon" {...commonProps} fill={strokeColor} filter="url(#glow)">
+            {[0, 1, 2].map(i => (
+              <g key={i}>
+                <rect x={node.x - w/2} y={node.y - (h*1.5 + gap) + i*(h + gap)} width={w} height={h} rx={1} />
+                <circle cx={node.x + w/2 - 3} cy={node.y - (h*1.5 + gap) + i*(h + gap) + h/2} r={1} fill="white" stroke="none" />
+              </g>
+            ))}
+          </g>
+        );
+        break;
+      }
     }
 
     if (node.isCore) {
-      shapes.push(
-        <rect key="lock" x={node.x + r - 2} y={node.y - r - 2} width={4} height={4} className="fill-slate-400 opacity-60" />
+      icons.push(
+        <path 
+          key="core-lock" 
+          d={`M ${node.x + r} ${node.y - r - 4} L ${node.x + r + 4} ${node.y - r} L ${node.x + r} ${node.y - r + 4} L ${node.x + r - 4} ${node.y - r} Z`}
+          className="fill-white opacity-60 transition-all duration-300"
+        />
       );
     }
 
-    return <g className="node-group">{shapes}</g>;
+    return <g className="node-icon-group">{icons}</g>;
   };
 
 
