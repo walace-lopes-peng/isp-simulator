@@ -596,6 +596,16 @@ const LogisticMap = () => {
             const src = nodes.find(n => n.id === link.sourceId);
             const tgt = nodes.find(n => n.id === link.targetId);
             if (!src || !tgt || src.layer > maxTier || tgt.layer > maxTier) return null;
+
+            // Check if link is part of any active Dijkstra path (#126)
+            const isActive = Object.values(useISPStore.getState().activePaths).some(path => {
+              for (let i = 0; i < path.length - 1; i++) {
+                if ((path[i] === link.sourceId && path[i+1] === link.targetId) ||
+                    (path[i] === link.targetId && path[i+1] === link.sourceId)) return true;
+              }
+              return false;
+            });
+
             const load = (tgt.traffic / tgt.bandwidth);
             const strokeColor = getLoadColor(load);
             const dx = tgt.x - src.x;
@@ -610,12 +620,65 @@ const LogisticMap = () => {
                 key={link.id}
                 d={`M ${src.x} ${src.y} Q ${controlX} ${controlY} ${tgt.x} ${tgt.y}`}
                 fill="none"
-                className="transition-all duration-1000 opacity-60 link-flow thematic-link"
+                className={`transition-all duration-1000 link-flow thematic-link ${isActive ? 'opacity-100' : 'opacity-20'}`}
                 stroke={strokeColor}
                 strokeWidth={0.5 + (link.bandwidth / 1000) * 0.8}
-                filter={eraConfig.id === 'modern' ? "url(#glow)" : "none"}
+                filter={(isActive && eraConfig.id === 'modern') ? "url(#glow)" : "none"}
                 strokeDasharray={eraConfig.id === '70s' ? "2,2" : "none"}
               />
+            );
+          })}
+
+          {/* PACKET VISUALIZATION (#126) */}
+          {Object.entries(useISPStore.getState().activePaths).map(([termId, path]) => {
+            const terminal = nodes.find(n => n.id === termId);
+            if (!terminal || terminal.layer > maxTier) return null;
+
+            // Build multi-segment Bézier path for the packet
+            let pathD = "";
+            for (let i = 0; i < path.length - 1; i++) {
+              const s = nodes.find(n => n.id === path[i]);
+              const t = nodes.find(n => n.id === path[i+1]);
+              if (!s || !t) continue;
+
+              // Find the original link to extract the identical control point
+              const link = links.find(l => 
+                (l.sourceId === s.id && l.targetId === t.id) || 
+                (l.sourceId === t.id && l.targetId === s.id)
+              );
+              if (!link) continue;
+
+              const lSrc = nodes.find(n => n.id === link.sourceId)!;
+              const lTgt = nodes.find(n => n.id === link.targetId)!;
+              const dx = lTgt.x - lSrc.x;
+              const dy = lTgt.y - lSrc.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              const offset = dist * 0.15;
+              const angle = Math.atan2(dy, dx);
+              const cX = (lSrc.x + lTgt.x) / 2 + offset * Math.cos(angle - Math.PI / 2);
+              const cY = (lSrc.y + lTgt.y) / 2 + offset * Math.sin(angle - Math.PI / 2);
+              
+              if (i === 0) pathD += `M ${s.x} ${s.y} `;
+              pathD += `Q ${cX} ${cY} ${t.x} ${t.y} `;
+            }
+
+            if (!pathD) return null;
+
+            // Dot speed proportional to path latency (higher latency = slower)
+            const pathLatency = terminal.latency || 50;
+            const duration = Math.max(0.5, Math.min(5, pathLatency / 50));
+
+            return (
+              <g key={`packet-${termId}`}>
+                <circle r="1.2" fill={terminal.uiColor || "#22d3ee"} className="drop-shadow-[0_0_2px_rgba(34,211,238,0.8)]">
+                  <animateMotion 
+                    path={pathD} 
+                    dur={`${duration}s`} 
+                    repeatCount="indefinite"
+                    rotate="auto"
+                  />
+                </circle>
+              </g>
             );
           })}
 

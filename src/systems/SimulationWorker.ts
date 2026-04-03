@@ -132,7 +132,21 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
     }
   }
 
-  // 2. Physics & Sim: Node Traffic, OPEX, Hazards, Attenuation
+  // 2. Path Reconstruction for Visualization (#126)
+  const activePaths: Record<string, string[]> = {};
+  nodes.forEach(node => {
+    if (node.type === 'terminal' && dists[node.id] !== Infinity) {
+      const path = [];
+      let curr: string | null = node.id;
+      while (curr !== null) {
+        path.push(curr);
+        curr = prev[curr];
+      }
+      activePaths[node.id] = path;
+    }
+  });
+
+  // 3. Physics & Sim: Node Traffic, OPEX, Hazards, Attenuation
   let totalMaintenanceCost = 0;
   let healthSum = 0;
   let totalLatency = 0;
@@ -234,6 +248,7 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
     totalLoad,
     networkHealth: Math.round(avgHealth),
     avgLatency: connectivityCount > 0 ? Math.round(totalLatency / connectivityCount) : 0,
-    reachableIds: Object.keys(dists).filter(id => dists[id] !== Infinity)
+    reachableIds: Object.keys(dists).filter(id => dists[id] !== Infinity),
+    activePaths
   });
 };
