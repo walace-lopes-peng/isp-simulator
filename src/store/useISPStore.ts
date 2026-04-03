@@ -215,7 +215,8 @@ export const useISPStore = create<ISPStore>((set, get) => ({
 
       const tpGainPerSecond = (activeLinks * 0.05) + (activeTerminals * 0.02);
       const dT = state.tickRate / 1000;
-      const newTpAccumulator = state.tpAccumulator + (tpGainPerSecond * dT);
+      const currentAccumulator = typeof state.tpAccumulator === 'number' ? state.tpAccumulator : 0;
+      const newTpAccumulator = currentAccumulator + (tpGainPerSecond * dT);
       const tpToAdd = Math.floor(newTpAccumulator);
 
       set({ 
