@@ -659,7 +659,7 @@ const LogisticMap = () => {
               const packetColor = signal > 70 ? "#22d3ee" : signal > 40 ? "#fbbf24" : "#ef4444";
 
               return (
-                <g key={session.sessId}>
+                <g key={`${session.sessId}-${pathD.slice(0, 20)}`}>
                   <circle r="1.2" fill={packetColor} className="drop-shadow-[0_0_2px_rgba(255,255,255,0.4)] pointer-events-none">
                     <animateMotion 
                       path={pathD} 
@@ -667,6 +667,7 @@ const LogisticMap = () => {
                       repeatCount="indefinite"
                       rotate="auto"
                       begin="0s"
+                      restart="always"
                     />
                   </circle>
                 </g>

@@ -66,6 +66,9 @@ class MinHeap {
     isEmpty() { return this.heap.length === 0; }
 }
 
+let sessionInvalidCount: Record<string, number> = {};
+let lastValidSessions: Record<string, any> = {};
+
 self.onmessage = (e: MessageEvent<WorkerState>) => {
   const { nodes, links, rangeLevel, tickRate, era, techModifiers } = e.data;
   const dT = tickRate / 1000;
@@ -153,14 +156,16 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
   const activePaths: Record<string, { path: string[], destination: string, pathD: string, sessId: string }[]> = {};
 
   nodes.forEach(node => {
-    // Only Terminals (Devices) generate traffic now per user request (Fix 11 & 12)
-    if (node.health <= 0 || node.type !== 'terminal') return;
+    // Only Terminals (Devices) generate traffic
+    if (node.type !== 'terminal') return;
 
     const sessionCount = 2; // Fixed terminals sessions to 2
     if (!activePaths[node.id]) activePaths[node.id] = [];
     
     for (let s = 0; s < sessionCount; s++) {
         const sessionKey = `session_${s}`;
+        const sessIdKey = `${node.id}_s${s}`; // Stable key for invalid tracking
+        
         let destId = (node as any)[`${sessionKey}_destId`] || (s === 0 ? '0' : undefined);
         let lastShift = (node as any)[`${sessionKey}_lastShift`] || 0;
 
@@ -174,7 +179,6 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
 
         if (now - lastShift > DESTINATION_SHIFT_MS || !destId) {
             if (possibleDestinations.length > 0) {
-                // Round-robin or diversity pick
                 const idx = ((node as any)[`${sessionKey}_idx`] || 0) + 1;
                 destId = possibleDestinations[idx % possibleDestinations.length];
                 (node as any)[`${sessionKey}_idx`] = idx;
@@ -185,27 +189,28 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
             (node as any)[`${sessionKey}_lastShift`] = now;
         }
 
-        // Reconstruct path FROM node TO destId using destId's Dijkstra tree
-        if (destId && allPrev[destId]) {
+        // --- Session Validity & Grace Period (Fix #126 / Bug 1) ---
+        const isCurrentlyValid = node.health > 0 && destId && allPrev[destId] && allDists[destId][node.id] !== Infinity;
+
+        if (isCurrentlyValid) {
+            sessionInvalidCount[sessIdKey] = 0;
             const path = [];
             let curr: string | null = node.id;
-            const prevMap = allPrev[destId];
+            const prevMap = allPrev[destId!];
             while (curr !== null) {
                 path.push(curr);
                 if (curr === destId) break;
                 curr = prevMap[curr];
             }
 
-            // --- Geometric Optimization: Build pathD String (Fix 126 / Trava) ---
             let pathD = "";
             for (let i = 0; i < path.length - 1; i++) {
                 const sId = path[i];
                 const tId = path[i+1];
-                const s = nodes.find(n => n.id === sId);
-                const t = nodes.find(n => n.id === tId);
-                if (!s || !t) continue;
+                const sNode = nodes.find(n => n.id === sId);
+                const tNode = nodes.find(n => n.id === tId);
+                if (!sNode || !tNode) continue;
 
-                // Find the original link to extract the identical control point
                 const link = links.find(l => 
                     (l.sourceId === sId && l.targetId === tId) || 
                     (l.sourceId === tId && l.targetId === sId)
@@ -222,12 +227,26 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
                 const cX = (lSrc.x + lTgt.x) / 2 + offset * Math.cos(angle - Math.PI / 2);
                 const cY = (lSrc.y + lTgt.y) / 2 + offset * Math.sin(angle - Math.PI / 2);
                 
-                if (i === 0) pathD += `M ${s.x} ${s.y} `;
-                pathD += `Q ${cX} ${cY} ${t.x} ${t.y} `;
+                if (i === 0) pathD += `M ${sNode.x} ${sNode.y} `;
+                pathD += `Q ${cX} ${cY} ${tNode.x} ${tNode.y} `;
             }
 
             const sessId = `${node.id}_s${s}_${destId}_${lastShift}`;
-            activePaths[node.id].push({ path, destination: destId, pathD, sessId });
+            const sessionData = { path, destination: destId!, pathD, sessId };
+            activePaths[node.id].push(sessionData);
+            lastValidSessions[sessIdKey] = sessionData;
+        } else {
+            // Invalid session - apply grace period
+            sessionInvalidCount[sessIdKey] = (sessionInvalidCount[sessIdKey] || 0) + 1;
+            
+            if (sessionInvalidCount[sessIdKey] === 1 && lastValidSessions[sessIdKey]) {
+                // Buffer one more tick
+                activePaths[node.id].push(lastValidSessions[sessIdKey]);
+            } else {
+                // Fully expired
+                delete lastValidSessions[sessIdKey];
+                sessionInvalidCount[sessIdKey] = 0;
+            }
         }
     }
   });
