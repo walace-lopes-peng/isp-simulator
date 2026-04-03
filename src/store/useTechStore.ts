@@ -25,6 +25,8 @@ export interface Technology {
 interface TechStore {
   unlockedTechIds: string[];
   unlockTech: (id: string, currentEra: string, currentTP: number, addTechPoints: (amt: number) => void) => void;
+  unlockAllTechs: () => void;
+  resetTechs: () => void;
   getAggregateModifiers: () => TechModifiers;
   isTechUnlocked: (id: string) => boolean;
   canUnlockTech: (id: string, currentEra: string, currentTP: number) => boolean;
@@ -56,6 +58,14 @@ export const useTechStore = create<TechStore>((set, get) => ({
     if (currentTP < tech.tpCost) return false;
 
     return true;
+  },
+
+  unlockAllTechs: () => {
+    set({ unlockedTechIds: techTreeData.technologies.map(t => t.id) });
+  },
+
+  resetTechs: () => {
+    set({ unlockedTechIds: ['copper_standard'] });
   },
 
   unlockTech: (id, currentEra, currentTP, addTechPoints) => {

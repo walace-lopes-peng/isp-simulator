@@ -36,7 +36,7 @@ const TopBar = () => {
           </div>
           <div>
             <span className="text-[9px] text-slate-500 uppercase font-bold block">Total Data</span>
-            <span className="text-sm font-mono text-slate-200">{Math.floor(totalData / 100).toLocaleString()} GB</span>
+            <span className="text-sm font-mono text-slate-200">{(() => { const gb = Math.floor(totalData / 1000); return gb >= 1000 ? `${(gb / 1000).toFixed(1)} TB` : `${gb.toLocaleString()} GB`; })()}</span>
           </div>
           <div className="h-8 w-px bg-white/5 mx-2" />
           <div className="flex flex-col">

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useISPStore, ERAS_CONFIG } from '../store/useISPStore';
+import { useTechStore } from '../store/useTechStore';
 import { NODE_TEMPLATES } from '../config/nodeRegistry';
 
 const DebugConsole: React.FC = () => {
@@ -9,17 +10,17 @@ const DebugConsole: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
-  const { 
-    money, 
-    addMoney, 
+  const {
+    money,
+    addMoney,
     techPoints,
     addTechPoints,
-    resetTopology, 
-    isGodMode, 
-    toggleGodMode, 
-    tickRate, 
-    setTickRate, 
-    currentEra, 
+    resetTopology,
+    isGodMode,
+    toggleGodMode,
+    tickRate,
+    setTickRate,
+    currentEra,
     setEra,
     addLog,
     isHubCreationEnabled,
@@ -31,6 +32,9 @@ const DebugConsole: React.FC = () => {
     rangeLevel,
     syncNodeMarkers
   } = useISPStore();
+
+  const { unlockedTechIds, unlockAllTechs, resetTechs, getAggregateModifiers } = useTechStore();
+  const techModifiers = getAggregateModifiers();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -182,6 +186,31 @@ const DebugConsole: React.FC = () => {
                 {era.id}
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Tech Tree Controls */}
+        <div>
+          <label className="text-[8px] font-black text-slate-500 uppercase tracking-tighter mb-2 block">Tech Tree</label>
+          <div className="text-[9px] text-slate-400 mb-1">
+            Unlocked: {unlockedTechIds.length} / 8
+          </div>
+          <div className="text-[9px] text-cyan-400 font-mono mb-2">
+            BW: {techModifiers.bandwidthMultiplier.toFixed(2)}x | Lat: {techModifiers.latencyMultiplier.toFixed(2)}x | Sig: {techModifiers.signalQuality.toFixed(2)}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => { unlockAllTechs(); addLog('[DEV] All techs unlocked', false); }}
+              className="py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[9px] uppercase hover:bg-emerald-500/20 transition-all"
+            >
+              Unlock All
+            </button>
+            <button
+              onClick={() => { resetTechs(); addLog('[DEV] Techs reset to baseline', false); }}
+              className="py-1.5 bg-red-500/10 border border-red-500/20 text-red-400 text-[9px] uppercase hover:bg-red-500/20 transition-all"
+            >
+              Reset Techs
+            </button>
           </div>
         </div>
 
