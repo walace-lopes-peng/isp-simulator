@@ -28,6 +28,8 @@ interface TechStore {
   getAggregateModifiers: () => TechModifiers;
   isTechUnlocked: (id: string) => boolean;
   canUnlockTech: (id: string, currentEra: string, currentTP: number) => boolean;
+  unlockAllTechs: () => void;
+  resetTechs: () => void;
 }
 
 export const useTechStore = create<TechStore>((set, get) => ({
@@ -97,6 +99,15 @@ export const useTechStore = create<TechStore>((set, get) => ({
         connectionReliability: Math.max(acc.connectionReliability, mod.connectionReliability || 0)
       };
     }, base);
+  },
+
+  unlockAllTechs: () => {
+    const allIds = techTreeData.technologies.map(t => t.id);
+    set({ unlockedTechIds: allIds });
+  },
+
+  resetTechs: () => {
+    set({ unlockedTechIds: ['copper_standard'] });
   }
 }));
 
