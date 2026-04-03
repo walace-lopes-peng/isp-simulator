@@ -588,7 +588,7 @@ const LogisticMap = () => {
                 fill="none"
                 className="transition-all duration-1000 opacity-60 link-flow thematic-link"
                 stroke={strokeColor}
-                strokeWidth={1 + (link.bandwidth / 1000) * 1.5}
+                strokeWidth={0.5 + (link.bandwidth / 1000) * 0.8}
                 filter={eraConfig.id === 'modern' ? "url(#glow)" : "none"}
                 strokeDasharray={eraConfig.id === '70s' ? "2,2" : "none"}
               />
@@ -612,7 +612,7 @@ const LogisticMap = () => {
                   x1={src.x} y1={src.y} 
                   x2={dragPos.x} y2={dragPos.y} 
                   stroke={!targetNode ? '#475569' : (isValid ? '#10b981' : '#f43f5e')}
-                  className="ghost-line" strokeWidth="2"
+                  className="ghost-line" strokeWidth="1.5"
                   strokeDasharray={isValid ? "none" : "4,4"}
                 />
               </g>
