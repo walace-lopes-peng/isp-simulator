@@ -11,7 +11,7 @@ export const NODE_TEMPLATES = [
     baseCost: 500,
     maintenanceMultiplier: 1.2,
     hierarchyLevel: 1,
-    baseBandwidth: 500,
+    baseBandwidth: 300,
     maxConnections: 8,
     uiColor: '#22d3ee'
   },
@@ -24,7 +24,7 @@ export const NODE_TEMPLATES = [
     baseCost: 100,
     maintenanceMultiplier: 1.0,
     hierarchyLevel: 0,
-    baseBandwidth: 100,
+    baseBandwidth: 56,
     maxConnections: 3,
     uiColor: '#10b981'
   },
@@ -38,7 +38,7 @@ export const NODE_TEMPLATES = [
     baseCost: 2000,
     maintenanceMultiplier: 1.5,
     hierarchyLevel: 2,
-    baseBandwidth: 2000,
+    baseBandwidth: 1500,
     maxConnections: 12,
     uiColor: '#818cf8'
   },
@@ -52,7 +52,7 @@ export const NODE_TEMPLATES = [
     baseCost: 10000,
     maintenanceMultiplier: 2.0,
     hierarchyLevel: 3,
-    baseBandwidth: 10000,
+    baseBandwidth: 45000,
     maxConnections: 20,
     uiColor: '#c084fc'
   }
