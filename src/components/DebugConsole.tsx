@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useISPStore, ERAS_CONFIG } from '../store/useISPStore';
 import { NODE_TEMPLATES } from '../config/nodeRegistry';
 
 const DebugConsole: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
-  const [position, setPosition] = useState({ x: 24, y: window.innerHeight - 450 });
+  const [position, setPosition] = useState({ x: 24, y: 80 });
+  const consoleRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
@@ -40,9 +41,14 @@ const DebugConsole: React.FC = () => {
 
     const handleMouseMove = (e: MouseEvent) => {
       if (isDragging) {
+        const el = consoleRef.current;
+        const w = el ? el.offsetWidth : 288;
+        const h = el ? el.offsetHeight : 450;
+        const rawX = e.clientX - dragOffset.x;
+        const rawY = e.clientY - dragOffset.y;
         setPosition({
-          x: e.clientX - dragOffset.x,
-          y: e.clientY - dragOffset.y
+          x: Math.max(0, Math.min(rawX, window.innerWidth - w)),
+          y: Math.max(0, Math.min(rawY, window.innerHeight - h))
         });
       }
     };
@@ -79,6 +85,7 @@ const DebugConsole: React.FC = () => {
 
   return (
     <div 
+      ref={consoleRef}
       className={`fixed z-100 w-72 bg-black/80 backdrop-blur-xl border border-emerald-500/30 p-4 rounded-lg shadow-[0_0_30px_rgba(16,185,129,0.1)] font-mono ${!isDragging ? 'animate-in fade-in slide-in-from-bottom-4 duration-300' : ''}`}
       style={{ 
         left: 0, 
