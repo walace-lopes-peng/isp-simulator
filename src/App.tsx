@@ -17,6 +17,21 @@ const formatData = (bytes: number): string => {
   return `${tb.toFixed(2)} TB`;
 };
 
+const abbreviateNodeName = (node: ISPNode): string => {
+  const { name, id, isDevSpawned } = node;
+  if (isDevSpawned) return `H-${id.slice(-4).toUpperCase()}`;
+  
+  const upper = (name || "").toUpperCase();
+  if (upper === "CORE GATEWAY") return "GW";
+  if (upper.includes("BACKBONE")) return `BB-${upper.replace(/BACKBONE/g, "").trim()}`;
+  if (upper.includes("TERMINAL")) return `T-${upper.replace(/LOCAL TERMINAL/g, "").replace(/TERMINAL/g, "").trim()}`;
+  if (upper.includes("HUB")) return `H-${upper.replace(/LOCAL HUB/g, "").replace(/REGIONAL HUB/g, "").replace(/HUB/g, "").trim()}`;
+  if (upper.includes("GATEWAY")) return "GW";
+  
+  return upper.slice(0, 4);
+};
+
+
 // --- UI COMPONENTS ---
 
 const MilestoneMonitor: React.FC = () => {
@@ -299,6 +314,54 @@ const LogisticMap = () => {
   const svgRef = useRef<SVGSVGElement>(null);
   const eraConfig = useISPStore(state => state.getCurrentEraConfig());
 
+  const renderNodeShape = (node: ISPNode, r: number, strokeColor: string, stateClass: string) => {
+    const commonProps = {
+      className: `node-circle transition-all duration-300 stroke-2 fill-slate-900 ${stateClass}`,
+      stroke: strokeColor,
+    };
+
+    const shapes = [];
+    
+    switch (node.type) {
+      case 'terminal':
+        shapes.push(
+          <circle 
+            key="main" cx={node.x} cy={node.y} r={r} 
+            {...commonProps} fill="transparent" strokeWidth={1.5}
+          />
+        );
+        break;
+      case 'hub_local':
+        shapes.push(<circle key="ring1" cx={node.x} cy={node.y} r={r * 1.7} fill="none" stroke={strokeColor} opacity={0.4} strokeDasharray={node.isDevSpawned ? "2,2" : "none"} />);
+        shapes.push(<circle key="main" cx={node.x} cy={node.y} r={r} {...commonProps} />);
+        break;
+      case 'hub_regional':
+        shapes.push(<circle key="ring2" cx={node.x} cy={node.y} r={r * 2.2} fill="none" stroke={strokeColor} opacity={0.2} strokeDasharray={node.isDevSpawned ? "2,2" : "none"} />);
+        shapes.push(<circle key="ring1" cx={node.x} cy={node.y} r={r * 1.6} fill="none" stroke={strokeColor} opacity={0.35} />);
+        shapes.push(<circle key="main" cx={node.x} cy={node.y} r={r} {...commonProps} />);
+        break;
+      case 'backbone':
+        shapes.push(
+          <g key="backbone-group" filter="url(#glow)">
+            <circle key="ring3" cx={node.x} cy={node.y} r={r * 2.6} fill="none" stroke={strokeColor} opacity={0.15} strokeDasharray={node.isDevSpawned ? "2,2" : "none"}  />
+            <circle key="ring2" cx={node.x} cy={node.y} r={r * 2.0} fill="none" stroke={strokeColor} opacity={0.25}  />
+            <circle key="ring1" cx={node.x} cy={node.y} r={r * 1.5} fill="none" stroke={strokeColor} opacity={0.4}  />
+            <circle key="main" cx={node.x} cy={node.y} r={r} {...commonProps} />
+          </g>
+        );
+        break;
+    }
+
+    if (node.isCore) {
+      shapes.push(
+        <rect key="lock" x={node.x + r - 2} y={node.y - r - 2} width={4} height={4} className="fill-slate-400 opacity-60" />
+      );
+    }
+
+    return <g className="node-group">{shapes}</g>;
+  };
+
+
   const getSVGPoint = (e: React.PointerEvent) => {
     if (!svgRef.current) return { x: 0, y: 0 };
     const pt = svgRef.current.createSVGPoint();
@@ -538,67 +601,49 @@ const LogisticMap = () => {
                    const isFilterActive = dragSourceId !== null && dragSourceId !== node.id;
                    const isValidTarget = dragSourceId ? validateLink(dragSourceId, node.id).valid : true;
                    
-                   const baseR = layerNum === 1 ? 5 : 4;
-                   const rangeScale = 1.0 - (rangeLevel - 1) * 0.15;
-                   const r = baseR * rangeScale;
-                   const isGateway = node.id === '0';
+                    const baseR = node.type === 'terminal' ? 4 : 
+                                 node.type === 'hub_local' || node.isCore ? 6 :
+                                 node.type === 'hub_regional' ? 8 :
+                                 node.type === 'backbone' ? 10 : 6;
 
-                   return (
-                     <g key={node.id} className={`cursor-${isHubDeletionEnabled ? 'crosshair' : 'pointer'}`} 
-                        onPointerDown={(e) => handlePointerDown(e, node.id)}
-                        onPointerUp={(e) => handlePointerUp(e, node.id)}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (isHubDeletionEnabled) {
-                            removeNode(node.id);
-                          } else {
-                            selectNode(node.id);
-                          }
-                        }}
-                     >
-                       {isSelected && (
-                         isGateway ? 
-                         <rect x={node.x - r - 3} y={node.y - r - 3} width={r*2 + 6} height={r*2 + 6} className="fill-none stroke-emerald-500/60 stroke-2 selection-glow" /> :
-                         <circle cx={node.x} cy={node.y} r={r + 6} className="fill-none stroke-emerald-500/40 stroke-1 selection-glow" />
-                       )}
-                       
-                       {isGateway ? (
-                         <g>
-                           <rect 
-                             x={node.x - r} y={node.y - r} width={r * 2} height={r * 2}
-                             className={`node-rect transition-all duration-300 stroke-2 fill-slate-900 
-                              ${isSelected ? 'stroke-white scale-110 shadow-lg' : 'stroke-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.5)]'}
-                              ${isFilterActive && !isValidTarget ? 'opacity-20' : 'opacity-100'}`}
-                           />
-                           {/* 70s Mainframe Pattern */}
-                           <rect 
-                             x={node.x - r/2} y={node.y - r/2} width={r} height={r}
-                             className="fill-none stroke-emerald-500/40 stroke-[0.5px] pointer-events-none"
-                           />
-                         </g>
-                       ) : (
-                         <circle 
-                           cx={node.x} cy={node.y} r={r}
-                           className={`node-circle transition-all duration-300 stroke-2 fill-slate-900 
-                            ${isSelected ? 'stroke-white scale-110 shadow-lg' : stateClass}
-                            ${isFilterActive && !isValidTarget ? 'opacity-20' : 'opacity-100'}`}
-                         />
-                       )}
-                       
-                       <text 
-                         x={node.x} y={node.y + r + 10} 
-                         textAnchor="middle"
-                         className={`text-[8px] font-black font-mono select-none pointer-events-none uppercase transition-all ${isFilterActive && !isValidTarget ? 'opacity-10' : 'fill-slate-300'}`}
-                       >
-                         {rangeLevel < 4 ? node.name : ''} 
-                       </text>
-                     </g>
-                   );
-                })}
-              </g>
-            );
-          })}
-        </svg>
+                    const rangeScale = 1.0 - (rangeLevel - 1) * 0.15;
+                    const r = baseR * rangeScale;
+                    const strokeColor = node.uiColor || '#22d3ee';
+
+                    return (
+                      <g key={node.id} className={`cursor-${isHubDeletionEnabled ? 'crosshair' : 'pointer'}`} 
+                         onPointerDown={(e) => handlePointerDown(e, node.id)}
+                         onPointerUp={(e) => handlePointerUp(e, node.id)}
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           if (isHubDeletionEnabled) {
+                             removeNode(node.id);
+                           } else {
+                             selectNode(node.id);
+                           }
+                         }}
+                      >
+                        {isSelected && (
+                          <circle cx={node.x} cy={node.y} r={r + 6} className="fill-none stroke-emerald-500/40 stroke-1 selection-glow" />
+                        )}
+                        
+                        {renderNodeShape(node, r, strokeColor, stateClass)}
+                        
+                        <text 
+                          x={node.x} y={node.y + r + 8} 
+                          textAnchor="middle"
+                          className={`text-[7px] font-black font-mono select-none pointer-events-none uppercase transition-all 
+                            ${isSelected ? 'opacity-100 fill-white' : 'opacity-50 fill-slate-400'}`}
+                        >
+                          {rangeLevel < 4 ? abbreviateNodeName(node) : ''} 
+                        </text>
+                      </g>
+                    );
+                 })}
+               </g>
+             );
+           })}
+         </svg>
       </div>
     </div>
   );
