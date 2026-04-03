@@ -134,11 +134,11 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   currentEra: '70s',
   canUpgradeEra: false,
   totalData: 0,
-  nodes: [
-    { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 500, baseBandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'hub_local', health: 100, isCore: true },
-    { id: 'l1-a', name: 'LOCAL TERMINAL A', x: DEFAULT_START.x + 15, y: DEFAULT_START.y - 15, bandwidth: 100, baseBandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100, isCore: true },
-    { id: 'l1-b', name: 'LOCAL TERMINAL B', x: DEFAULT_START.x - 15, y: DEFAULT_START.y + 15, bandwidth: 100, baseBandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100, isCore: true },
-  ],
+    nodes: [
+      { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 300, baseBandwidth: 300, traffic: 0, level: 1, layer: 1, type: 'hub_local', health: 100, isCore: true },
+      { id: 'l1-a', name: 'LOCAL TERMINAL A', x: DEFAULT_START.x + 15, y: DEFAULT_START.y - 15, bandwidth: 56, baseBandwidth: 56, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100, isCore: true },
+      { id: 'l1-b', name: 'LOCAL TERMINAL B', x: DEFAULT_START.x - 15, y: DEFAULT_START.y + 15, bandwidth: 56, baseBandwidth: 56, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100, isCore: true },
+    ],
   links: [],
   selectedNodeId: null,
   isLinking: false,
@@ -200,7 +200,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
       set({ 
         nodes, 
         money: state.isGodMode ? state.money : (state.money + revenue - totalMaintenanceCost), 
-        totalData: state.totalData + Math.floor(totalLoad / 10),
+        totalData: state.totalData + Math.floor(totalLoad / 1000),
         networkHealth,
         avgLatency
       });
@@ -394,9 +394,9 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     links: [],
     canUpgradeEra: false,
     nodes: [
-      { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 500, baseBandwidth: 500, traffic: 0, level: 1, layer: 1, type: 'hub_local', health: 100, isCore: true },
-      { id: 'l1-a', name: 'LOCAL TERMINAL A', x: DEFAULT_START.x + 15, y: DEFAULT_START.y - 15, bandwidth: 100, baseBandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100, isCore: true },
-      { id: 'l1-b', name: 'LOCAL TERMINAL B', x: DEFAULT_START.x - 15, y: DEFAULT_START.y + 15, bandwidth: 100, baseBandwidth: 100, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100, isCore: true },
+      { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 300, baseBandwidth: 300, traffic: 0, level: 1, layer: 1, type: 'hub_local', health: 100, isCore: true },
+      { id: 'l1-a', name: 'LOCAL TERMINAL A', x: DEFAULT_START.x + 15, y: DEFAULT_START.y - 15, bandwidth: 56, baseBandwidth: 56, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100, isCore: true },
+      { id: 'l1-b', name: 'LOCAL TERMINAL B', x: DEFAULT_START.x - 15, y: DEFAULT_START.y + 15, bandwidth: 56, baseBandwidth: 56, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100, isCore: true },
     ]
   })),
 }));

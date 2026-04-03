@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useISPStore, RANGE_PRESETS, RangeLevel, ERAS_CONFIG, EraConfig, ISPNode, ISPNodeType } from './store/useISPStore';
+import { useTechStore } from './store/useTechStore';
 import { NODE_TEMPLATES } from './config/nodeRegistry';
 import DebugConsole from './components/DebugConsole';
 import EraWrapper from './components/EraWrapper';
@@ -8,9 +9,12 @@ import EraWrapper from './components/EraWrapper';
 
 const TopBar = () => {
   const { money, techPoints, totalData, nodes, networkHealth, canUpgradeEra, purchaseEraUpgrade, isGodMode } = useISPStore();
+  const { getAggregateModifiers } = useTechStore();
   const eraConfig = useISPStore(state => state.getCurrentEraConfig());
+  const multipliers = getAggregateModifiers();
+  
   const traffic = nodes.reduce((sum, n) => sum + n.traffic, 0);
-  const bandwidth = nodes.reduce((sum, n) => sum + n.bandwidth, 0);
+  const bandwidth = nodes.reduce((sum, n) => sum + (n.bandwidth * multipliers.bandwidthMultiplier), 0);
   const loadRatio = bandwidth > 0 ? traffic / bandwidth : 0;
   
   const status = loadRatio >= 1.0 ? 'CRITICAL' : loadRatio > 0.8 ? 'STRESSED' : 'STABLE';
@@ -28,7 +32,7 @@ const TopBar = () => {
         <div className="flex gap-6 items-center">
           <div>
             <span className="text-[9px] text-slate-500 uppercase font-bold block">Available Capital</span>
-            <span className="text-sm font-mono text-emerald-400 font-bold">${money.toLocaleString()}</span>
+            <span className="text-sm font-mono text-emerald-400 font-bold">${money.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </div>
           <div>
             <span className="text-[9px] text-slate-500 uppercase font-bold block">Research Insight</span>
@@ -36,7 +40,14 @@ const TopBar = () => {
           </div>
           <div>
             <span className="text-[9px] text-slate-500 uppercase font-bold block">Total Data</span>
-            <span className="text-sm font-mono text-slate-200">{(() => { const gb = Math.floor(totalData / 1000); return gb >= 1000 ? `${(gb / 1000).toFixed(1)} TB` : `${gb.toLocaleString()} GB`; })()}</span>
+            <span className="text-sm font-mono text-slate-200">{(() => { 
+              if (totalData < 1024) return `${totalData.toLocaleString()} KB`;
+              const mb = totalData / 1024;
+              if (mb < 1024) return `${mb.toFixed(1)} MB`;
+              const gb = mb / 1024;
+              if (gb < 1024) return `${gb.toFixed(1)} GB`;
+              return `${(gb / 1024).toFixed(2)} TB`;
+            })()}</span>
           </div>
           <div className="h-8 w-px bg-white/5 mx-2" />
           <div className="flex flex-col">
@@ -324,7 +335,7 @@ const LogisticMap = () => {
           animation: pulse-soft 2s infinite ease-in-out;
           transform-box: fill-box;
           transform-origin: center;
-        }
+          }
         @keyframes dash { to { stroke-dashoffset: -20; } }
         .link-flow { animation: dash 1s linear infinite; }
         .map-svg { transition: view-box 0.6s cubic-bezier(0.4, 0, 0.2, 1); }

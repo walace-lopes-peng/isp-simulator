@@ -195,7 +195,10 @@ const DebugConsole: React.FC = () => {
         <div>
           <div className="flex justify-between items-center mb-2">
             <label className="text-[8px] font-black text-slate-500 uppercase tracking-tighter">Tech Tree</label>
-            <span className="text-[8px] text-emerald-400 font-bold">{unlockedTechIds.length}/{totalTechs} unlocked</span>
+            <div className="text-right">
+              <span className="text-[8px] text-cyan-400 font-bold block">UNLOCKED: {unlockedTechIds.length}/{totalTechs}</span>
+              <span className="text-[8px] text-emerald-400 font-bold block">ACTIVE: {useTechStore.getState().activeTechIds.length}</span>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-1 text-[7px] text-slate-500 mb-2">
             <span>BW ×{mods.bandwidthMultiplier.toFixed(2)}</span>

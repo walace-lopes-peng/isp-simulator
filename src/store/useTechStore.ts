@@ -22,73 +22,109 @@ export interface Technology {
   position: { x: number; y: number };
 }
 
+// Category mapping for exclusion logic
+const TECH_CATEGORIES: Record<string, 'media' | 'logic' | 'service'> = {
+  copper_standard: 'media',
+  coaxial_early: 'media',
+  coaxial_mature: 'media',
+  fiber_experimental: 'media',
+  manual_switching: 'logic',
+  digital_switching: 'logic',
+  tdm_basic: 'service',
+  isdn_early: 'service'
+};
+
 interface TechStore {
   unlockedTechIds: string[];
+  activeTechIds: string[];
+  
+  // Actions
   unlockTech: (id: string, currentEra: string, currentTP: number, addTechPoints: (amt: number) => void) => void;
-  unlockAllTechs: () => void;
-  resetTechs: () => void;
+  activateTech: (id: string) => void;
+  deactivateTech: (id: string) => void;
+  
+  // Debug/Utility
   getAggregateModifiers: () => TechModifiers;
   isTechUnlocked: (id: string) => boolean;
+  isTechActive: (id: string) => boolean;
   canUnlockTech: (id: string, currentEra: string, currentTP: number) => boolean;
+  unlockAllTechs: () => void;
+  resetTechs: () => void;
 }
 
 export const useTechStore = create<TechStore>((set, get) => ({
-  unlockedTechIds: ['copper_standard'], // baseline
+  unlockedTechIds: ['copper_standard', 'manual_switching'], 
+  activeTechIds: ['copper_standard'], 
 
   isTechUnlocked: (id) => get().unlockedTechIds.includes(id),
+  isTechActive: (id) => get().activeTechIds.includes(id),
 
   canUnlockTech: (id, currentEra, currentTP) => {
     const tech = techTreeData.technologies.find(t => t.id === id);
     if (!tech) return false;
-    
-    // Check if already unlocked
     if (get().isTechUnlocked(id)) return false;
 
-    // Check prerequisites
     const hasPrereqs = tech.requires.every(reqId => get().unlockedTechIds.includes(reqId));
     if (!hasPrereqs) return false;
 
-    // Check Era
     const eras = ['70s', '80s', '90s', '00s', '2010s', 'modern'];
     const currentEraIndex = eras.indexOf(currentEra);
     const techEraIndex = eras.indexOf(tech.unlocksAtEra);
     if (techEraIndex > currentEraIndex) return false;
 
-    // Check TP cost
     if (currentTP < tech.tpCost) return false;
-
     return true;
   },
 
   unlockTech: (id, currentEra, currentTP, addTechPoints) => {
     if (!get().canUnlockTech(id, currentEra, currentTP)) return;
-
     const tech = techTreeData.technologies.find(t => t.id === id);
     if (!tech) return;
 
-    // Deduct TP
     addTechPoints(-tech.tpCost);
-
     set((state) => ({
       unlockedTechIds: [...state.unlockedTechIds, id]
     }));
   },
 
+  activateTech: (id) => {
+    if (!get().isTechUnlocked(id)) return;
+    if (get().isTechActive(id)) return;
+
+    const category = TECH_CATEGORIES[id];
+    set((state) => {
+      let nextActive = [...state.activeTechIds];
+      
+      // If exclusive category, remove others in same category
+      if (category === 'media' || category === 'logic') {
+        nextActive = nextActive.filter(activeId => TECH_CATEGORIES[activeId] !== category);
+      }
+      
+      return { activeTechIds: [...nextActive, id] };
+    });
+  },
+
+  deactivateTech: (id) => {
+    set((state) => ({
+      activeTechIds: state.activeTechIds.filter(activeId => activeId !== id)
+    }));
+  },
+
   getAggregateModifiers: () => {
-    const unlockedTechs = techTreeData.technologies.filter(t => 
-      get().unlockedTechIds.includes(t.id)
+    const activeTechs = techTreeData.technologies.filter(t => 
+      get().activeTechIds.includes(t.id)
     );
 
     const base: TechModifiers = {
       bandwidthMultiplier: 1.0,
       latencyMultiplier: 1.0,
       capacityMultiplier: 1.0,
-      maxDistance: 300, // baseline
-      signalQuality: 0.55, // baseline
-      connectionReliability: 0.70 // baseline
+      maxDistance: 300, 
+      signalQuality: 0.55, 
+      connectionReliability: 0.70 
     };
 
-    return unlockedTechs.reduce((acc, tech) => {
+    return activeTechs.reduce((acc, tech) => {
       const mod = tech.modifiers;
       return {
         bandwidthMultiplier: acc.bandwidthMultiplier * (mod.bandwidthMultiplier || 1),
@@ -103,11 +139,17 @@ export const useTechStore = create<TechStore>((set, get) => ({
 
   unlockAllTechs: () => {
     const allIds = techTreeData.technologies.map(t => t.id);
-    set({ unlockedTechIds: allIds });
+    set({ 
+      unlockedTechIds: allIds,
+      activeTechIds: allIds // Activate all for debug ease
+    });
   },
 
   resetTechs: () => {
-    set({ unlockedTechIds: ['copper_standard'] });
+    set({ 
+      unlockedTechIds: ['copper_standard', 'manual_switching'],
+      activeTechIds: ['copper_standard']
+    });
   }
 }));
 
