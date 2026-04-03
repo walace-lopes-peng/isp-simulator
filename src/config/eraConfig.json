@@ -26,7 +26,7 @@
         "revenueMultiplier": 0.010,
         "maintenanceCost": 0.8
       },
-      "unlockCondition": { "totalData": 5000000, "money": 20000 }
+      "unlockCondition": { "totalData": 5120000000, "money": 20000 }
     },
     {
       "id": "90s",
@@ -40,7 +40,7 @@
         "revenueMultiplier": 0.025,
         "maintenanceCost": 1.2
       },
-      "unlockCondition": { "totalData": 50000000, "money": 100000 }
+      "unlockCondition": { "totalData": 51200000000, "money": 100000 }
     },
     {
       "id": "00s",
@@ -54,7 +54,7 @@
         "revenueMultiplier": 0.060,
         "maintenanceCost": 2.0
       },
-      "unlockCondition": { "totalData": 250000000, "money": 300000 }
+      "unlockCondition": { "totalData": 256000000000, "money": 300000 }
     },
     {
       "id": "2010s",
@@ -68,7 +68,7 @@
         "revenueMultiplier": 0.150,
         "maintenanceCost": 3.5
       },
-      "unlockCondition": { "totalData": 1000000000, "money": 1500000 }
+      "unlockCondition": { "totalData": 1024000000000, "money": 1500000 }
     },
     {
       "id": "modern",
@@ -82,7 +82,7 @@
         "revenueMultiplier": 0.400,
         "maintenanceCost": 5.0
       },
-      "unlockCondition": { "totalData": 5000000000, "money": 5000000 }
+      "unlockCondition": { "totalData": 5120000000000, "money": 5000000 }
     }
   ]
 }

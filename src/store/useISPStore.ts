@@ -202,7 +202,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
       set({ 
         nodes, 
         money: state.isGodMode ? state.money : (state.money + revenue - totalMaintenanceCost), 
-        totalData: state.totalData + Math.floor(totalLoad / 1000),
+        totalData: state.totalData + Math.floor(totalLoad * (state.tickRate / 1000) * 125),
         networkHealth,
         avgLatency
       });

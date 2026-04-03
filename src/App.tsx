@@ -5,6 +5,18 @@ import { NODE_TEMPLATES } from './config/nodeRegistry';
 import DebugConsole from './components/DebugConsole';
 import EraWrapper from './components/EraWrapper';
 
+const formatData = (bytes: number): string => {
+  if (bytes < 1024) return `${bytes} B`;
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${kb.toFixed(1)} KB`;
+  const mb = kb / 1024;
+  if (mb < 1024) return `${mb.toFixed(2)} MB`;
+  const gb = mb / 1024;
+  if (gb < 1024) return `${gb.toFixed(2)} GB`;
+  const tb = gb / 1024;
+  return `${tb.toFixed(2)} TB`;
+};
+
 // --- UI COMPONENTS ---
 
 const TopBar = () => {
@@ -40,14 +52,7 @@ const TopBar = () => {
           </div>
           <div>
             <span className="text-[9px] text-slate-500 uppercase font-bold block">Total Data</span>
-            <span className="text-sm font-mono text-slate-200">{(() => { 
-              if (totalData < 1024) return `${totalData.toLocaleString()} KB`;
-              const mb = totalData / 1024;
-              if (mb < 1024) return `${mb.toFixed(1)} MB`;
-              const gb = mb / 1024;
-              if (gb < 1024) return `${gb.toFixed(1)} GB`;
-              return `${(gb / 1024).toFixed(2)} TB`;
-            })()}</span>
+            <span className="text-sm font-mono text-slate-200">{formatData(totalData)}</span>
           </div>
           <div className="h-8 w-px bg-white/5 mx-2" />
           <div className="flex flex-col">
@@ -88,13 +93,6 @@ const TopBar = () => {
             const isClose = (totalData / dataTarget > 0.5) || (money / moneyTarget > 0.5);
             if (!isClose && eraConfig.id !== '70s' && !isGodMode) return null;
 
-            const formatVal = (kb: number) => {
-              if (kb < 1000) return `${kb} KB`;
-              if (kb < 1000000) return `${(kb / 1000).toFixed(1)} MB`;
-              if (kb < 1000000000) return `${(kb / 1000000).toFixed(1)} GB`;
-              return `${(kb / 1000000000).toFixed(1)} TB`;
-            };
-
             return (
               <div className="flex items-center gap-3 bg-black/40 px-3 py-1 rounded border border-white/5 mr-2">
                 <div className="flex flex-col">
@@ -104,7 +102,7 @@ const TopBar = () => {
                 <div className="h-6 w-px bg-white/10" />
                 <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[8px] font-mono leading-none">
                   <span className={dataMet ? 'text-emerald-500' : 'text-amber-500'}>
-                    {dataMet ? '✓' : '✗'} Data: {formatVal(totalData)}/{formatVal(dataTarget)}
+                    {dataMet ? '✓' : '✗'} Data: {formatData(totalData)}/{formatData(dataTarget)}
                   </span>
                   {eraConfig.id === '70s' && (
                     <span className={hubsMet ? 'text-emerald-500' : 'text-red-500'}>
