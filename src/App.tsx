@@ -597,14 +597,18 @@ const LogisticMap = () => {
             const tgt = nodes.find(n => n.id === link.targetId);
             if (!src || !tgt || src.layer > maxTier || tgt.layer > maxTier) return null;
 
-            // Check if link is part of any active Dijkstra path (#126)
-            const isActive = Object.values(useISPStore.getState().activePaths).some(path => {
-              for (let i = 0; i < path.length - 1; i++) {
-                if ((path[i] === link.sourceId && path[i+1] === link.targetId) ||
-                    (path[i] === link.targetId && path[i+1] === link.sourceId)) return true;
-              }
-              return false;
-            });
+            // Multi-session Link Tracking (Fix 5 & 10)
+            const activePaths = useISPStore.getState().activePaths;
+            const isActive = Object.values(activePaths).some(sessions => 
+              sessions.some(session => {
+                const path = session.path;
+                for (let i = 0; i < path.length - 1; i++) {
+                  if ((path[i] === link.sourceId && path[i+1] === link.targetId) ||
+                      (path[i] === link.targetId && path[i+1] === link.sourceId)) return true;
+                }
+                return false;
+              })
+            );
 
             const load = (tgt.traffic / tgt.bandwidth);
             const strokeColor = getLoadColor(load);
@@ -630,56 +634,77 @@ const LogisticMap = () => {
           })}
 
           {/* PACKET VISUALIZATION (#126) */}
-          {Object.entries(useISPStore.getState().activePaths).map(([termId, path]) => {
-            const terminal = nodes.find(n => n.id === termId);
-            if (!terminal || terminal.layer > maxTier) return null;
+          {Object.entries(useISPStore.getState().activePaths).map(([nodeId, sessions]) => {
+            const sourceNode = nodes.find(n => n.id === nodeId);
+            if (!sourceNode || sourceNode.layer > maxTier) return null;
 
-            // Build multi-segment Bézier path for the packet
-            let pathD = "";
-            for (let i = 0; i < path.length - 1; i++) {
-              const s = nodes.find(n => n.id === path[i]);
-              const t = nodes.find(n => n.id === path[i+1]);
-              if (!s || !t) continue;
+            return sessions.map((session, sIndex) => {
+              const path = session.path;
+              const destNode = nodes.find(n => n.id === session.destination);
 
-              // Find the original link to extract the identical control point
-              const link = links.find(l => 
-                (l.sourceId === s.id && l.targetId === t.id) || 
-                (l.sourceId === t.id && l.targetId === s.id)
-              );
-              if (!link) continue;
+              // Build multi-segment Bézier path for the packet
+              let pathD = "";
+              for (let i = 0; i < path.length - 1; i++) {
+                const s = nodes.find(n => n.id === path[i]);
+                const t = nodes.find(n => n.id === path[i+1]);
+                if (!s || !t) continue;
 
-              const lSrc = nodes.find(n => n.id === link.sourceId)!;
-              const lTgt = nodes.find(n => n.id === link.targetId)!;
-              const dx = lTgt.x - lSrc.x;
-              const dy = lTgt.y - lSrc.y;
-              const dist = Math.sqrt(dx * dx + dy * dy);
-              const offset = dist * 0.15;
-              const angle = Math.atan2(dy, dx);
-              const cX = (lSrc.x + lTgt.x) / 2 + offset * Math.cos(angle - Math.PI / 2);
-              const cY = (lSrc.y + lTgt.y) / 2 + offset * Math.sin(angle - Math.PI / 2);
+                // Find the original link to extract the identical control point
+                const link = links.find(l => 
+                  (l.sourceId === s.id && l.targetId === t.id) || 
+                  (l.sourceId === t.id && l.targetId === s.id)
+                );
+                if (!link) continue;
+
+                const lSrc = nodes.find(n => n.id === link.sourceId)!;
+                const lTgt = nodes.find(n => n.id === link.targetId)!;
+                const dx = lTgt.x - lSrc.x;
+                const dy = lTgt.y - lSrc.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const offset = dist * 0.15;
+                const angle = Math.atan2(dy, dx);
+                const cX = (lSrc.x + lTgt.x) / 2 + offset * Math.cos(angle - Math.PI / 2);
+                const cY = (lSrc.y + lTgt.y) / 2 + offset * Math.sin(angle - Math.PI / 2);
+                
+                if (i === 0) pathD += `M ${s.x} ${s.y} `;
+                pathD += `Q ${cX} ${cY} ${t.x} ${t.y} `;
+              }
+
+              if (!pathD) return null;
+
+              // Fix: Guard against short/invalid paths (M x y with no Q)
+              const isValidPath = pathD && pathD.trim().split(' ').length > 3;
+              if (!isValidPath) return null;
+
+              // Dot speed proportional to path latency & era technology (Fix 4)
+              const signal = sourceNode.signalStrength || 100;
+              const currentEraId = useISPStore.getState().currentEra;
               
-              if (i === 0) pathD += `M ${s.x} ${s.y} `;
-              pathD += `Q ${cX} ${cY} ${t.x} ${t.y} `;
-            }
+              let baseDuration = currentEraId === '70s' ? 9 : 
+                                 currentEraId === '80s' ? 6 : 4;
+              
+              const signalFactor = signal > 70 ? 1.0 : signal > 40 ? 1.4 : 2.0;
+              const duration = baseDuration * signalFactor;
+              const packetColor = signal > 70 ? "#22d3ee" : signal > 40 ? "#fbbf24" : "#ef4444";
 
-            if (!pathD) return null;
-
-            // Dot speed proportional to path latency (higher latency = slower)
-            const pathLatency = terminal.latency || 50;
-            const duration = Math.max(0.5, Math.min(5, pathLatency / 50));
-
-            return (
-              <g key={`packet-${termId}`}>
-                <circle r="1.2" fill={terminal.uiColor || "#22d3ee"} className="drop-shadow-[0_0_2px_rgba(34,211,238,0.8)]">
-                  <animateMotion 
-                    path={pathD} 
-                    dur={`${duration}s`} 
-                    repeatCount="indefinite"
-                    rotate="auto"
-                  />
-                </circle>
-              </g>
-            );
+              return (
+                <g key={`packet-${nodeId}-${sIndex}-${session.destination}`}>
+                  <circle r="1.2" fill={packetColor} className="drop-shadow-[0_0_2px_rgba(255,255,255,0.4)]">
+                    <animateMotion 
+                      path={pathD} 
+                      dur={`${duration}s`} 
+                      repeatCount="indefinite"
+                      rotate="auto"
+                      begin="0s"
+                    />
+                  </circle>
+                  {/* Destination Pulse Indicator (#126 / Fix 5) */}
+                  {destNode && (
+                      <circle cx={destNode.x} cy={destNode.y} r={6} className="stroke-cyan-500 fill-none animate-ping pointer-events-none opacity-40" />
+                  )}
+                </g>
+              );
+            });
           })}
 
           {/* DRAG FEEDBACK */}
@@ -694,7 +719,6 @@ const LogisticMap = () => {
 
             return (
               <g className="animate-in fade-in duration-300">
-                <circle cx={src.x} cy={src.y} r={getEraMaxDist()} className="range-overlay" />
                 <line 
                   x1={src.x} y1={src.y} 
                   x2={dragPos.x} y2={dragPos.y} 
@@ -748,14 +772,17 @@ const LogisticMap = () => {
                         
                         {renderNodeShape(node, r, strokeColor, stateClass)}
                         
-                        <text 
-                          x={node.x} y={node.y + r + 8} 
-                          textAnchor="middle"
-                          className={`text-[7px] font-black font-mono select-none pointer-events-none uppercase transition-all 
-                            ${isSelected ? 'opacity-100 fill-white' : 'opacity-50 fill-slate-400'}`}
-                        >
-                          {rangeLevel < 4 ? abbreviateNodeName(node) : ''} 
-                        </text>
+                        {/* Fix 2: Reduced label size/opacity on unconnected nodes */}
+                        {(node.traffic > 0 || node.isCore || isSelected) && (
+                          <text 
+                            x={node.x} y={node.y + r + 8} 
+                            textAnchor="middle"
+                            className={`text-[7px] font-black font-mono select-none pointer-events-none uppercase transition-all 
+                              ${isSelected ? 'opacity-100 fill-white' : (node.traffic > 0 || node.isCore) ? 'opacity-50 fill-slate-400' : 'opacity-20 fill-slate-500'}`}
+                          >
+                            {rangeLevel < 4 ? abbreviateNodeName(node) : ''} 
+                          </text>
+                        )}
                       </g>
                     );
                  })}

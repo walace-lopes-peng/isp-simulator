@@ -17,6 +17,7 @@ interface ISPNode {
   hazard?: string;
   latency?: number;
   signalStrength?: number;
+  isCore?: boolean;
 }
 
 interface ISPLink {
@@ -77,72 +78,121 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
   // Base fallback 0.002 (copper) if config is missing.
   const K_ATTENUATION = (era?.modifiers?.signalAttenuation || 0.002) / 1000;
 
-  // 1. Dijkstra Pathfinding (Path of Least Resistance)
-  const dists: Record<string, number> = {};
-  const pathDistances: Record<string, number> = {}; // Physical distance along the path
-  const prev: Record<string, string | null> = {};
-  const pq = new MinHeap();
+  // 1. Multi-Source Dijkstra (Pathing from all potential destinations)
+  const destinations = nodes.filter(n => n.type !== 'terminal' && n.health > 0).map(n => n.id);
+  if (!destinations.includes('0')) destinations.push('0');
 
-  nodes.forEach(n => {
-    dists[n.id] = Infinity;
-    pathDistances[n.id] = 0;
-    prev[n.id] = null;
-  });
+  const allPrev: Record<string, Record<string, string | null>> = {};
+  const allDists: Record<string, Record<string, number>> = {};
+  const allPathDistances: Record<string, Record<string, number>> = {};
 
-  if (dists['0'] !== undefined) {
-    dists['0'] = 0;
-    pq.push('0', 0);
-  }
+  destinations.forEach(root => {
+    const dists: Record<string, number> = {};
+    const pathDistances: Record<string, number> = {};
+    const prev: Record<string, string | null> = {};
+    const pq = new MinHeap();
 
-  // Pre-calculate link distances and weights
-  const adjacency: Record<string, { targetId: string; weight: number; physicalDist: number }[]> = {};
-  links.forEach(link => {
-    const s = nodes.find(n => n.id === link.sourceId);
-    const t = nodes.find(n => n.id === link.targetId);
-    if (s && t) {
-      const d = Math.sqrt(Math.pow(s.x - t.x, 2) + Math.pow(s.y - t.y, 2));
-      const weight = (d / (link.bandwidth / 100)) * LATENCY_MOD; // Tech-aware Latency weight
-      
-      if (!adjacency[link.sourceId]) adjacency[link.sourceId] = [];
-      if (!adjacency[link.targetId]) adjacency[link.targetId] = [];
-      adjacency[link.sourceId].push({ targetId: link.targetId, weight, physicalDist: d });
-      adjacency[link.targetId].push({ targetId: link.sourceId, weight, physicalDist: d });
-    }
-  });
+    nodes.forEach(n => {
+      dists[n.id] = Infinity;
+      pathDistances[n.id] = 0;
+      prev[n.id] = null;
+    });
 
-  while (!pq.isEmpty()) {
-    const minNode = pq.pop()!;
-    const u = minNode.id;
-    const uNode = nodes.find(n => n.id === u);
-    
-    // Dijkstra Bypass: Failed nodes cannot route traffic
-    if (uNode && uNode.health <= 0 && u !== '0') continue; 
+    dists[root] = 0;
+    pq.push(root, 0);
 
-    if (adjacency[u]) {
-      adjacency[u].forEach(edge => {
-        const v = edge.targetId;
-        const alt = dists[u] + edge.weight;
-        if (alt < dists[v]) {
-          dists[v] = alt;
-          pathDistances[v] = pathDistances[u] + edge.physicalDist;
-          prev[v] = u;
-          pq.push(v, alt);
-        }
-      });
-    }
-  }
-
-  // 2. Path Reconstruction for Visualization (#126)
-  const activePaths: Record<string, string[]> = {};
-  nodes.forEach(node => {
-    if (node.type === 'terminal' && dists[node.id] !== Infinity) {
-      const path = [];
-      let curr: string | null = node.id;
-      while (curr !== null) {
-        path.push(curr);
-        curr = prev[curr];
+    // Pre-calculate link distances and weights
+    const adjacency: Record<string, { targetId: string; weight: number; physicalDist: number }[]> = {};
+    links.forEach(link => {
+      const s = nodes.find(n => n.id === link.sourceId);
+      const t = nodes.find(n => n.id === link.targetId);
+      if (s && t) {
+        const d = Math.sqrt(Math.pow(s.x - t.x, 2) + Math.pow(s.y - t.y, 2));
+        const weight = (d / (link.bandwidth / 100)) * LATENCY_MOD;
+        
+        if (!adjacency[link.sourceId]) adjacency[link.sourceId] = [];
+        if (!adjacency[link.targetId]) adjacency[link.targetId] = [];
+        adjacency[link.sourceId].push({ targetId: link.targetId, weight, physicalDist: d });
+        adjacency[link.targetId].push({ targetId: link.sourceId, weight, physicalDist: d });
       }
-      activePaths[node.id] = path;
+    });
+
+    while (!pq.isEmpty()) {
+      const minNode = pq.pop()!;
+      const u = minNode.id;
+      const uNode = nodes.find(n => n.id === u);
+      if (uNode && uNode.health <= 0 && u !== root) continue; 
+
+      if (adjacency[u]) {
+        adjacency[u].forEach(edge => {
+          const v = edge.targetId;
+          const alt = dists[u] + edge.weight;
+          if (alt < dists[v]) {
+            dists[v] = alt;
+            pathDistances[v] = pathDistances[u] + edge.physicalDist;
+            prev[v] = u;
+            pq.push(v, alt);
+          }
+        });
+      }
+    }
+    allPrev[root] = prev;
+    allDists[root] = dists;
+    allPathDistances[root] = pathDistances;
+  });
+
+  // 2. Traffic Session Orchestration (many connections)
+  const DESTINATION_SHIFT_MS = 15000;
+  const now = Date.now();
+  const activePaths: Record<string, { path: string[], destination: string }[]> = {};
+
+  nodes.forEach(node => {
+    // Both Terminals and Hubs generate traffic now (Fix 6)
+    if (node.health <= 0) return;
+
+    const sessionCount = node.type === 'terminal' ? 2 : (node.isCore || node.type.includes('hub')) ? 1 : 0;
+    if (sessionCount === 0) return;
+
+    if (!activePaths[node.id]) activePaths[node.id] = [];
+    
+    for (let s = 0; s < sessionCount; s++) {
+        const sessionKey = `session_${s}`;
+        let destId = (node as any)[`${sessionKey}_destId`] || (s === 0 ? '0' : undefined);
+        let lastShift = (node as any)[`${sessionKey}_lastShift`] || 0;
+
+        // Initialize staggered shift
+        if (lastShift === 0) {
+            lastShift = now - Math.floor(Math.random() * DESTINATION_SHIFT_MS);
+            (node as any)[`${sessionKey}_lastShift`] = lastShift;
+        }
+
+        const possibleDestinations = destinations.filter(d => d !== node.id && allDists[d][node.id] !== Infinity);
+
+        if (now - lastShift > DESTINATION_SHIFT_MS || !destId) {
+            if (possibleDestinations.length > 0) {
+                // Round-robin or diversity pick
+                const idx = ((node as any)[`${sessionKey}_idx`] || 0) + 1;
+                destId = possibleDestinations[idx % possibleDestinations.length];
+                (node as any)[`${sessionKey}_idx`] = idx;
+            } else {
+                destId = '0';
+            }
+            (node as any)[`${sessionKey}_destId`] = destId;
+            (node as any)[`${sessionKey}_lastShift`] = now;
+        }
+
+        // Reconstruct path FROM node TO destId using destId's Dijkstra tree
+        if (destId && allPrev[destId]) {
+            const path = [];
+            let curr: string | null = node.id;
+            const prevMap = allPrev[destId];
+            while (curr !== null) {
+                path.push(curr);
+                if (curr === destId) break;
+                curr = prevMap[curr];
+            }
+            activePaths[node.id].push({ path, destination: destId });
+        }
     }
   });
 
@@ -153,7 +203,9 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
   let connectivityCount = 0;
   
   const updatedNodes = nodes.map(node => {
-    const isReachable = dists[node.id] !== Infinity;
+    const rootDists = allDists['0'] || {};
+    const rootPathDistances = allPathDistances['0'] || {};
+    const isReachable = rootDists[node.id] !== Infinity;
     
     // OPEX
     const baseCost = node.layer === 1 ? 0.008 : node.layer === 2 ? 0.020 : node.layer === 3 ? 0.050 : 0.100;
@@ -161,9 +213,9 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
 
     if (!isReachable) return { ...node, traffic: 0, health: 100, hazard: undefined, latency: 0, signalStrength: 0 };
 
-    // Signal Physics (Attenuation)
-    const signalStrength = Math.exp(-K_ATTENUATION * pathDistances[node.id]);
-    const latency = dists[node.id];
+    // Signal Physics (Attenuation based on gateway distance for business logic)
+    const signalStrength = Math.exp(-K_ATTENUATION * (rootPathDistances[node.id] || 0));
+    const latency = rootDists[node.id] || 0;
     totalLatency += latency;
     connectivityCount++;
 
@@ -221,7 +273,8 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
   const avgHealth = updatedNodes.length > 0 ? healthSum / updatedNodes.length : 100;
   const healthMultiplier = avgHealth < 50 ? 0.5 : 1.0;
   
-  const profitableNodes = updatedNodes.filter(n => n.id !== '0' && dists[n.id] !== Infinity && n.traffic > 0);
+  const rootDists = allDists['0'] || {};
+  const profitableNodes = updatedNodes.filter(n => n.id !== '0' && rootDists[n.id] !== Infinity && n.traffic > 0);
   const rawRevenue = profitableNodes.reduce((sum, n) => {
     const isFocused = n.layer === rangeLevel;
     const efficiency = isFocused ? 0.8 : 0.2;
@@ -248,7 +301,7 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
     totalLoad,
     networkHealth: Math.round(avgHealth),
     avgLatency: connectivityCount > 0 ? Math.round(totalLatency / connectivityCount) : 0,
-    reachableIds: Object.keys(dists).filter(id => dists[id] !== Infinity),
+    reachableIds: Object.keys(rootDists).filter(id => rootDists[id] !== Infinity),
     activePaths
   });
 };
