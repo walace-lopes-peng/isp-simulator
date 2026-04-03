@@ -17,6 +17,21 @@ const formatData = (bytes: number): string => {
   return `${tb.toFixed(2)} TB`;
 };
 
+const abbreviateNodeName = (node: ISPNode): string => {
+  const { name, id, isDevSpawned } = node;
+  if (isDevSpawned) return `H-${id.slice(-4).toUpperCase()}`;
+  
+  const upper = (name || "").toUpperCase();
+  if (upper === "CORE GATEWAY") return "GW";
+  if (upper.includes("BACKBONE")) return `BB-${upper.replace(/BACKBONE/g, "").trim()}`;
+  if (upper.includes("TERMINAL")) return `T-${upper.replace(/LOCAL TERMINAL/g, "").replace(/TERMINAL/g, "").trim()}`;
+  if (upper.includes("HUB")) return `H-${upper.replace(/LOCAL HUB/g, "").replace(/REGIONAL HUB/g, "").replace(/HUB/g, "").trim()}`;
+  if (upper.includes("GATEWAY")) return "GW";
+  
+  return upper.slice(0, 4);
+};
+
+
 // --- UI COMPONENTS ---
 
 const MilestoneMonitor: React.FC = () => {
@@ -202,8 +217,8 @@ const Sidebar = () => {
         <div>
           <h2 className="text-[10px] font-black text-emerald-500 uppercase tracking-tighter mb-1">{node.name}</h2>
           <div className="flex gap-2 items-center">
-            <span className={`text-[8px] font-mono uppercase ${isReachable ? 'text-emerald-500' : 'text-red-500 animate-pulse'}`}>
-              {isReachable ? 'CONNECTED // ONLINE' : 'ISOLATED // NO_SIGNAL'}
+            <span className={`text-[8px] font-mono uppercase ${node.health <= 0 ? 'text-red-500 animate-pulse' : isReachable ? 'text-emerald-500' : 'text-amber-500'}`}>
+              {node.health <= 0 ? 'STATUS_FAILED // CRITICAL' : isReachable ? 'CONNECTED // ONLINE' : 'ISOLATED // NO_SIGNAL'}
             </span>
             <span className="text-[7px] bg-white/10 px-1 py-0.5 rounded text-slate-400 font-mono tracking-tighter">{node.type}</span>
           </div>
@@ -239,6 +254,28 @@ const Sidebar = () => {
             <span className="text-xs font-mono text-slate-200">{links.filter(l => l.sourceId === node.id || l.targetId === node.id).length}</span>
           </div>
         </div>
+
+        {node.health < 100 && (
+          <div className="pt-2 border-t border-white/5 flex flex-col gap-2">
+            <div className="flex justify-between items-center">
+              <span className="text-[9px] text-slate-400 uppercase font-bold tracking-tighter">Integrity</span>
+              <span className={`text-[9px] font-mono ${node.health < 30 ? 'text-red-500' : 'text-amber-500'}`}>{node.health}%</span>
+            </div>
+            <button 
+              onClick={() => useISPStore.getState().repairNode(node.id)}
+              disabled={!isGodMode && money < 250}
+              className={`w-full py-2 rounded border font-black text-[9px] uppercase tracking-wider transition-all
+                ${isGodMode || money >= 250 ? 'bg-amber-500/10 border-amber-500/40 text-amber-400 hover:bg-amber-500/30' : 'bg-white/5 border-white/5 text-slate-700 cursor-not-allowed opacity-50'}
+              `}
+            >
+              {node.health <= 0 ? (
+                isGodMode ? 'RECONSTRUCT // FREE' : money >= 250 ? 'RECONSTRUCT // $250' : 'INSUFFICIENT FUNDS'
+              ) : (
+                isGodMode ? 'RESTORE_INTEGRITY // FREE' : money >= 250 ? 'MAINTENANCE // $250' : 'INSUFFICIENT FUNDS'
+              )}
+            </button>
+          </div>
+        )}
 
         <div className="pt-4 border-t border-white/5 flex flex-col gap-2">
             <label className="text-[8px] font-black text-slate-600 uppercase">Interaction Protocol</label>
@@ -298,6 +335,87 @@ const LogisticMap = () => {
   const maxTier = rangeLevel;
   const svgRef = useRef<SVGSVGElement>(null);
   const eraConfig = useISPStore(state => state.getCurrentEraConfig());
+
+  const renderNodeShape = (node: ISPNode, r: number, strokeColor: string, stateClass: string) => {
+    const isGateway = node.isCore && node.type === 'hub_local';
+    
+    // Node Status Logic
+    const isFailed = node.health <= 0;
+    const isWarning = node.health < 30 && !isFailed;
+    
+    const finalStateClass = isFailed ? 'node-failed' : isWarning ? 'node-warning' : stateClass;
+    const finalStrokeColor = isFailed ? '#ef4444' : isWarning ? '#f97316' : strokeColor;
+
+    const commonProps = {
+      className: `transition-all duration-300 ${finalStateClass} ${isGateway ? 'stroke-[2.5px] opacity-100' : 'stroke-1 opacity-80'}`,
+      stroke: finalStrokeColor,
+      fill: "none",
+    };
+
+    const icons = [
+      // HIT AREA: Invisible larger circle to capture pointers accurately 
+      <circle key="hit-area" cx={node.x} cy={node.y} r={r * 1.5} fill="transparent" pointerEvents="all" className="cursor-pointer" />
+    ];
+    
+    switch (node.type) {
+      case 'terminal': {
+        // Concept: Triangular roof + Rectangular body
+        const w = r;
+        const bh = r * 0.6;
+        const rh = r * 0.6;
+        icons.push(
+          <g key="terminal-icon" {...commonProps}>
+            <rect x={node.x - w/2} y={node.y} width={w} height={bh} />
+            <path d={`M ${node.x - w*0.6} ${node.y} L ${node.x} ${node.y - rh} L ${node.x + w*0.6} ${node.y} Z`} />
+          </g>
+        );
+        break;
+      }
+      case 'hub_local': {
+        // Concept: Minimal switch/router (horizontal capsule)
+        const w = r * 1.6;
+        const h = r * 0.5;
+        icons.push(
+          <g key="hub-local-icon" {...commonProps}>
+            <rect x={node.x - w/2} y={node.y - h/2} width={w} height={h} rx={1} />
+            {/* Port indicators (small vertical lines) */}
+            <line x1={node.x - w*0.2} y1={node.y + h/2} x2={node.x - w*0.2} y2={node.y + h/2 + r*0.2} />
+            <line x1={node.x + w*0.2} y1={node.y + h/2} x2={node.x + w*0.2} y2={node.y + h/2 + r*0.2} />
+            {isGateway && <circle cx={node.x} cy={node.y} r={r*0.8} className="stroke-white/20 animate-pulse" />}
+          </g>
+        );
+        break;
+      }
+      case 'hub_regional': {
+        // Concept: Antenna tower (pole + arcs)
+        const ph = r * 1.4;
+        icons.push(
+          <g key="hub-regional-icon" {...commonProps}>
+            <line x1={node.x} y1={node.y - ph/2} x2={node.x} y2={node.y + ph/2} />
+            <path d={`M ${node.x - r*0.4} ${node.y - r*0.2} Q ${node.x} ${node.y - r*0.7} ${node.x + r*0.4} ${node.y - r*0.2}`} />
+            <path d={`M ${node.x - r*0.25} ${node.y} Q ${node.x} ${node.y - r*0.3} ${node.x + r*0.25} ${node.y}`} />
+          </g>
+        );
+        break;
+      }
+      case 'backbone': {
+        // Concept: Server unit (two horizontal lines + indicator LEDs)
+        const w = r * 1.4;
+        icons.push(
+          <g key="backbone-icon" {...commonProps}>
+            <line x1={node.x - w/2} y1={node.y - r*0.2} x2={node.x + w/2} y2={node.y - r*0.2} />
+            <line x1={node.x - w/2} y1={node.y + r*0.2} x2={node.x + w/2} y2={node.y + r*0.2} />
+            <circle cx={node.x + w*0.4} cy={node.y - r*0.2} r={0.5} fill={strokeColor} stroke="none" />
+            <circle cx={node.x + w*0.4} cy={node.y + r*0.2} r={0.5} fill={strokeColor} stroke="none" />
+          </g>
+        );
+        break;
+      }
+    }
+
+    return <g className="node-icon-group">{icons}</g>;
+  };
+
 
   const getSVGPoint = (e: React.PointerEvent) => {
     if (!svgRef.current) return { x: 0, y: 0 };
@@ -414,7 +532,8 @@ const LogisticMap = () => {
         }
         .node-healthy { animation: pulse-steady 2s infinite ease-in-out; stroke: #22d3ee; }
         .node-saturated { animation: pulse-steady 1s infinite ease-in-out; stroke: #fbbf24; }
-        .node-critical { animation: glitch-flicker 0.4s infinite linear; stroke: #ef4444; }
+        .node-warning { animation: pulse-steady 0.5s infinite ease-in-out; stroke: #f97316; }
+        .node-failed { animation: glitch-flicker 0.2s infinite linear; stroke: #ef4444; }
         .node-circle, .node-rect { 
           transform-box: fill-box; 
           transform-origin: center; 
@@ -493,7 +612,7 @@ const LogisticMap = () => {
                 fill="none"
                 className="transition-all duration-1000 opacity-60 link-flow thematic-link"
                 stroke={strokeColor}
-                strokeWidth={1 + (link.bandwidth / 1000) * 1.5}
+                strokeWidth={0.5 + (link.bandwidth / 1000) * 0.8}
                 filter={eraConfig.id === 'modern' ? "url(#glow)" : "none"}
                 strokeDasharray={eraConfig.id === '70s' ? "2,2" : "none"}
               />
@@ -517,7 +636,7 @@ const LogisticMap = () => {
                   x1={src.x} y1={src.y} 
                   x2={dragPos.x} y2={dragPos.y} 
                   stroke={!targetNode ? '#475569' : (isValid ? '#10b981' : '#f43f5e')}
-                  className="ghost-line" strokeWidth="2"
+                  className="ghost-line" strokeWidth="1.5"
                   strokeDasharray={isValid ? "none" : "4,4"}
                 />
               </g>
@@ -538,67 +657,49 @@ const LogisticMap = () => {
                    const isFilterActive = dragSourceId !== null && dragSourceId !== node.id;
                    const isValidTarget = dragSourceId ? validateLink(dragSourceId, node.id).valid : true;
                    
-                   const baseR = layerNum === 1 ? 5 : 4;
-                   const rangeScale = 1.0 - (rangeLevel - 1) * 0.15;
-                   const r = baseR * rangeScale;
-                   const isGateway = node.id === '0';
+                    const baseR = node.type === 'terminal' ? 4 : 
+                                 node.type === 'hub_local' || node.isCore ? 6 :
+                                 node.type === 'hub_regional' ? 8 :
+                                 node.type === 'backbone' ? 10 : 6;
 
-                   return (
-                     <g key={node.id} className={`cursor-${isHubDeletionEnabled ? 'crosshair' : 'pointer'}`} 
-                        onPointerDown={(e) => handlePointerDown(e, node.id)}
-                        onPointerUp={(e) => handlePointerUp(e, node.id)}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (isHubDeletionEnabled) {
-                            removeNode(node.id);
-                          } else {
-                            selectNode(node.id);
-                          }
-                        }}
-                     >
-                       {isSelected && (
-                         isGateway ? 
-                         <rect x={node.x - r - 3} y={node.y - r - 3} width={r*2 + 6} height={r*2 + 6} className="fill-none stroke-emerald-500/60 stroke-2 selection-glow" /> :
-                         <circle cx={node.x} cy={node.y} r={r + 6} className="fill-none stroke-emerald-500/40 stroke-1 selection-glow" />
-                       )}
-                       
-                       {isGateway ? (
-                         <g>
-                           <rect 
-                             x={node.x - r} y={node.y - r} width={r * 2} height={r * 2}
-                             className={`node-rect transition-all duration-300 stroke-2 fill-slate-900 
-                              ${isSelected ? 'stroke-white scale-110 shadow-lg' : 'stroke-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.5)]'}
-                              ${isFilterActive && !isValidTarget ? 'opacity-20' : 'opacity-100'}`}
-                           />
-                           {/* 70s Mainframe Pattern */}
-                           <rect 
-                             x={node.x - r/2} y={node.y - r/2} width={r} height={r}
-                             className="fill-none stroke-emerald-500/40 stroke-[0.5px] pointer-events-none"
-                           />
-                         </g>
-                       ) : (
-                         <circle 
-                           cx={node.x} cy={node.y} r={r}
-                           className={`node-circle transition-all duration-300 stroke-2 fill-slate-900 
-                            ${isSelected ? 'stroke-white scale-110 shadow-lg' : stateClass}
-                            ${isFilterActive && !isValidTarget ? 'opacity-20' : 'opacity-100'}`}
-                         />
-                       )}
-                       
-                       <text 
-                         x={node.x} y={node.y + r + 10} 
-                         textAnchor="middle"
-                         className={`text-[8px] font-black font-mono select-none pointer-events-none uppercase transition-all ${isFilterActive && !isValidTarget ? 'opacity-10' : 'fill-slate-300'}`}
-                       >
-                         {rangeLevel < 4 ? node.name : ''} 
-                       </text>
-                     </g>
-                   );
-                })}
-              </g>
-            );
-          })}
-        </svg>
+                    const rangeScale = 1.0 - (rangeLevel - 1) * 0.15;
+                    const r = baseR * rangeScale;
+                    const strokeColor = node.uiColor || '#22d3ee';
+
+                    return (
+                      <g key={node.id} className={`cursor-${isHubDeletionEnabled ? 'crosshair' : 'pointer'}`} 
+                         onPointerDown={(e) => handlePointerDown(e, node.id)}
+                         onPointerUp={(e) => handlePointerUp(e, node.id)}
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           if (isHubDeletionEnabled) {
+                             removeNode(node.id);
+                           } else {
+                             selectNode(node.id);
+                           }
+                         }}
+                      >
+                        {isSelected && (
+                          <circle cx={node.x} cy={node.y} r={r * 1.2} className="fill-none stroke-emerald-500/40 stroke-1 selection-glow" />
+                        )}
+                        
+                        {renderNodeShape(node, r, strokeColor, stateClass)}
+                        
+                        <text 
+                          x={node.x} y={node.y + r + 8} 
+                          textAnchor="middle"
+                          className={`text-[7px] font-black font-mono select-none pointer-events-none uppercase transition-all 
+                            ${isSelected ? 'opacity-100 fill-white' : 'opacity-50 fill-slate-400'}`}
+                        >
+                          {rangeLevel < 4 ? abbreviateNodeName(node) : ''} 
+                        </text>
+                      </g>
+                    );
+                 })}
+               </g>
+             );
+           })}
+         </svg>
       </div>
     </div>
   );
