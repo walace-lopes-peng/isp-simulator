@@ -689,7 +689,7 @@ const LogisticMap = () => {
 
               return (
                 <g key={`packet-${nodeId}-${sIndex}-${session.destination}`}>
-                  <circle r="1.2" fill={packetColor} className="drop-shadow-[0_0_2px_rgba(255,255,255,0.4)]">
+                  <circle r="1.2" fill={packetColor} className="drop-shadow-[g0_0_2px_rgba(255,255,255,0.4)]">
                     <animateMotion 
                       path={pathD} 
                       dur={`${duration}s`} 
@@ -700,7 +700,9 @@ const LogisticMap = () => {
                   </circle>
                   {/* Destination Pulse Indicator (#126 / Fix 5) */}
                   {destNode && (
-                      <circle cx={destNode.x} cy={destNode.y} r={6} className="stroke-cyan-500 fill-none animate-ping pointer-events-none opacity-40" />
+                      <g transform={`translate(${destNode.x}, ${destNode.y})`}>
+                        <circle r={6} className="stroke-cyan-500 fill-none animate-ping pointer-events-none opacity-40" />
+                      </g>
                   )}
                 </g>
               );
@@ -767,7 +769,9 @@ const LogisticMap = () => {
                          }}
                       >
                         {isSelected && (
-                          <circle cx={node.x} cy={node.y} r={r * 1.2} className="fill-none stroke-emerald-500/40 stroke-1 selection-glow" />
+                          <g transform={`translate(${node.x}, ${node.y})`}>
+                            <circle r={r * 1.2} className="fill-none stroke-emerald-500/40 stroke-1 selection-glow" />
+                          </g>
                         )}
                         
                         {renderNodeShape(node, r, strokeColor, stateClass)}
