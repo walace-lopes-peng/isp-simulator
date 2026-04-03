@@ -315,79 +315,69 @@ const LogisticMap = () => {
   const eraConfig = useISPStore(state => state.getCurrentEraConfig());
 
   const renderNodeShape = (node: ISPNode, r: number, strokeColor: string, stateClass: string) => {
+    const isGateway = node.isCore && node.type === 'hub_local';
     const commonProps = {
-      className: `transition-all duration-300 stroke-2 ${stateClass}`,
+      className: `transition-all duration-300 ${stateClass} ${isGateway ? 'stroke-[2.5px] opacity-100' : 'stroke-1 opacity-80'}`,
       stroke: strokeColor,
+      fill: "none",
     };
 
     const icons = [];
     
     switch (node.type) {
       case 'terminal': {
-        const w = r * 1.2;
-        const h = r * 1.2;
-        const rh = r * 0.5;
+        // Concept: Triangular roof + Rectangular body
+        const w = r;
+        const bh = r * 0.6;
+        const rh = r * 0.6;
         icons.push(
-          <g key="terminal-icon" {...commonProps} fill={strokeColor}>
-            <rect x={node.x - w/2} y={node.y - h/2 + rh/2} width={w} height={h} />
-            <path d={`M ${node.x - w/2 - 2} ${node.y - h/2 + rh/2} L ${node.x} ${node.y - h/2 - rh/2} L ${node.x + w/2 + 2} ${node.y - h/2 + rh/2} Z`} />
+          <g key="terminal-icon" {...commonProps}>
+            <rect x={node.x - w/2} y={node.y} width={w} height={bh} />
+            <path d={`M ${node.x - w*0.6} ${node.y} L ${node.x} ${node.y - rh} L ${node.x + w*0.6} ${node.y} Z`} />
           </g>
         );
         break;
       }
       case 'hub_local': {
-        const w = r * 2;
-        const h = r * 0.9;
-        const dotR = r * 0.15;
+        // Concept: Minimal switch/router (horizontal capsule)
+        const w = r * 1.6;
+        const h = r * 0.5;
         icons.push(
-          <g key="hub-local-icon" {...commonProps} fill={strokeColor}>
+          <g key="hub-local-icon" {...commonProps}>
             <rect x={node.x - w/2} y={node.y - h/2} width={w} height={h} rx={1} />
-            <circle cx={node.x - w/3} cy={node.y + h/2 + 2} r={dotR} />
-            <circle cx={node.x} cy={node.y + h/2 + 2} r={dotR} />
-            <circle cx={node.x + w/3} cy={node.y + h/2 + 2} r={dotR} />
+            {/* Port indicators (small vertical lines) */}
+            <line x1={node.x - w*0.2} y1={node.y + h/2} x2={node.x - w*0.2} y2={node.y + h/2 + r*0.2} />
+            <line x1={node.x + w*0.2} y1={node.y + h/2} x2={node.x + w*0.2} y2={node.y + h/2 + r*0.2} />
+            {isGateway && <circle cx={node.x} cy={node.y} r={r*0.8} className="stroke-white/20 animate-pulse" />}
           </g>
         );
         break;
       }
       case 'hub_regional': {
-        const th = r * 1.5;
-        const tw = r * 0.2;
+        // Concept: Antenna tower (pole + arcs)
+        const ph = r * 1.4;
         icons.push(
-          <g key="hub-regional-icon" {...commonProps} fill="none">
-            <rect x={node.x - tw/2} y={node.y - th/2} width={tw} height={th} fill={strokeColor} stroke="none" />
-            <path d={`M ${node.x - r*0.4} ${node.y - r*0.3} Q ${node.x} ${node.y - r*0.8} ${node.x + r*0.4} ${node.y - r*0.3}`} />
-            <path d={`M ${node.x - r*0.7} ${node.y - r*0.5} Q ${node.x} ${node.y - r*1.2} ${node.x + r*0.7} ${node.y - r*0.5}`} />
-            <path d={`M ${node.x - r*1.0} ${node.y - r*0.7} Q ${node.x} ${node.y - r*1.6} ${node.x + r*1.0} ${node.y - r*0.7}`} />
+          <g key="hub-regional-icon" {...commonProps}>
+            <line x1={node.x} y1={node.y - ph/2} x2={node.x} y2={node.y + ph/2} />
+            <path d={`M ${node.x - r*0.4} ${node.y - r*0.2} Q ${node.x} ${node.y - r*0.7} ${node.x + r*0.4} ${node.y - r*0.2}`} />
+            <path d={`M ${node.x - r*0.25} ${node.y} Q ${node.x} ${node.y - r*0.3} ${node.x + r*0.25} ${node.y}`} />
           </g>
         );
         break;
       }
       case 'backbone': {
-        const w = r * 1.8;
-        const h = r * 0.35;
-        const gap = r * 0.15;
+        // Concept: Server unit (two horizontal lines + indicator LEDs)
+        const w = r * 1.4;
         icons.push(
-          <g key="backbone-icon" {...commonProps} fill={strokeColor} filter="url(#glow)">
-            {[0, 1, 2].map(i => (
-              <g key={i}>
-                <rect x={node.x - w/2} y={node.y - (h*1.5 + gap) + i*(h + gap)} width={w} height={h} rx={1} />
-                <circle cx={node.x + w/2 - 3} cy={node.y - (h*1.5 + gap) + i*(h + gap) + h/2} r={1} fill="white" stroke="none" />
-              </g>
-            ))}
+          <g key="backbone-icon" {...commonProps}>
+            <line x1={node.x - w/2} y1={node.y - r*0.2} x2={node.x + w/2} y2={node.y - r*0.2} />
+            <line x1={node.x - w/2} y1={node.y + r*0.2} x2={node.x + w/2} y2={node.y + r*0.2} />
+            <circle cx={node.x + w*0.4} cy={node.y - r*0.2} r={0.5} fill={strokeColor} stroke="none" />
+            <circle cx={node.x + w*0.4} cy={node.y + r*0.2} r={0.5} fill={strokeColor} stroke="none" />
           </g>
         );
         break;
       }
-    }
-
-    if (node.isCore) {
-      icons.push(
-        <path 
-          key="core-lock" 
-          d={`M ${node.x + r} ${node.y - r - 4} L ${node.x + r + 4} ${node.y - r} L ${node.x + r} ${node.y - r + 4} L ${node.x + r - 4} ${node.y - r} Z`}
-          className="fill-white opacity-60 transition-all duration-300"
-        />
-      );
     }
 
     return <g className="node-icon-group">{icons}</g>;
@@ -656,7 +646,7 @@ const LogisticMap = () => {
                          }}
                       >
                         {isSelected && (
-                          <circle cx={node.x} cy={node.y} r={r + 6} className="fill-none stroke-emerald-500/40 stroke-1 selection-glow" />
+                          <circle cx={node.x} cy={node.y} r={r * 1.2} className="fill-none stroke-emerald-500/40 stroke-1 selection-glow" />
                         )}
                         
                         {renderNodeShape(node, r, strokeColor, stateClass)}
