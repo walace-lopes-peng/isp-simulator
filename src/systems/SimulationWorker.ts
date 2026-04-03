@@ -117,6 +117,11 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
       }
     });
 
+    // Stable Adjacency: Sort neighbors by ID to ensure deterministic Dijkstra path selection
+    Object.keys(adjacency).forEach(id => {
+      adjacency[id].sort((a, b) => a.targetId.localeCompare(b.targetId));
+    });
+
     while (!pq.isEmpty()) {
       const minNode = pq.pop()!;
       const u = minNode.id;
@@ -127,6 +132,7 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
         adjacency[u].forEach(edge => {
           const v = edge.targetId;
           const alt = dists[u] + edge.weight;
+          // Ties go to the first neighbor in alphabetical order (id)
           if (alt < dists[v]) {
             dists[v] = alt;
             pathDistances[v] = pathDistances[u] + edge.physicalDist;
@@ -142,17 +148,15 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
   });
 
   // 2. Traffic Session Orchestration (many connections)
-  const DESTINATION_SHIFT_MS = 15000;
+  const DESTINATION_SHIFT_MS = 30000; // Slower shift to prevent churn
   const now = Date.now();
-  const activePaths: Record<string, { path: string[], destination: string }[]> = {};
+  const activePaths: Record<string, { path: string[], destination: string, pathD: string, sessId: string }[]> = {};
 
   nodes.forEach(node => {
-    // Both Terminals and Hubs generate traffic now (Fix 6)
-    if (node.health <= 0) return;
+    // Only Terminals (Devices) generate traffic now per user request (Fix 11 & 12)
+    if (node.health <= 0 || node.type !== 'terminal') return;
 
-    const sessionCount = node.type === 'terminal' ? 2 : (node.isCore || node.type.includes('hub')) ? 1 : 0;
-    if (sessionCount === 0) return;
-
+    const sessionCount = 2; // Fixed terminals sessions to 2
     if (!activePaths[node.id]) activePaths[node.id] = [];
     
     for (let s = 0; s < sessionCount; s++) {
@@ -191,7 +195,39 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
                 if (curr === destId) break;
                 curr = prevMap[curr];
             }
-            activePaths[node.id].push({ path, destination: destId });
+
+            // --- Geometric Optimization: Build pathD String (Fix 126 / Trava) ---
+            let pathD = "";
+            for (let i = 0; i < path.length - 1; i++) {
+                const sId = path[i];
+                const tId = path[i+1];
+                const s = nodes.find(n => n.id === sId);
+                const t = nodes.find(n => n.id === tId);
+                if (!s || !t) continue;
+
+                // Find the original link to extract the identical control point
+                const link = links.find(l => 
+                    (l.sourceId === sId && l.targetId === tId) || 
+                    (l.sourceId === tId && l.targetId === sId)
+                );
+                if (!link) continue;
+
+                const lSrc = nodes.find(n => n.id === link.sourceId)!;
+                const lTgt = nodes.find(n => n.id === link.targetId)!;
+                const dx = lTgt.x - lSrc.x;
+                const dy = lTgt.y - lSrc.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const offset = dist * 0.15;
+                const angle = Math.atan2(dy, dx);
+                const cX = (lSrc.x + lTgt.x) / 2 + offset * Math.cos(angle - Math.PI / 2);
+                const cY = (lSrc.y + lTgt.y) / 2 + offset * Math.sin(angle - Math.PI / 2);
+                
+                if (i === 0) pathD += `M ${s.x} ${s.y} `;
+                pathD += `Q ${cX} ${cY} ${t.x} ${t.y} `;
+            }
+
+            const sessId = `${node.id}_s${s}_${destId}_${lastShift}`;
+            activePaths[node.id].push({ path, destination: destId, pathD, sessId });
         }
     }
   });

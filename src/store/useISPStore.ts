@@ -89,7 +89,7 @@ interface ISPStore {
   tickRate: number;
   networkHealth: number;
   avgLatency: number;
-  activePaths: Record<string, { path: string[], destination: string }[]>;
+  activePaths: Record<string, { path: string[], destination: string, pathD: string, sessId: string }[]>;
   
   dragSourceId: string | null;
   dragPos: { x: number, y: number } | null;

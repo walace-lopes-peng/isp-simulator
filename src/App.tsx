@@ -72,7 +72,7 @@ const MilestoneMonitor: React.FC = () => {
           <span className="text-[8px] font-mono text-slate-400 italic">Requirements</span>
       </div>
       <div className="h-6 w-px bg-white/10" />
-      <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[8px] font-mono leading-none">
+      <div className="grid grid-cols-[140px_120px] gap-x-4 gap-y-0.5 text-[8px] font-mono tabular-nums leading-none tracking-tight">
         <span className={dataMet ? 'text-emerald-500' : 'text-amber-500'}>
           {dataMet ? '✓' : '✗'} Data: {formatData(totalData)}/{formatData(dataTarget)}
         </span>
@@ -129,14 +129,14 @@ const TopBar = () => {
         </div>
         <div className="h-8 w-px bg-white/5" />
         <div className="flex gap-6 items-center">
-          <div>
+          <div className="w-32 flex-shrink-0">
             <span className="text-[9px] text-slate-500 uppercase font-bold block">Available Capital</span>
-            <span className="text-sm font-mono text-emerald-400 font-bold">${money.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            <span className="text-sm font-mono tabular-nums text-emerald-400 font-bold block truncate">${money.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </div>
-          <div className="group relative flex flex-col">
+          <div className="group relative flex flex-col w-32 flex-shrink-0">
             <span className="text-[9px] text-slate-500 uppercase font-bold block">Research Insight</span>
             <div className="flex items-baseline gap-1">
-              <span className="text-sm font-mono text-cyan-400 font-bold">
+              <span className="text-sm font-mono tabular-nums text-cyan-400 font-bold tracking-tight block truncate">
                 TP: {techPoints.toLocaleString()}
               </span>
               <span className="text-[8px] font-mono text-cyan-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
@@ -145,12 +145,12 @@ const TopBar = () => {
             </div>
             <div className="absolute -bottom-2 left-0 w-max h-px bg-cyan-500/50 scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-300" />
           </div>
-          <div>
+          <div className="w-24 flex-shrink-0">
             <span className="text-[9px] text-slate-500 uppercase font-bold block">Total Data</span>
-            <span className="text-sm font-mono text-slate-200">{formatData(totalData)}</span>
+            <span className="text-sm font-mono tabular-nums text-slate-200 block truncate">{formatData(totalData)}</span>
           </div>
           <div className="h-8 w-px bg-white/5 mx-2" />
-          <div className="flex flex-col">
+          <div className="flex flex-col w-28 flex-shrink-0">
             <span className="text-[9px] text-slate-500 uppercase font-bold block">Network Health</span>
             <div className="flex items-center gap-2">
               <span className={`text-sm font-mono font-bold ${healthColor}`}>{Math.floor(networkHealth)}%</span>
@@ -639,36 +639,7 @@ const LogisticMap = () => {
             if (!sourceNode || sourceNode.layer > maxTier) return null;
 
             return sessions.map((session, sIndex) => {
-              const path = session.path;
-              const destNode = nodes.find(n => n.id === session.destination);
-
-              // Build multi-segment Bézier path for the packet
-              let pathD = "";
-              for (let i = 0; i < path.length - 1; i++) {
-                const s = nodes.find(n => n.id === path[i]);
-                const t = nodes.find(n => n.id === path[i+1]);
-                if (!s || !t) continue;
-
-                // Find the original link to extract the identical control point
-                const link = links.find(l => 
-                  (l.sourceId === s.id && l.targetId === t.id) || 
-                  (l.sourceId === t.id && l.targetId === s.id)
-                );
-                if (!link) continue;
-
-                const lSrc = nodes.find(n => n.id === link.sourceId)!;
-                const lTgt = nodes.find(n => n.id === link.targetId)!;
-                const dx = lTgt.x - lSrc.x;
-                const dy = lTgt.y - lSrc.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                const offset = dist * 0.15;
-                const angle = Math.atan2(dy, dx);
-                const cX = (lSrc.x + lTgt.x) / 2 + offset * Math.cos(angle - Math.PI / 2);
-                const cY = (lSrc.y + lTgt.y) / 2 + offset * Math.sin(angle - Math.PI / 2);
-                
-                if (i === 0) pathD += `M ${s.x} ${s.y} `;
-                pathD += `Q ${cX} ${cY} ${t.x} ${t.y} `;
-              }
+              const { pathD } = session;
 
               if (!pathD) return null;
 
@@ -680,16 +651,16 @@ const LogisticMap = () => {
               const signal = sourceNode.signalStrength || 100;
               const currentEraId = useISPStore.getState().currentEra;
               
-              let baseDuration = currentEraId === '70s' ? 9 : 
-                                 currentEraId === '80s' ? 6 : 4;
+              const baseDuration = currentEraId === '70s' ? 9 : 
+                                   currentEraId === '80s' ? 6 : 4;
               
               const signalFactor = signal > 70 ? 1.0 : signal > 40 ? 1.4 : 2.0;
-              const duration = baseDuration * signalFactor;
+              const duration = Math.round(baseDuration * signalFactor * 100) / 100;
               const packetColor = signal > 70 ? "#22d3ee" : signal > 40 ? "#fbbf24" : "#ef4444";
 
               return (
-                <g key={`packet-${nodeId}-${sIndex}-${session.destination}`}>
-                  <circle r="1.2" fill={packetColor} className="drop-shadow-[g0_0_2px_rgba(255,255,255,0.4)]">
+                <g key={session.sessId}>
+                  <circle r="1.2" fill={packetColor} className="drop-shadow-[0_0_2px_rgba(255,255,255,0.4)] pointer-events-none">
                     <animateMotion 
                       path={pathD} 
                       dur={`${duration}s`} 
@@ -698,12 +669,6 @@ const LogisticMap = () => {
                       begin="0s"
                     />
                   </circle>
-                  {/* Destination Pulse Indicator (#126 / Fix 5) */}
-                  {destNode && (
-                      <g transform={`translate(${destNode.x}, ${destNode.y})`}>
-                        <circle r={6} className="stroke-cyan-500 fill-none animate-ping pointer-events-none opacity-40" />
-                      </g>
-                  )}
                 </g>
               );
             });
