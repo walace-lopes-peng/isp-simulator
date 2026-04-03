@@ -207,7 +207,9 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
   }, 0);
 
   const revenue = rawRevenue;
-  const totalLoad = updatedNodes.reduce((sum, n) => sum + n.traffic, 0);
+  const totalLoad = updatedNodes
+    .filter(n => n.type === 'terminal')
+    .reduce((sum, n) => sum + n.traffic, 0);
 
   // Apply OPEX grace period: 90% reduction if revenue is 0
   const finalMaintenanceCost = (revenue > 0 ? totalMaintenanceCost : totalMaintenanceCost * 0.1);

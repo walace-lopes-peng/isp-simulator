@@ -9,7 +9,7 @@
       "unlockedHardware": ["copper-v1", "acoustic-coupler"],
       "modifiers": {
         "signalAttenuation": 1.5,
-        "revenueMultiplier": 0.0065,
+        "revenueMultiplier": 0.0060,
         "maintenanceCost": 0.5
       },
       "unlockCondition": { "totalData": 0, "money": 0 }

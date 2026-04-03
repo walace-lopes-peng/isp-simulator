@@ -73,6 +73,7 @@ export const RANGE_PRESETS = {
 interface ISPStore {
   money: number;
   techPoints: number;
+  tpAccumulator: number;
   currentEra: string;
   canUpgradeEra: boolean;
   nodes: ISPNode[];
@@ -133,6 +134,7 @@ interface ISPStore {
 export const useISPStore = create<ISPStore>((set, get) => ({
   money: 5000,
   techPoints: 50,
+  tpAccumulator: 0,
   currentEra: '70s',
   canUpgradeEra: false,
   totalData: 0,
@@ -189,6 +191,8 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     worker.onmessage = (e) => {
       const { nodes: workerNodes, revenue, totalMaintenanceCost, totalLoad, networkHealth, avgLatency } = e.data;
       const state = get();
+      const { links } = state;
+      
       // Restore bandwidth/baseBandwidth from store originals — the worker receives
       // tech-scaled bandwidth for physics but must not write it back (would compound).
       const nodes = workerNodes.map((n: ISPNode) => {
@@ -199,10 +203,27 @@ export const useISPStore = create<ISPStore>((set, get) => ({
           baseBandwidth: original?.baseBandwidth ?? n.baseBandwidth
         };
       });
+      const activeLinks = links.filter((link: ISPLink) => {
+        const src = workerNodes.find((n: ISPNode) => n.id === link.sourceId);
+        const tgt = workerNodes.find((n: ISPNode) => n.id === link.targetId);
+        return src && src.traffic > 0 && tgt && tgt.traffic > 0;
+      }).length;
+
+      const activeTerminals = workerNodes.filter(
+        (n: ISPNode) => n.type === 'terminal' && n.traffic > 0
+      ).length;
+
+      const tpGainPerSecond = (activeLinks * 0.05) + (activeTerminals * 0.02);
+      const dT = state.tickRate / 1000;
+      const newTpAccumulator = state.tpAccumulator + (tpGainPerSecond * dT);
+      const tpToAdd = Math.floor(newTpAccumulator);
+
       set({ 
         nodes, 
         money: state.isGodMode ? state.money : (state.money + revenue - totalMaintenanceCost), 
         totalData: state.totalData + Math.floor(totalLoad * (state.tickRate / 1000) * 125),
+        techPoints: state.techPoints + tpToAdd,
+        tpAccumulator: newTpAccumulator - tpToAdd,
         networkHealth,
         avgLatency
       });
@@ -218,14 +239,6 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     const canUpgrade = nextEra ? get().canAdvanceEra() : false;
     
     if (canUpgrade !== get().canUpgradeEra) set({ canUpgradeEra: canUpgrade });
-
-    // TP generation
-    const allNodes = nodes.length;
-    const activeNodes = nodes.filter(n => n.traffic > 0).length;
-    const tpGain = Math.max(1, Math.floor((allNodes * 0.1) + (activeNodes * 0.4)));
-    if (tpGain > 0) {
-      get().addTechPoints(tpGain);
-    }
 
     const era = get().getCurrentEraConfig();
     
@@ -418,6 +431,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   resetTopology: () => set((state) => ({
     links: [],
     canUpgradeEra: false,
+    tpAccumulator: 0,
     nodes: [
       { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 300, baseBandwidth: 300, traffic: 0, level: 1, layer: 1, type: 'hub_local', health: 100, isCore: true },
       { id: 'l1-a', name: 'LOCAL TERMINAL A', x: DEFAULT_START.x + 15, y: DEFAULT_START.y - 15, bandwidth: 56, baseBandwidth: 56, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100, isCore: true },
