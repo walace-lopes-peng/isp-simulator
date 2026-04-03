@@ -676,7 +676,7 @@ const LogisticMap = () => {
               const isValidPath = pathD && pathD.trim().split(' ').length > 3;
               if (!isValidPath) return null;
 
-              // Dot speed proportional to path latency & era technology (Fix 4)
+              // Dot speed proportional to path latency & era technology
               const signal = sourceNode.signalStrength || 100;
               const currentEraId = useISPStore.getState().currentEra;
               
