@@ -20,15 +20,24 @@ const formatData = (bytes: number): string => {
 // --- UI COMPONENTS ---
 
 const MilestoneMonitor: React.FC = () => {
-  const { totalData, money, nodes, isGodMode } = useISPStore();
-  const { isTechUnlocked } = useTechStore();
-  const eraConfig = useISPStore(state => state.getCurrentEraConfig());
-  const nextEra = useISPStore(state => state.getNextEraConfig());
+  const currentEraId = useISPStore(state => state.currentEra);
+  const totalData = useISPStore(state => state.totalData);
+  const money = useISPStore(state => state.money);
+  const nodes = useISPStore(state => state.nodes);
+  const isGodMode = useISPStore(state => state.isGodMode);
+  
+  const unlockedTechIds = useTechStore(state => state.unlockedTechIds);
+
+  const eraConfig = ERAS_CONFIG.find(e => e.id === currentEraId) ?? ERAS_CONFIG[0];
+  const currentIndex = ERAS_CONFIG.findIndex(e => e.id === currentEraId);
+  const nextEra = currentIndex >= 0 && currentIndex < ERAS_CONFIG.length - 1
+    ? ERAS_CONFIG[currentIndex + 1]
+    : null;
 
   if (!nextEra) return null;
 
   const hubs = nodes.filter(n => n.type === 'hub_local').length;
-  const isdn = isTechUnlocked('isdn_early');
+  const isdn = unlockedTechIds.includes('isdn_early');
   
   const dataTarget = nextEra.unlockCondition.totalData;
   const moneyTarget = nextEra.unlockCondition.money;
@@ -72,9 +81,20 @@ const MilestoneMonitor: React.FC = () => {
 
 
 const TopBar = () => {
-  const { money, techPoints, tpAccumulator, totalData, nodes, networkHealth, canUpgradeEra, purchaseEraUpgrade, isGodMode } = useISPStore();
+  const money = useISPStore(state => state.money);
+  const techPoints = useISPStore(state => state.techPoints);
+  const tpAccumulator = useISPStore(state => state.tpAccumulator);
+  const totalData = useISPStore(state => state.totalData);
+  const nodes = useISPStore(state => state.nodes);
+  const networkHealth = useISPStore(state => state.networkHealth);
+  const canUpgradeEra = useISPStore(state => state.canUpgradeEra);
+  const isGodMode = useISPStore(state => state.isGodMode);
+  const currentEraId = useISPStore(state => state.currentEra);
+  
+  const purchaseEraUpgrade = useISPStore(state => state.purchaseEraUpgrade);
   const { getAggregateModifiers } = useTechStore();
-  const eraConfig = useISPStore(state => state.getCurrentEraConfig());
+
+  const eraConfig = ERAS_CONFIG.find(e => e.id === currentEraId) ?? ERAS_CONFIG[0];
   const multipliers = getAggregateModifiers();
   
   const traffic = nodes.reduce((sum, n) => sum + n.traffic, 0);
