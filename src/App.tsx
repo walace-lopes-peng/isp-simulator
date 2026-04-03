@@ -217,8 +217,8 @@ const Sidebar = () => {
         <div>
           <h2 className="text-[10px] font-black text-emerald-500 uppercase tracking-tighter mb-1">{node.name}</h2>
           <div className="flex gap-2 items-center">
-            <span className={`text-[8px] font-mono uppercase ${isReachable ? 'text-emerald-500' : 'text-red-500 animate-pulse'}`}>
-              {isReachable ? 'CONNECTED // ONLINE' : 'ISOLATED // NO_SIGNAL'}
+            <span className={`text-[8px] font-mono uppercase ${node.health <= 0 ? 'text-red-500 animate-pulse' : isReachable ? 'text-emerald-500' : 'text-amber-500'}`}>
+              {node.health <= 0 ? 'STATUS_FAILED // CRITICAL' : isReachable ? 'CONNECTED // ONLINE' : 'ISOLATED // NO_SIGNAL'}
             </span>
             <span className="text-[7px] bg-white/10 px-1 py-0.5 rounded text-slate-400 font-mono tracking-tighter">{node.type}</span>
           </div>
@@ -254,6 +254,28 @@ const Sidebar = () => {
             <span className="text-xs font-mono text-slate-200">{links.filter(l => l.sourceId === node.id || l.targetId === node.id).length}</span>
           </div>
         </div>
+
+        {node.health < 100 && (
+          <div className="pt-2 border-t border-white/5 flex flex-col gap-2">
+            <div className="flex justify-between items-center">
+              <span className="text-[9px] text-slate-400 uppercase font-bold tracking-tighter">Integrity</span>
+              <span className={`text-[9px] font-mono ${node.health < 30 ? 'text-red-500' : 'text-amber-500'}`}>{node.health}%</span>
+            </div>
+            <button 
+              onClick={() => useISPStore.getState().repairNode(node.id)}
+              disabled={!isGodMode && money < 250}
+              className={`w-full py-2 rounded border font-black text-[9px] uppercase tracking-wider transition-all
+                ${isGodMode || money >= 250 ? 'bg-amber-500/10 border-amber-500/40 text-amber-400 hover:bg-amber-500/30' : 'bg-white/5 border-white/5 text-slate-700 cursor-not-allowed opacity-50'}
+              `}
+            >
+              {node.health <= 0 ? (
+                isGodMode ? 'RECONSTRUCT // FREE' : money >= 250 ? 'RECONSTRUCT // $250' : 'INSUFFICIENT FUNDS'
+              ) : (
+                isGodMode ? 'RESTORE_INTEGRITY // FREE' : money >= 250 ? 'MAINTENANCE // $250' : 'INSUFFICIENT FUNDS'
+              )}
+            </button>
+          </div>
+        )}
 
         <div className="pt-4 border-t border-white/5 flex flex-col gap-2">
             <label className="text-[8px] font-black text-slate-600 uppercase">Interaction Protocol</label>
@@ -316,13 +338,24 @@ const LogisticMap = () => {
 
   const renderNodeShape = (node: ISPNode, r: number, strokeColor: string, stateClass: string) => {
     const isGateway = node.isCore && node.type === 'hub_local';
+    
+    // Node Status Logic
+    const isFailed = node.health <= 0;
+    const isWarning = node.health < 30 && !isFailed;
+    
+    const finalStateClass = isFailed ? 'node-failed' : isWarning ? 'node-warning' : stateClass;
+    const finalStrokeColor = isFailed ? '#ef4444' : isWarning ? '#f97316' : strokeColor;
+
     const commonProps = {
-      className: `transition-all duration-300 ${stateClass} ${isGateway ? 'stroke-[2.5px] opacity-100' : 'stroke-1 opacity-80'}`,
-      stroke: strokeColor,
+      className: `transition-all duration-300 ${finalStateClass} ${isGateway ? 'stroke-[2.5px] opacity-100' : 'stroke-1 opacity-80'}`,
+      stroke: finalStrokeColor,
       fill: "none",
     };
 
-    const icons = [];
+    const icons = [
+      // HIT AREA: Invisible larger circle to capture pointers accurately 
+      <circle key="hit-area" cx={node.x} cy={node.y} r={r * 1.5} fill="transparent" pointerEvents="all" className="cursor-pointer" />
+    ];
     
     switch (node.type) {
       case 'terminal': {
@@ -499,7 +532,8 @@ const LogisticMap = () => {
         }
         .node-healthy { animation: pulse-steady 2s infinite ease-in-out; stroke: #22d3ee; }
         .node-saturated { animation: pulse-steady 1s infinite ease-in-out; stroke: #fbbf24; }
-        .node-critical { animation: glitch-flicker 0.4s infinite linear; stroke: #ef4444; }
+        .node-warning { animation: pulse-steady 0.5s infinite ease-in-out; stroke: #f97316; }
+        .node-failed { animation: glitch-flicker 0.2s infinite linear; stroke: #ef4444; }
         .node-circle, .node-rect { 
           transform-box: fill-box; 
           transform-origin: center; 

@@ -113,6 +113,10 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
   while (!pq.isEmpty()) {
     const minNode = pq.pop()!;
     const u = minNode.id;
+    const uNode = nodes.find(n => n.id === u);
+    
+    // Dijkstra Bypass: Failed nodes cannot route traffic
+    if (uNode && uNode.health <= 0 && u !== '0') continue; 
 
     if (adjacency[u]) {
       adjacency[u].forEach(edge => {
@@ -155,24 +159,32 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
     const drift = (targetTraffic - node.traffic) * 0.15 * (dT * 60);
     const finalTraffic = Math.max(10, Math.min(node.traffic + drift, node.bandwidth * 1.5));
 
-    // Survival Engine: Hazards
+    // Survival Engine: Hardware Degradation (Refined #125)
     let nodeHealth = node.health;
     let activeHazard: string | undefined = undefined;
     const loadRatio = finalTraffic / node.bandwidth;
 
-    if (loadRatio > 0.8) {
-        // High connectionReliability reduces health decay from congestion
-        const decayRate = (loadRatio - 0.8) * 100;
-        const mitigatedDecay = decayRate * (1 - (RELIABILITY_MOD - 0.7) * 2); // 0.7 is baseline
-        nodeHealth -= Math.max(10, mitigatedDecay) * dT; 
-        activeHazard = 'congestion';
-    } else if (nodeHealth < 100) {
-        nodeHealth += 2 * dT;
-    }
+    if (nodeHealth > 0) {
+        // 1. Thermal Stress (Heat from Congestion)
+        if (loadRatio > 0.85) {
+            const stressImpact = (loadRatio - 0.85) * 15;
+            const mitigatedStress = stressImpact * (1 - (RELIABILITY_MOD - 0.7) * 2); 
+            nodeHealth -= Math.max(2, mitigatedStress) * dT;
+            activeHazard = 'heat';
+        } 
+        
+        // 2. Base Wear & Tear (Slow decay over time)
+        nodeHealth -= 0.05 * dT; 
 
-    if (rangeLevel === 2 && node.layer === 2) {
-        nodeHealth -= 5 * dT;
-        activeHazard = 'heat';
+        // 3. Auto-Recovery (Slowly heal if NOT failed and NOT stressed)
+        if (loadRatio < 0.6 && nodeHealth < 100) {
+            nodeHealth += 1.5 * dT;
+        }
+    } else {
+        // Node is FAILED (health <= 0)
+        // It stays at 0 until manual repair action reaches it
+        nodeHealth = 0;
+        activeHazard = 'congestion'; // Represents total failure
     }
 
     const finalHealth = Math.round(Math.max(0, Math.min(100, nodeHealth)));

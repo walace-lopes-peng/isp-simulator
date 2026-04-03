@@ -92,6 +92,7 @@ interface ISPStore {
   dragPos: { x: number, y: number } | null;
 
   activeDevNodeType: string;
+  repairNode: (id: string) => void;
   setActiveDevNodeType: (type: string) => void;
 
   isHubCreationEnabled: boolean;
@@ -219,6 +220,16 @@ export const useISPStore = create<ISPStore>((set, get) => ({
       const newTpAccumulator = currentAccumulator + (tpGainPerSecond * dT);
       const tpToAdd = Math.floor(newTpAccumulator);
 
+      // Hardware Failure Detection
+      const deadNodes = nodes.filter((n: ISPNode) => {
+        const prev = state.nodes.find(p => p.id === n.id);
+        return n.health <= 0 && (prev?.health ?? 100) > 0;
+      });
+
+      const newLogs = deadNodes.length > 0 
+        ? deadNodes.map((n: ISPNode) => `!!! [CRITICAL] HARDWARE_FAILURE: ${n.name} OFFLINE !!!`)
+        : [];
+
       set({ 
         nodes, 
         money: state.isGodMode ? state.money : (state.money + revenue - totalMaintenanceCost), 
@@ -226,7 +237,8 @@ export const useISPStore = create<ISPStore>((set, get) => ({
         techPoints: state.techPoints + tpToAdd,
         tpAccumulator: newTpAccumulator - tpToAdd,
         networkHealth,
-        avgLatency
+        avgLatency,
+        logs: newLogs.length > 0 ? [...newLogs, ...state.logs].slice(0, 20) : state.logs
       });
     };
     set({ worker });
@@ -327,6 +339,20 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     }
     set({ dragSourceId: null, dragPos: null });
   },
+
+  repairNode: (id: string) => set((state) => {
+    const node = state.nodes.find(n => n.id === id);
+    if (!node || node.health >= 100) return state;
+    
+    const repairCost = 250; 
+    if (!state.isGodMode && state.money < repairCost) return state;
+
+    return {
+      money: state.isGodMode ? state.money : state.money - repairCost,
+      nodes: state.nodes.map(n => n.id === id ? { ...n, health: 100 } : n),
+      logs: [`[SYSTEM] REPAIRED: ${node.name} [Cost: $${repairCost}]`, ...state.logs].slice(0, 15)
+    };
+  }),
 
   connectNodes: (srcId, tgtId) => {
     const { valid, cost } = get().validateLink(srcId, tgtId);
