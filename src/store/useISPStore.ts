@@ -73,6 +73,7 @@ export const RANGE_PRESETS = {
 interface ISPStore {
   money: number;
   techPoints: number;
+  tpAccumulator: number;
   currentEra: string;
   canUpgradeEra: boolean;
   nodes: ISPNode[];
@@ -104,6 +105,8 @@ interface ISPStore {
   upgradeNode: (id: string) => void;
   addNode: (node: ISPNode) => void;
   setEra: (era: string) => void;
+  forceEraUpgrade: () => void;
+  canAdvanceEra: () => boolean;
   purchaseEraUpgrade: () => void;
   getCurrentEraConfig: () => EraConfig;
   getNextEraConfig: () => EraConfig | null;
@@ -131,6 +134,7 @@ interface ISPStore {
 export const useISPStore = create<ISPStore>((set, get) => ({
   money: 5000,
   techPoints: 50,
+  tpAccumulator: 0,
   currentEra: '70s',
   canUpgradeEra: false,
   totalData: 0,
@@ -187,6 +191,8 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     worker.onmessage = (e) => {
       const { nodes: workerNodes, revenue, totalMaintenanceCost, totalLoad, networkHealth, avgLatency } = e.data;
       const state = get();
+      const { links } = state;
+      
       // Restore bandwidth/baseBandwidth from store originals — the worker receives
       // tech-scaled bandwidth for physics but must not write it back (would compound).
       const nodes = workerNodes.map((n: ISPNode) => {
@@ -197,10 +203,28 @@ export const useISPStore = create<ISPStore>((set, get) => ({
           baseBandwidth: original?.baseBandwidth ?? n.baseBandwidth
         };
       });
+      const activeLinks = links.filter((link: ISPLink) => {
+        const src = workerNodes.find((n: ISPNode) => n.id === link.sourceId);
+        const tgt = workerNodes.find((n: ISPNode) => n.id === link.targetId);
+        return src && src.traffic > 0 && tgt && tgt.traffic > 0;
+      }).length;
+
+      const activeTerminals = workerNodes.filter(
+        (n: ISPNode) => n.type === 'terminal' && n.traffic > 0
+      ).length;
+
+      const tpGainPerSecond = (activeLinks * 0.05) + (activeTerminals * 0.02);
+      const dT = state.tickRate / 1000;
+      const currentAccumulator = typeof state.tpAccumulator === 'number' ? state.tpAccumulator : 0;
+      const newTpAccumulator = currentAccumulator + (tpGainPerSecond * dT);
+      const tpToAdd = Math.floor(newTpAccumulator);
+
       set({ 
         nodes, 
         money: state.isGodMode ? state.money : (state.money + revenue - totalMaintenanceCost), 
-        totalData: state.totalData + Math.floor(totalLoad / 1000),
+        totalData: state.totalData + Math.floor(totalLoad * (state.tickRate / 1000) * 125),
+        techPoints: state.techPoints + tpToAdd,
+        tpAccumulator: newTpAccumulator - tpToAdd,
         networkHealth,
         avgLatency
       });
@@ -213,17 +237,9 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     if (!worker) { initWorker(); return; }
     
     const nextEra = get().getNextEraConfig();
-    const canUpgrade = nextEra ? (totalData >= nextEra.unlockCondition.totalData && money >= nextEra.unlockCondition.money) : false;
+    const canUpgrade = nextEra ? get().canAdvanceEra() : false;
     
     if (canUpgrade !== get().canUpgradeEra) set({ canUpgradeEra: canUpgrade });
-
-    // TP generation
-    const allNodes = nodes.length;
-    const activeNodes = nodes.filter(n => n.traffic > 0).length;
-    const tpGain = Math.max(1, Math.floor((allNodes * 0.1) + (activeNodes * 0.4)));
-    if (tpGain > 0) {
-      get().addTechPoints(tpGain);
-    }
 
     const era = get().getCurrentEraConfig();
     
@@ -254,10 +270,23 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   },
 
   canAdvanceEra: () => {
-    const nextEra = get().getNextEraConfig();
+    const state = get();
+    const nextEra = state.getNextEraConfig();
     if (!nextEra) return false;
-    const { totalData, money } = get();
-    return totalData >= nextEra.unlockCondition.totalData && money >= nextEra.unlockCondition.money;
+
+    const { totalData, money, nodes, currentEra } = state;
+    const basicConditions = totalData >= nextEra.unlockCondition.totalData && money >= nextEra.unlockCondition.money;
+
+    // Era-specific milestone requirements (70s -> 80s)
+    if (currentEra === '70s') {
+      const hubCount = nodes.filter(n => n.type === 'hub_local').length;
+      const unlockedTechs = useTechStore.getState().unlockedTechIds;
+      const isdnUnlocked = unlockedTechs.includes('isdn_early');
+      return basicConditions && hubCount >= 3 && isdnUnlocked;
+    }
+
+    // Default for other eras (Data + Money only for now)
+    return basicConditions;
   },
 
   validateLink: (srcId, tgtId) => {
@@ -373,6 +402,16 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     return { nodes: [...state.nodes, { ...node, baseBandwidth, isDevSpawned: true }] };
   }),
   setEra: (era) => set({ currentEra: era }),
+  forceEraUpgrade: () => set((state) => {
+    const nextEra = state.getNextEraConfig();
+    if (!nextEra) return state;
+    
+    return {
+      currentEra: nextEra.id,
+      canUpgradeEra: false,
+      logs: [`[DEV] Era forced to ${nextEra.displayName}`, ...state.logs].slice(0, 20)
+    };
+  }),
   purchaseEraUpgrade: () => set((state) => {
     const nextEra = state.getNextEraConfig();
     if (!nextEra || !state.canUpgradeEra) return state;
@@ -393,6 +432,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   resetTopology: () => set((state) => ({
     links: [],
     canUpgradeEra: false,
+    tpAccumulator: 0,
     nodes: [
       { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 300, baseBandwidth: 300, traffic: 0, level: 1, layer: 1, type: 'hub_local', health: 100, isCore: true },
       { id: 'l1-a', name: 'LOCAL TERMINAL A', x: DEFAULT_START.x + 15, y: DEFAULT_START.y - 15, bandwidth: 56, baseBandwidth: 56, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100, isCore: true },

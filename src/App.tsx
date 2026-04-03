@@ -5,10 +5,74 @@ import { NODE_TEMPLATES } from './config/nodeRegistry';
 import DebugConsole from './components/DebugConsole';
 import EraWrapper from './components/EraWrapper';
 
+const formatData = (bytes: number): string => {
+  if (bytes < 1024) return `${bytes} B`;
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${kb.toFixed(1)} KB`;
+  const mb = kb / 1024;
+  if (mb < 1024) return `${mb.toFixed(2)} MB`;
+  const gb = mb / 1024;
+  if (gb < 1024) return `${gb.toFixed(2)} GB`;
+  const tb = gb / 1024;
+  return `${tb.toFixed(2)} TB`;
+};
+
 // --- UI COMPONENTS ---
 
+const MilestoneMonitor: React.FC = () => {
+  const { totalData, money, nodes, isGodMode } = useISPStore();
+  const { isTechUnlocked } = useTechStore();
+  const eraConfig = useISPStore(state => state.getCurrentEraConfig());
+  const nextEra = useISPStore(state => state.getNextEraConfig());
+
+  if (!nextEra) return null;
+
+  const hubs = nodes.filter(n => n.type === 'hub_local').length;
+  const isdn = isTechUnlocked('isdn_early');
+  
+  const dataTarget = nextEra.unlockCondition.totalData;
+  const moneyTarget = nextEra.unlockCondition.money;
+  
+  const dataMet = totalData >= dataTarget;
+  const moneyMet = money >= moneyTarget;
+  const hubsMet = eraConfig.id === '70s' ? hubs >= 3 : true;
+  const isdnMet = eraConfig.id === '70s' ? isdn : true;
+
+  const isClose = (totalData / dataTarget > 0.5) || (money / moneyTarget > 0.5);
+  if (!isClose && eraConfig.id !== '70s' && !isGodMode) return null;
+
+  return (
+    <div className="flex items-center gap-3 bg-black/40 px-3 py-1 rounded border border-white/5 mr-2 min-w-[280px]">
+      <div className="flex flex-col">
+          <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Next Epoch</span>
+          <span className="text-[8px] font-mono text-slate-400 italic">Requirements</span>
+      </div>
+      <div className="h-6 w-px bg-white/10" />
+      <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[8px] font-mono leading-none">
+        <span className={dataMet ? 'text-emerald-500' : 'text-amber-500'}>
+          {dataMet ? '✓' : '✗'} Data: {formatData(totalData)}/{formatData(dataTarget)}
+        </span>
+        {eraConfig.id === '70s' && (
+          <span className={hubsMet ? 'text-emerald-500' : 'text-red-500'}>
+            {hubsMet ? '✓' : '✗'} Hubs: {hubs}/3
+          </span>
+        )}
+        <span className={moneyMet ? 'text-emerald-500' : 'text-amber-500'}>
+          {moneyMet ? '✓' : '✗'} Capital: ${money.toLocaleString()}/${moneyTarget.toLocaleString()}
+        </span>
+        {eraConfig.id === '70s' && (
+          <span className={isdnMet ? 'text-emerald-500' : 'text-red-500'}>
+            {isdnMet ? '✓' : '✗'} ISDN: {isdn ? 'Unlocked' : 'Not researched'}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+};
+
+
 const TopBar = () => {
-  const { money, techPoints, totalData, nodes, networkHealth, canUpgradeEra, purchaseEraUpgrade, isGodMode } = useISPStore();
+  const { money, techPoints, tpAccumulator, totalData, nodes, networkHealth, canUpgradeEra, purchaseEraUpgrade, isGodMode } = useISPStore();
   const { getAggregateModifiers } = useTechStore();
   const eraConfig = useISPStore(state => state.getCurrentEraConfig());
   const multipliers = getAggregateModifiers();
@@ -34,20 +98,21 @@ const TopBar = () => {
             <span className="text-[9px] text-slate-500 uppercase font-bold block">Available Capital</span>
             <span className="text-sm font-mono text-emerald-400 font-bold">${money.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </div>
-          <div>
+          <div className="group relative flex flex-col">
             <span className="text-[9px] text-slate-500 uppercase font-bold block">Research Insight</span>
-            <span className="text-sm font-mono text-cyan-400 font-bold">TP: {techPoints.toLocaleString()}</span>
+            <div className="flex items-baseline gap-1">
+              <span className="text-sm font-mono text-cyan-400 font-bold">
+                TP: {techPoints.toLocaleString()}
+              </span>
+              <span className="text-[8px] font-mono text-cyan-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                .{((tpAccumulator || 0) * 1000).toFixed(0).padStart(3, '0')}
+              </span>
+            </div>
+            <div className="absolute -bottom-2 left-0 w-max h-px bg-cyan-500/50 scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-300" />
           </div>
           <div>
             <span className="text-[9px] text-slate-500 uppercase font-bold block">Total Data</span>
-            <span className="text-sm font-mono text-slate-200">{(() => { 
-              if (totalData < 1024) return `${totalData.toLocaleString()} KB`;
-              const mb = totalData / 1024;
-              if (mb < 1024) return `${mb.toFixed(1)} MB`;
-              const gb = mb / 1024;
-              if (gb < 1024) return `${gb.toFixed(1)} GB`;
-              return `${(gb / 1024).toFixed(2)} TB`;
-            })()}</span>
+            <span className="text-sm font-mono text-slate-200">{formatData(totalData)}</span>
           </div>
           <div className="h-8 w-px bg-white/5 mx-2" />
           <div className="flex flex-col">
@@ -67,7 +132,10 @@ const TopBar = () => {
           <span className="text-[9px] text-slate-500 uppercase font-bold block">Network Status</span>
           <span className={`text-[10px] font-black tracking-tighter ${statusColor}`}>{status} // {(loadRatio * 100).toFixed(0)}% LOAD</span>
         </div>
+        
         <div className="flex gap-2 items-center">
+          <MilestoneMonitor />
+
           {isGodMode && (
             <div className="px-2 py-1 bg-amber-500 text-black rounded font-black text-[9px] uppercase tracking-wider animate-pulse shadow-[0_0_10px_rgba(245,158,11,0.5)]">
               GOD MODE ACTIVE
@@ -76,7 +144,7 @@ const TopBar = () => {
           {canUpgradeEra && (
             <button 
               onClick={purchaseEraUpgrade}
-              className="px-3 py-1 bg-amber-500/20 text-amber-500 border border-amber-500/50 rounded font-black text-[9px] uppercase tracking-wider hover:bg-amber-500/40 animate-pulse"
+              className="px-3 py-1 bg-amber-500/20 text-amber-500 border border-amber-500/50 rounded font-black text-[9px] uppercase tracking-wider hover:bg-amber-500/40 animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.2)]"
             >
               UPGRADE ERA
             </button>

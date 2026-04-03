@@ -24,7 +24,7 @@
       "description": "Human-operated or primitive mechanical switching. High latency but allows basic network routing.",
       "unlocksAtEra": "70s",
       "availableInScopes": [1],
-      "tpCost": 150,
+      "tpCost": 450,
       "requires": ["copper_standard"],
       "modifiers": {
         "bandwidthMultiplier": 1.0,
@@ -42,7 +42,7 @@
       "description": "Thick shielded cable reduces interference and extends signal range significantly.",
       "unlocksAtEra": "70s",
       "availableInScopes": [1, 2],
-      "tpCost": 300,
+      "tpCost": 900,
       "requires": ["copper_standard"],
       "modifiers": {
         "bandwidthMultiplier": 1.8,
@@ -60,7 +60,7 @@
       "description": "Early TDM allows multiple low-speed signals to share a single high-speed link.",
       "unlocksAtEra": "70s",
       "availableInScopes": [1, 2],
-      "tpCost": 500,
+      "tpCost": 1500,
       "requires": ["coaxial_early"],
       "modifiers": {
         "bandwidthMultiplier": 1.8,
@@ -78,7 +78,7 @@
       "description": "Industrial-standard coaxial cabling for inter-city trunking and high-bandwidth regional links.",
       "unlocksAtEra": "80s",
       "availableInScopes": [1, 2],
-      "tpCost": 800,
+      "tpCost": 2400,
       "requires": ["coaxial_early"],
       "modifiers": {
         "bandwidthMultiplier": 3.0,
@@ -96,7 +96,7 @@
       "description": "Solid-state digital switching eliminates mechanical delays, drastically reducing latency.",
       "unlocksAtEra": "80s",
       "availableInScopes": [1, 2, 3],
-      "tpCost": 1200,
+      "tpCost": 3600,
       "requires": ["manual_switching", "coaxial_early"],
       "modifiers": {
         "bandwidthMultiplier": 3.0,
@@ -114,7 +114,7 @@
       "description": "Cutting-edge laser-based transmission through pure glass filaments. Massive bandwidth and distance.",
       "unlocksAtEra": "80s",
       "availableInScopes": [1, 2],
-      "tpCost": 4000,
+      "tpCost": 12000,
       "requires": ["coaxial_mature", "digital_switching"],
       "modifiers": {
         "bandwidthMultiplier": 10.0,
@@ -132,7 +132,7 @@
       "description": "Integrated Services Digital Network. Fully digital end-to-end connectivity over improved lines.",
       "unlocksAtEra": "80s",
       "availableInScopes": [1, 2, 3],
-      "tpCost": 2500,
+      "tpCost": 7500,
       "requires": ["digital_switching"],
       "modifiers": {
         "bandwidthMultiplier": 5.0,
