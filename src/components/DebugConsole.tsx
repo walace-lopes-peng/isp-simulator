@@ -31,7 +31,9 @@ const DebugConsole: React.FC = () => {
     activeDevNodeType,
     setActiveDevNodeType,
     rangeLevel,
-    syncNodeMarkers
+    syncNodeMarkers,
+    forceEraUpgrade,
+    getNextEraConfig
   } = useISPStore();
 
   const { unlockedTechIds, unlockAllTechs, resetTechs, getAggregateModifiers } = useTechStore();
@@ -189,6 +191,22 @@ const DebugConsole: React.FC = () => {
               </button>
             ))}
           </div>
+          <button 
+            onClick={() => {
+              const next = getNextEraConfig();
+              if (next) {
+                forceEraUpgrade();
+              } else {
+                addLog("[DEV] Already at final era", true);
+              }
+            }}
+            disabled={!getNextEraConfig()}
+            className={`w-full py-2 mt-2 border rounded font-black text-[9px] uppercase tracking-widest transition-all
+              ${getNextEraConfig() ? 'bg-amber-500/10 border-amber-500/20 text-amber-400 hover:bg-amber-500/20 shadow-[0_0_10px_rgba(245,158,11,0.1)]' : 'bg-white/5 border-white/5 text-slate-700 cursor-not-allowed'}
+            `}
+          >
+            {getNextEraConfig() ? 'FORCE ERA ADVANCE' : '[DEV] Already at final era'}
+          </button>
         </div>
 
         {/* Tech Tree Controls */}

@@ -104,6 +104,8 @@ interface ISPStore {
   upgradeNode: (id: string) => void;
   addNode: (node: ISPNode) => void;
   setEra: (era: string) => void;
+  forceEraUpgrade: () => void;
+  canAdvanceEra: () => boolean;
   purchaseEraUpgrade: () => void;
   getCurrentEraConfig: () => EraConfig;
   getNextEraConfig: () => EraConfig | null;
@@ -213,7 +215,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     if (!worker) { initWorker(); return; }
     
     const nextEra = get().getNextEraConfig();
-    const canUpgrade = nextEra ? (totalData >= nextEra.unlockCondition.totalData && money >= nextEra.unlockCondition.money) : false;
+    const canUpgrade = nextEra ? get().canAdvanceEra() : false;
     
     if (canUpgrade !== get().canUpgradeEra) set({ canUpgradeEra: canUpgrade });
 
@@ -254,10 +256,23 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   },
 
   canAdvanceEra: () => {
-    const nextEra = get().getNextEraConfig();
+    const state = get();
+    const nextEra = state.getNextEraConfig();
     if (!nextEra) return false;
-    const { totalData, money } = get();
-    return totalData >= nextEra.unlockCondition.totalData && money >= nextEra.unlockCondition.money;
+
+    const { totalData, money, nodes, currentEra } = state;
+    const basicConditions = totalData >= nextEra.unlockCondition.totalData && money >= nextEra.unlockCondition.money;
+
+    // Era-specific milestone requirements (70s -> 80s)
+    if (currentEra === '70s') {
+      const hubCount = nodes.filter(n => n.type === 'hub_local').length;
+      const unlockedTechs = useTechStore.getState().unlockedTechIds;
+      const isdnUnlocked = unlockedTechs.includes('isdn_early');
+      return basicConditions && hubCount >= 3 && isdnUnlocked;
+    }
+
+    // Default for other eras (Data + Money only for now)
+    return basicConditions;
   },
 
   validateLink: (srcId, tgtId) => {
@@ -373,6 +388,16 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     return { nodes: [...state.nodes, { ...node, baseBandwidth, isDevSpawned: true }] };
   }),
   setEra: (era) => set({ currentEra: era }),
+  forceEraUpgrade: () => set((state) => {
+    const nextEra = state.getNextEraConfig();
+    if (!nextEra) return state;
+    
+    return {
+      currentEra: nextEra.id,
+      canUpgradeEra: false,
+      logs: [`[DEV] Era forced to ${nextEra.displayName}`, ...state.logs].slice(0, 20)
+    };
+  }),
   purchaseEraUpgrade: () => set((state) => {
     const nextEra = state.getNextEraConfig();
     if (!nextEra || !state.canUpgradeEra) return state;

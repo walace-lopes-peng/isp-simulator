@@ -67,7 +67,63 @@ const TopBar = () => {
           <span className="text-[9px] text-slate-500 uppercase font-bold block">Network Status</span>
           <span className={`text-[10px] font-black tracking-tighter ${statusColor}`}>{status} // {(loadRatio * 100).toFixed(0)}% LOAD</span>
         </div>
+        
         <div className="flex gap-2 items-center">
+          {!canUpgradeEra && (() => {
+            const nextEra = useISPStore.getState().getNextEraConfig();
+            if (!nextEra) return null;
+            
+            const hubs = nodes.filter(n => n.type === 'hub_local').length;
+            const isdn = useTechStore.getState().isTechUnlocked('isdn_early');
+            
+            const dataTarget = nextEra.unlockCondition.totalData;
+            const moneyTarget = nextEra.unlockCondition.money;
+            
+            const dataMet = totalData >= dataTarget;
+            const moneyMet = money >= moneyTarget;
+            const hubsMet = eraConfig.id === '70s' ? hubs >= 3 : true;
+            const isdnMet = eraConfig.id === '70s' ? isdn : true;
+
+            // Visibility logic: Show if close (50% progress on data/money) or in 70s
+            const isClose = (totalData / dataTarget > 0.5) || (money / moneyTarget > 0.5);
+            if (!isClose && eraConfig.id !== '70s' && !isGodMode) return null;
+
+            const formatVal = (kb: number) => {
+              if (kb < 1000) return `${kb} KB`;
+              if (kb < 1000000) return `${(kb / 1000).toFixed(1)} MB`;
+              if (kb < 1000000000) return `${(kb / 1000000).toFixed(1)} GB`;
+              return `${(kb / 1000000000).toFixed(1)} TB`;
+            };
+
+            return (
+              <div className="flex items-center gap-3 bg-black/40 px-3 py-1 rounded border border-white/5 mr-2">
+                <div className="flex flex-col">
+                   <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Next Epoch</span>
+                   <span className="text-[8px] font-mono text-slate-400 italic">Requirements</span>
+                </div>
+                <div className="h-6 w-px bg-white/10" />
+                <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[8px] font-mono leading-none">
+                  <span className={dataMet ? 'text-emerald-500' : 'text-amber-500'}>
+                    {dataMet ? '✓' : '✗'} Data: {formatVal(totalData)}/{formatVal(dataTarget)}
+                  </span>
+                  {eraConfig.id === '70s' && (
+                    <span className={hubsMet ? 'text-emerald-500' : 'text-red-500'}>
+                      {hubsMet ? '✓' : '✗'} Hubs: {hubs}/3
+                    </span>
+                  )}
+                  <span className={moneyMet ? 'text-emerald-500' : 'text-amber-500'}>
+                    {moneyMet ? '✓' : '✗'} Capital: ${money.toLocaleString()}/${moneyTarget.toLocaleString()}
+                  </span>
+                  {eraConfig.id === '70s' && (
+                    <span className={isdnMet ? 'text-emerald-500' : 'text-red-500'}>
+                      {isdnMet ? '✓' : '✗'} ISDN: {isdn ? 'Unlocked' : 'Researched'}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
           {isGodMode && (
             <div className="px-2 py-1 bg-amber-500 text-black rounded font-black text-[9px] uppercase tracking-wider animate-pulse shadow-[0_0_10px_rgba(245,158,11,0.5)]">
               GOD MODE ACTIVE
@@ -76,7 +132,7 @@ const TopBar = () => {
           {canUpgradeEra && (
             <button 
               onClick={purchaseEraUpgrade}
-              className="px-3 py-1 bg-amber-500/20 text-amber-500 border border-amber-500/50 rounded font-black text-[9px] uppercase tracking-wider hover:bg-amber-500/40 animate-pulse"
+              className="px-3 py-1 bg-amber-500/20 text-amber-500 border border-amber-500/50 rounded font-black text-[9px] uppercase tracking-wider hover:bg-amber-500/40 animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.2)]"
             >
               UPGRADE ERA
             </button>
