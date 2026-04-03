@@ -60,14 +60,6 @@ export const useTechStore = create<TechStore>((set, get) => ({
     return true;
   },
 
-  unlockAllTechs: () => {
-    set({ unlockedTechIds: techTreeData.technologies.map(t => t.id) });
-  },
-
-  resetTechs: () => {
-    set({ unlockedTechIds: ['copper_standard'] });
-  },
-
   unlockTech: (id, currentEra, currentTP, addTechPoints) => {
     if (!get().canUnlockTech(id, currentEra, currentTP)) return;
 
@@ -107,6 +99,15 @@ export const useTechStore = create<TechStore>((set, get) => ({
         connectionReliability: Math.max(acc.connectionReliability, mod.connectionReliability || 0)
       };
     }, base);
+  },
+
+  unlockAllTechs: () => {
+    const allIds = techTreeData.technologies.map(t => t.id);
+    set({ unlockedTechIds: allIds });
+  },
+
+  resetTechs: () => {
+    set({ unlockedTechIds: ['copper_standard'] });
   }
 }));
 

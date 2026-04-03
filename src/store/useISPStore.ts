@@ -185,8 +185,18 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     if (get().worker) return;
     const worker = new Worker(new URL('../systems/SimulationWorker.ts', import.meta.url));
     worker.onmessage = (e) => {
-      const { nodes, revenue, totalMaintenanceCost, totalLoad, networkHealth, avgLatency } = e.data;
+      const { nodes: workerNodes, revenue, totalMaintenanceCost, totalLoad, networkHealth, avgLatency } = e.data;
       const state = get();
+      // Restore bandwidth/baseBandwidth from store originals — the worker receives
+      // tech-scaled bandwidth for physics but must not write it back (would compound).
+      const nodes = workerNodes.map((n: ISPNode) => {
+        const original = state.nodes.find(o => o.id === n.id);
+        return {
+          ...n,
+          bandwidth: original?.bandwidth ?? n.bandwidth,
+          baseBandwidth: original?.baseBandwidth ?? n.baseBandwidth
+        };
+      });
       set({ 
         nodes, 
         money: state.isGodMode ? state.money : (state.money + revenue - totalMaintenanceCost), 
@@ -220,10 +230,11 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     // Tech Tree: Calculate effective multipliers
     const multipliers = useTechStore.getState().getAggregateModifiers();
     
-    // 1. Pass effective bandwidth to nodes
+    // 1. Pass effective bandwidth to nodes — always derived from baseBandwidth (immutable)
+    //    so the multiplier is applied once per tick and never compounds in the store.
     const nodesWithTech = nodes.map(n => ({
       ...n,
-      bandwidth: Math.floor(n.bandwidth * multipliers.bandwidthMultiplier)
+      bandwidth: Math.floor(n.baseBandwidth * multipliers.bandwidthMultiplier)
     }));
 
     // 2. Pass effective bandwidth/latency to links for routing

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useISPStore, ERAS_CONFIG } from '../store/useISPStore';
 import { useTechStore } from '../store/useTechStore';
 import { NODE_TEMPLATES } from '../config/nodeRegistry';
+import techTreeData from '../config/techTreeConfig.json';
 
 const DebugConsole: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -34,7 +35,8 @@ const DebugConsole: React.FC = () => {
   } = useISPStore();
 
   const { unlockedTechIds, unlockAllTechs, resetTechs, getAggregateModifiers } = useTechStore();
-  const techModifiers = getAggregateModifiers();
+  const mods = getAggregateModifiers();
+  const totalTechs = techTreeData.technologies.length;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -88,7 +90,7 @@ const DebugConsole: React.FC = () => {
   if (!isVisible) return null;
 
   return (
-    <div 
+    <div
       ref={consoleRef}
       className={`fixed z-100 w-72 bg-black/80 backdrop-blur-xl border border-emerald-500/30 p-4 rounded-lg shadow-[0_0_30px_rgba(16,185,129,0.1)] font-mono ${!isDragging ? 'animate-in fade-in slide-in-from-bottom-4 duration-300' : ''}`}
       style={{ 
@@ -191,23 +193,26 @@ const DebugConsole: React.FC = () => {
 
         {/* Tech Tree Controls */}
         <div>
-          <label className="text-[8px] font-black text-slate-500 uppercase tracking-tighter mb-2 block">Tech Tree</label>
-          <div className="text-[9px] text-slate-400 mb-1">
-            Unlocked: {unlockedTechIds.length} / 8
+          <div className="flex justify-between items-center mb-2">
+            <label className="text-[8px] font-black text-slate-500 uppercase tracking-tighter">Tech Tree</label>
+            <span className="text-[8px] text-emerald-400 font-bold">{unlockedTechIds.length}/{totalTechs} unlocked</span>
           </div>
-          <div className="text-[9px] text-cyan-400 font-mono mb-2">
-            BW: {techModifiers.bandwidthMultiplier.toFixed(2)}x | Lat: {techModifiers.latencyMultiplier.toFixed(2)}x | Sig: {techModifiers.signalQuality.toFixed(2)}
+          <div className="grid grid-cols-2 gap-1 text-[7px] text-slate-500 mb-2">
+            <span>BW ×{mods.bandwidthMultiplier.toFixed(2)}</span>
+            <span>LAT ×{mods.latencyMultiplier.toFixed(2)}</span>
+            <span>CAP ×{mods.capacityMultiplier.toFixed(2)}</span>
+            <span>DIST {mods.maxDistance}km</span>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <button
-              onClick={() => { unlockAllTechs(); addLog('[DEV] All techs unlocked', false); }}
-              className="py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[9px] uppercase hover:bg-emerald-500/20 transition-all"
+              onClick={() => { unlockAllTechs(); addLog('[DEV] All techs force-unlocked', false); }}
+              className="py-1.5 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[9px] uppercase hover:bg-cyan-500/20 transition-all font-bold"
             >
               Unlock All
             </button>
             <button
-              onClick={() => { resetTechs(); addLog('[DEV] Techs reset to baseline', false); }}
-              className="py-1.5 bg-red-500/10 border border-red-500/20 text-red-400 text-[9px] uppercase hover:bg-red-500/20 transition-all"
+              onClick={() => { resetTechs(); addLog('[DEV] Tech tree reset to baseline', false); }}
+              className="py-1.5 bg-red-500/10 border border-red-500/20 text-red-400 text-[9px] uppercase hover:bg-red-500/20 transition-all font-bold"
             >
               Reset Techs
             </button>
