@@ -138,7 +138,7 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
     const isReachable = dists[node.id] !== Infinity;
     
     // OPEX
-    const baseCost = node.layer === 1 ? 50 : node.layer === 2 ? 20 : node.layer === 3 ? 10 : 5;
+    const baseCost = node.layer === 1 ? 0.008 : node.layer === 2 ? 0.020 : node.layer === 3 ? 0.050 : 0.100;
     totalMaintenanceCost += (baseCost * Math.pow(1.1, node.level - 1)) * dT;
 
     if (!isReachable) return { ...node, traffic: 0, health: 100, hazard: undefined, latency: 0, signalStrength: 0 };
@@ -189,31 +189,34 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
   });
 
   // 3. Link OPEX
-  totalMaintenanceCost += (links.length * 5) * dT;
+  totalMaintenanceCost += (links.length * 0.001) * dT;
 
   // 4. Revenue Calculation (Scaled by Signal & Health)
   const avgHealth = updatedNodes.length > 0 ? healthSum / updatedNodes.length : 100;
   const healthMultiplier = avgHealth < 50 ? 0.5 : 1.0;
   
-  const profitableNodes = updatedNodes.filter(n => n.layer > 1 && dists[n.id] !== Infinity);
+  const profitableNodes = updatedNodes.filter(n => n.id !== '0' && dists[n.id] !== Infinity && n.traffic > 0);
   const rawRevenue = profitableNodes.reduce((sum, n) => {
     const isFocused = n.layer === rangeLevel;
     const efficiency = isFocused ? 0.8 : 0.2;
     // signalStrength already affected traffic, but we multiply here for direct business impact
     // tech-driven signalQuality further boosts revenue efficiency
-    const nodeRevenue = (n.traffic * efficiency * healthMultiplier * (n.signalStrength! / 100) * (QUALITY_MOD / 0.55)) * dT;
+    const nodeRevenue = (n.traffic * efficiency * healthMultiplier * (n.signalStrength! / 100) * QUALITY_MOD * dT) * era.modifiers.revenueMultiplier;
     const isCongested = n.traffic > n.bandwidth;
     return sum + (isCongested ? nodeRevenue * 0.5 : nodeRevenue);
   }, 0);
 
-  const revenue = Math.floor(rawRevenue);
+  const revenue = rawRevenue;
   const totalLoad = updatedNodes.reduce((sum, n) => sum + n.traffic, 0);
+
+  // Apply OPEX grace period: 90% reduction if revenue is 0
+  const finalMaintenanceCost = (revenue > 0 ? totalMaintenanceCost : totalMaintenanceCost * 0.1);
 
   // Send result back to main thread
   self.postMessage({
     nodes: updatedNodes,
     revenue,
-    totalMaintenanceCost: Math.floor(totalMaintenanceCost),
+    totalMaintenanceCost: finalMaintenanceCost,
     totalLoad,
     networkHealth: Math.round(avgHealth),
     avgLatency: connectivityCount > 0 ? Math.round(totalLatency / connectivityCount) : 0,
