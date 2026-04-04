@@ -833,13 +833,19 @@ const App = () => {
       
       <div className="flex-1 flex pt-14 relative min-h-0">
         <div className="flex-1 flex flex-col min-h-0">
-          <div className="flex-1 relative flex flex-col min-h-0">
+          <div 
+            className="flex-1 relative flex flex-col min-h-0"
+            onClick={() => { if (activeTab !== 'map') setActiveTab('map'); }}
+          >
             <LogisticMap />
           </div>
 
           {/* Bottom Taskbar Area */}
           {activeTab !== 'map' && (
-            <div className="h-[280px] border-t border-white/10 bg-black/60 overflow-hidden animate-in slide-in-from-bottom duration-300">
+            <div 
+              className="h-[280px] border-t border-white/10 bg-black/60 overflow-hidden animate-in slide-in-from-bottom duration-300 pointer-events-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
               {activeTab === 'research' && <TechTreePanel />}
               {activeTab === 'network' && <NetworkStatsPanel />}
               {activeTab === 'log' && <LogPanel />}
@@ -847,7 +853,10 @@ const App = () => {
           )}
 
           {/* Taskbar Tabs */}
-          <div className="h-9 bg-black/80 border-t border-white/10 flex items-center px-4 gap-1 z-50">
+          <div 
+            className="h-9 bg-black/80 border-t border-white/10 flex items-center px-4 gap-1 z-50 pointer-events-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             {(['map', 'research', 'network', 'log'] as const).map(tab => (
               <button 
                 key={tab}
@@ -865,7 +874,12 @@ const App = () => {
             <span className="text-[8px] font-mono text-slate-700 tracking-wider">PROTOCOL_VX // TOPOLOGY_SYNCED</span>
           </div>
         </div>
-        <Sidebar />
+        <div 
+          className="pointer-events-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Sidebar />
+        </div>
       </div>
 
       {import.meta.env.DEV && <DebugConsole />}

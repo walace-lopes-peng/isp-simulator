@@ -37,8 +37,8 @@ const TechTreePanel: React.FC<TechTreePanelProps> = () => {
 
   const technologies = techTreeData.technologies as Technology[];
 
-  const scaleX = (x: number) => (x / 800) * 560 + 20;
-  const scaleY = (y: number) => (y / 400) * 200 + 25;
+  const scaleX = (x: number) => (x / 600) * 500 + 50;
+  const scaleY = (y: number) => (y / 200) * 120 + 60;
 
   const handleTechClick = (tech: Technology) => {
     const isUnlocked = isTechUnlocked(tech.id);
@@ -57,6 +57,36 @@ const TechTreePanel: React.FC<TechTreePanelProps> = () => {
       unlockTech(tech.id, currentEra, techPoints, addTechPoints);
       addLog(`Researched: ${tech.displayName}`, false);
     }
+  };
+
+  const renderModifier = (key: string, value: any) => {
+    let label = key.replace('Multiplier', '').replace(/([A-Z])/g, ' $1').trim();
+    let displayValue = value;
+    let colorClass = "text-slate-300";
+
+    if (key.includes('Multiplier')) {
+      displayValue = `${value}x`;
+      if (key === 'latencyMultiplier') {
+        colorClass = value > 1.0 ? "text-red-400" : value < 1.0 ? "text-emerald-400" : "text-amber-400";
+      } else if (key === 'bandwidthMultiplier' || key === 'capacityMultiplier') {
+        colorClass = value >= 5.0 ? "text-emerald-400" : value >= 2.0 ? "text-amber-400" : "text-red-400";
+      } else {
+        colorClass = value > 1.0 ? "text-emerald-400" : value < 1.0 ? "text-red-400" : "text-slate-400";
+      }
+    } else if (key === 'signalQuality' || key === 'connectionReliability') {
+      displayValue = `${(value * 100).toFixed(0)}%`;
+      colorClass = value >= 0.8 ? "text-emerald-400" : value >= 0.6 ? "text-amber-400" : "text-red-400";
+    } else if (key === 'maxDistance') {
+      displayValue = `${value}m`;
+      colorClass = value >= 1000 ? "text-emerald-400" : "text-slate-400";
+    }
+
+    return (
+      <div key={key} className="flex justify-between items-center text-[7px] font-mono leading-none py-0.5 border-b border-white/5 last:border-0">
+        <span className="text-slate-500 uppercase">{label}</span>
+        <span className={`font-black ${colorClass}`}>{displayValue}</span>
+      </div>
+    );
   };
 
   return (
@@ -142,7 +172,7 @@ const TechTreePanel: React.FC<TechTreePanelProps> = () => {
               )}
               
               <circle 
-                cx={x} cy={y} r="20" 
+                cx={x} cy={y} r="18" 
                 fill={fill} stroke={stroke} strokeWidth={strokeWidth}
                 opacity={opacity}
                 className="transition-all duration-300 group-hover:scale-110 origin-center"
@@ -154,18 +184,18 @@ const TechTreePanel: React.FC<TechTreePanelProps> = () => {
                 fontSize="9" fontFamily="monospace" textAnchor="middle" dy="3"
                 fill={isActive || isUnlocked ? "#fff" : stroke}
                 opacity={opacity}
-                className="pointer-events-none select-none font-bold"
+                className="pointer-events-none select-none font-black"
               >
                 {GLYPHS[tech.id] || "??"}
               </text>
 
               <text 
-                x={x} y={y + 28} 
+                x={x} y={y + 26} 
                 fontSize="7" fontFamily="monospace" textAnchor="middle"
-                fill="#94a3b8" opacity="0.5"
-                className="pointer-events-none select-none"
+                fill="#94a3b8" opacity="0.6"
+                className="pointer-events-none select-none uppercase tracking-tighter"
               >
-                {tech.id.split('_')[0].toUpperCase()}
+                {tech.id.split('_')[0]}
               </text>
             </g>
           );
@@ -175,26 +205,31 @@ const TechTreePanel: React.FC<TechTreePanelProps> = () => {
       {/* Tooltip Overlay */}
       {hoveredTech && (
         <div 
-          className="absolute z-50 p-3 bg-[#0a0f1a]/95 border border-white/10 rounded shadow-xl pointer-events-none w-56 animate-in fade-in zoom-in-95 duration-100"
+          className="absolute z-50 p-3 bg-[#0a0f1a]/95 border border-white/10 rounded shadow-xl pointer-events-none w-64 animate-in fade-in zoom-in-95 duration-100"
           style={{ 
             left: Math.min(mousePos.x + 15, 600 - 240), // Simple clamping
             top: Math.min(mousePos.y + 15, 250 - 150)
           }}
         >
-          <h4 className="text-[11px] font-black text-emerald-400 uppercase tracking-wider mb-1">
+          <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1 border-b border-emerald-500/20 pb-1">
             {hoveredTech.displayName}
           </h4>
-          <p className="text-[9px] text-slate-400 font-mono leading-tight mb-2">
+          <p className="text-[8px] text-slate-400 font-mono leading-tight mb-3 italic">
             {hoveredTech.description}
           </p>
           
-          <div className="space-y-1 mb-2">
+          <div className="space-y-1 mb-3">
+             <div className="text-[7px] font-black text-slate-600 uppercase mb-1">Functional Specs</div>
+             {Object.entries(hoveredTech.modifiers).map(([k, v]) => renderModifier(k, v))}
+          </div>
+
+          <div className="space-y-1 mb-3 pt-2 border-t border-white/5">
             <div className="flex justify-between text-[8px] font-mono">
-              <span className="text-slate-500 uppercase">Cost:</span>
-              <span className="text-cyan-400 font-bold">{hoveredTech.tpCost > 0 ? `${hoveredTech.tpCost} TP` : 'FREE'}</span>
+              <span className="text-slate-500 uppercase">Resarch Cost</span>
+              <span className="text-cyan-400 font-black">{hoveredTech.tpCost > 0 ? `${hoveredTech.tpCost.toLocaleString()} TP` : 'FREE'}</span>
             </div>
             <div className="flex justify-between text-[8px] font-mono">
-              <span className="text-slate-500 uppercase">Requires:</span>
+              <span className="text-slate-500 uppercase">Prerequisites</span>
               <span className="text-slate-300">
                 {hoveredTech.requires.length > 0 
                   ? hoveredTech.requires.map(r => r.split('_')[0].toUpperCase()).join(', ') 
@@ -204,8 +239,9 @@ const TechTreePanel: React.FC<TechTreePanelProps> = () => {
             </div>
           </div>
 
-          <div className="pt-2 border-t border-white/5">
-            <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500/80">
+          <div className="pt-2 border-t border-white/10">
+            <span className="text-[9px] font-black uppercase tracking-widest text-emerald-500 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
               {(() => {
                 const unlocked = isTechUnlocked(hoveredTech.id);
                 const active = isTechActive(hoveredTech.id);
