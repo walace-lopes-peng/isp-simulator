@@ -418,8 +418,11 @@ const LogisticMap = () => {
   const svgRef = useRef<SVGSVGElement>(null);
   const [zoomLevel, setZoomLevel] = useState(1.5)
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 })
-  const [isPanning, setIsPanning] = useState(false)
-  const [panStart, setPanStart] = useState({ x: 0, y: 0 })
+  const isPanningRef = useRef(false)
+  const panStartRef = useRef({ x: 0, y: 0 })
+  const panOffsetRef = useRef({ x: 0, y: 0 })
+  const pointerDownTimeRef = useRef(0)
+  const pointerDownPosRef = useRef({ x: 0, y: 0 })
   const eraConfig = useISPStore(state => state.getCurrentEraConfig());
 
   const renderNodeShape = (node: ISPNode, r: number, strokeColor: string, stateClass: string) => {
@@ -526,15 +529,24 @@ const LogisticMap = () => {
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (isPanning) {
+    if (isPanningRef.current) {
       const svgW = 800 / zoomLevel
       const svgH = 800 / zoomLevel
       const containerW = svgRef.current?.clientWidth ?? 800
       const containerH = svgRef.current?.clientHeight ?? 800
-      const dx = -(e.clientX - panStart.x) * (svgW / containerW)
-      const dy = -(e.clientY - panStart.y) * (svgH / containerH)
-      setPanOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }))
-      setPanStart({ x: e.clientX, y: e.clientY })
+      const dx = -(e.clientX - panStartRef.current.x) * (svgW / containerW)
+      const dy = -(e.clientY - panStartRef.current.y) * (svgH / containerH)
+      panOffsetRef.current = {
+        x: panOffsetRef.current.x + dx,
+        y: panOffsetRef.current.y + dy
+      }
+      panStartRef.current = { x: e.clientX, y: e.clientY }
+      // Direct DOM mutation — no React re-render
+      if (svgRef.current) {
+        const svgX = 400 - svgW/2 + panOffsetRef.current.x
+        const svgY = 400 - svgH/2 + panOffsetRef.current.y
+        svgRef.current.setAttribute('viewBox', `${svgX} ${svgY} ${svgW} ${svgH}`)
+      }
       return
     }
     if (dragSourceId) {
@@ -544,7 +556,11 @@ const LogisticMap = () => {
   };
 
   const handlePointerUp = (e: React.PointerEvent, nodeId?: string) => {
-    if (isPanning) { setIsPanning(false); return }
+    if (isPanningRef.current) {
+      isPanningRef.current = false
+      setPanOffset({ ...panOffsetRef.current })
+      return
+    }
     if (dragSourceId) {
       if (nodeId) (e as any).stopPropagation();
       endDragging(nodeId);
@@ -564,8 +580,13 @@ const LogisticMap = () => {
   }
 
   const handleMapClick = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (dragSourceId) return; 
-    
+    const elapsed = Date.now() - pointerDownTimeRef.current
+    const dx = Math.abs(e.clientX - pointerDownPosRef.current.x)
+    const dy = Math.abs(e.clientY - pointerDownPosRef.current.y)
+    if (elapsed > 200 || dx > 5 || dy > 5) return // was a pan
+
+    if (dragSourceId) return;
+
     // --- Interaction Guard ---
     if (selectedNodeId) {
       selectNode(null); // Click map to deselect
@@ -669,9 +690,11 @@ const LogisticMap = () => {
           preserveAspectRatio="xMidYMid meet"
           className="w-full h-full max-h-[85vh] aspect-square drop-shadow-2xl overflow-visible rounded-lg border border-white/10 shadow-inner bg-[#040d1a] map-svg"
           onPointerDown={(e) => {
+            pointerDownTimeRef.current = Date.now()
+            pointerDownPosRef.current = { x: e.clientX, y: e.clientY }
             if (e.button === 1 || (e.button === 0 && !dragSourceId)) {
-              setIsPanning(true)
-              setPanStart({ x: e.clientX, y: e.clientY })
+              isPanningRef.current = true
+              panStartRef.current = { x: e.clientX, y: e.clientY }
               e.currentTarget.setPointerCapture(e.pointerId)
             }
           }}

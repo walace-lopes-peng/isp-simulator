@@ -6,12 +6,12 @@ describe('useISPStore Gold Standard', () => {
         useISPStore.getState().resetTopology();
     });
 
-    it('should initialize with NYC coordinates at (248, 318) for the Pioneer Era', () => {
+    it('should initialize with NYC coordinates at (692, 333) for the Pioneer Era', () => {
         const state = useISPStore.getState();
         const gateway = state.nodes.find(n => n.id === '0');
         expect(gateway).toBeDefined();
-        expect(gateway!.x).toBe(248);
-        expect(gateway!.y).toBe(318);
+        expect(gateway!.x).toBe(692);
+        expect(gateway!.y).toBe(333);
     });
 
     it('should start by default with 2 local terminals near the gateway', () => {
@@ -24,8 +24,8 @@ describe('useISPStore Gold Standard', () => {
         const state = useISPStore.getState();
         const gatewayId = '0';
         const targetId = 'far-away';
-        // Distance: 648 - 248 = 400px (exceeds 300px baseline)
-        state.addNode({ id: targetId, name: 'Far Hub', x: 648, y: 318, bandwidth: 200, baseBandwidth: 200, traffic: 0, level: 1, layer: 2, type: 'hub_local', health: 100 });
+        // Distance: 1042 - 692 = 350px (exceeds 300px baseline)
+        state.addNode({ id: targetId, name: 'Far Hub', x: 1042, y: 333, bandwidth: 200, baseBandwidth: 200, traffic: 0, level: 1, layer: 2, type: 'hub_local', health: 100 });
         const { valid, error } = state.validateLink(gatewayId, targetId);
         expect(valid).toBe(false);
         expect(error).toBe('RANGE');
