@@ -833,19 +833,31 @@ const App = () => {
       
       <div className="flex-1 flex pt-14 relative min-h-0">
         <div className="flex-1 flex flex-col min-h-0">
-          <div 
+          <div
             className="flex-1 relative flex flex-col min-h-0"
-            onClick={() => { if (activeTab !== 'map') setActiveTab('map'); }}
           >
             <LogisticMap />
           </div>
 
           {/* Bottom Taskbar Area */}
           {activeTab !== 'map' && (
-            <div 
+            <div
               className="h-[280px] border-t border-white/10 bg-black/60 overflow-hidden animate-in slide-in-from-bottom duration-300 pointer-events-auto"
               onClick={(e) => e.stopPropagation()}
             >
+              <div className="flex items-center justify-between px-3 py-1 border-b border-white/5">
+                <span className="text-[8px] font-mono text-slate-500 uppercase tracking-widest">
+                  {activeTab === 'research' && 'Research & Development'}
+                  {activeTab === 'network' && 'Network Statistics'}
+                  {activeTab === 'log' && 'System Log'}
+                </span>
+                <button
+                  onClick={() => setActiveTab('map')}
+                  className="text-slate-600 hover:text-white text-xs leading-none"
+                >
+                  ×
+                </button>
+              </div>
               {activeTab === 'research' && <TechTreePanel />}
               {activeTab === 'network' && <NetworkStatsPanel />}
               {activeTab === 'log' && <LogPanel />}

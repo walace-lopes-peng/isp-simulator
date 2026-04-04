@@ -189,8 +189,8 @@ const TechTreePanel: React.FC<TechTreePanelProps> = () => {
                 {GLYPHS[tech.id] || "??"}
               </text>
 
-              <text 
-                x={x} y={y + 26} 
+              <text
+                x={x} y={y + 30}
                 fontSize="7" fontFamily="monospace" textAnchor="middle"
                 fill="#94a3b8" opacity="0.6"
                 className="pointer-events-none select-none uppercase tracking-tighter"
@@ -203,13 +203,20 @@ const TechTreePanel: React.FC<TechTreePanelProps> = () => {
       </svg>
 
       {/* Tooltip Overlay */}
-      {hoveredTech && (
-        <div 
-          className="absolute z-50 p-3 bg-[#0a0f1a]/95 border border-white/10 rounded shadow-xl pointer-events-none w-64 animate-in fade-in zoom-in-95 duration-100"
-          style={{ 
-            left: Math.min(mousePos.x + 15, 600 - 240), // Simple clamping
-            top: Math.min(mousePos.y + 15, 250 - 150)
-          }}
+      {hoveredTech && (() => {
+        const scaledX = scaleX(hoveredTech.position.x);
+        const scaledY = scaleY(hoveredTech.position.y);
+        const tooltipY = scaledY < 130
+          ? scaledY + 28   // below node for top row
+          : scaledY - 110; // above node for bottom row
+        const tooltipX = Math.min(
+          Math.max(scaledX - 80, 8),
+          600 - 168        // 160px tooltip width + 8px margin
+        );
+        return (
+        <div
+          className="absolute z-50 p-3 bg-[#0a0f1a]/95 border border-white/10 rounded shadow-xl pointer-events-none w-40 animate-in fade-in zoom-in-95 duration-100"
+          style={{ left: tooltipX, top: tooltipY }}
         >
           <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1 border-b border-emerald-500/20 pb-1">
             {hoveredTech.displayName}
@@ -258,7 +265,8 @@ const TechTreePanel: React.FC<TechTreePanelProps> = () => {
             </span>
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 };
