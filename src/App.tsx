@@ -530,6 +530,12 @@ const LogisticMap = () => {
 
   const handlePointerMove = (e: React.PointerEvent) => {
     if (isPanningRef.current) {
+      const movedX = Math.abs(e.clientX - panStartRef.current.x)
+      const movedY = Math.abs(e.clientY - panStartRef.current.y)
+      if (movedX < 3 && movedY < 3) return // not moved enough yet
+
+      if (!isPanning) setIsPanning(true) // only set state once threshold crossed
+
       const svgW = 800 / zoomLevel
       const svgH = 800 / zoomLevel
       const containerW = svgRef.current?.clientWidth ?? 800
@@ -541,7 +547,6 @@ const LogisticMap = () => {
         y: panOffsetRef.current.y + dy
       }
       panStartRef.current = { x: e.clientX, y: e.clientY }
-      // Direct DOM mutation — no React re-render
       if (svgRef.current) {
         const svgX = 400 - svgW/2 + panOffsetRef.current.x
         const svgY = 400 - svgH/2 + panOffsetRef.current.y
@@ -556,8 +561,8 @@ const LogisticMap = () => {
   };
   const handlePointerUp = (e: React.PointerEvent, nodeId?: string) => {
     if (isPanningRef.current) {
-      isPanningRef.current = false;
-      setIsPanning(false);
+      isPanningRef.current = false
+      if (isPanning) setIsPanning(false)
       return
     }
     if (dragSourceId) {
