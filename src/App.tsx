@@ -671,7 +671,16 @@ const LogisticMap = () => {
             </filter>
           </defs>
           
-          <image href="/assets/world-map.png" width="800" height="800" opacity="0.4" preserveAspectRatio="xMidYMid slice" />
+          <image
+            href="/assets/usa-all-counties.svg"
+            x="0"
+            y="146"
+            width="800"
+            height="507"
+            opacity="0.35"
+            preserveAspectRatio="xMidYMid meet"
+            style={{ filter: 'brightness(0.4) saturate(0.3) hue-rotate(180deg)' }}
+          />
           <rect width="800" height="800" fill="url(#grid)" pointerEvents="none" />
 
           {links.map(link => {
