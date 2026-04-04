@@ -110,6 +110,15 @@ const TopBar = ({ onOpenResearch }: { onOpenResearch: () => void }) => {
   const purchaseEraUpgrade = useISPStore(state => state.purchaseEraUpgrade);
   const { getAggregateModifiers } = useTechStore();
 
+  const prevMoneyRef = useRef(money);
+  const netRateRef = useRef(0);
+
+  useEffect(() => {
+    const delta = money - prevMoneyRef.current;
+    netRateRef.current = netRateRef.current * 0.9 + delta * 0.1;
+    prevMoneyRef.current = money;
+  }, [money]);
+
   const eraConfig = ERAS_CONFIG.find(e => e.id === currentEraId) ?? ERAS_CONFIG[0];
   const multipliers = getAggregateModifiers();
   
@@ -130,9 +139,16 @@ const TopBar = ({ onOpenResearch }: { onOpenResearch: () => void }) => {
         </div>
         <div className="h-8 w-px bg-white/5" />
         <div className="flex gap-6 items-center">
-          <div className="w-32 flex-shrink-0">
+          <div className="w-40 flex-shrink-0">
             <span className="text-[9px] text-slate-500 uppercase font-bold block">Available Capital</span>
-            <span className="text-sm font-mono tabular-nums text-emerald-400 font-bold block truncate">${money.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-sm font-mono tabular-nums text-emerald-400 font-bold block truncate">
+                ${money.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+              <span className={`text-[9px] font-mono ${netRateRef.current >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {netRateRef.current >= 0 ? '+' : ''}${netRateRef.current.toFixed(2)}/t
+              </span>
+            </div>
           </div>
           <div className="group relative flex flex-col w-32 flex-shrink-0">
             <span className="text-[9px] text-slate-500 uppercase font-bold block">Research Insight</span>
@@ -207,6 +223,8 @@ const Sidebar = () => {
     </div>
   );
 
+  const template = NODE_TEMPLATES.find(t => t.type === node.type);
+
   const cost = Math.floor(50 * Math.pow(1.15, node.level));
   const load = node.bandwidth > 0 ? node.traffic / node.bandwidth : 0;
   const loadColor = load >= 1.0 ? 'bg-red-500' : load > 0.8 ? 'bg-amber-500' : 'bg-emerald-500';
@@ -221,8 +239,15 @@ const Sidebar = () => {
             <span className={`text-[8px] font-mono uppercase ${node.health <= 0 ? 'text-red-500 animate-pulse' : isReachable ? 'text-emerald-500' : 'text-amber-500'}`}>
               {node.health <= 0 ? 'STATUS_FAILED // CRITICAL' : isReachable ? 'CONNECTED // ONLINE' : 'ISOLATED // NO_SIGNAL'}
             </span>
-            <span className="text-[7px] bg-white/10 px-1 py-0.5 rounded text-slate-400 font-mono tracking-tighter">{node.type}</span>
+            <span className="text-[7px] bg-white/10 px-1 py-0.5 rounded text-slate-400 font-mono tracking-tighter">
+              {template?.displayName ?? node.type}
+            </span>
           </div>
+          {template?.description && (
+            <p className="text-[8px] text-slate-500 italic mt-1 leading-tight">
+              {template.description}
+            </p>
+          )}
         </div>
         <button onClick={() => { selectNode(null); if (isLinking) toggleLinking(); }} className="text-slate-600 hover:text-white text-xs">×</button>
       </div>
@@ -819,8 +844,20 @@ const LogisticMap = () => {
 };
 
 const App = () => {
-  const { tick, tickRate } = useISPStore();
+  const { tick, tickRate, links } = useISPStore();
   const [activeTab, setActiveTab] = useState<'map' | 'research' | 'network' | 'log'>('map');
+
+  const [showDragHint, setShowDragHint] = useState(() => {
+    return !localStorage.getItem('hasBuiltFirstLink');
+  });
+
+  // Dismiss when first link is created
+  useEffect(() => {
+    if (links.length > 0 && showDragHint) {
+      setShowDragHint(false);
+      localStorage.setItem('hasBuiltFirstLink', 'true');
+    }
+  }, [links.length, showDragHint]);
 
   useEffect(() => {
     const timer = setInterval(() => tick(), tickRate);
@@ -837,6 +874,14 @@ const App = () => {
             className="flex-1 relative flex flex-col min-h-0"
           >
             <LogisticMap />
+            
+            {showDragHint && links.length === 0 && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 pointer-events-none">
+                <div className="bg-black/70 border border-emerald-500/30 text-emerald-400 font-mono text-[9px] uppercase tracking-widest px-4 py-2 rounded">
+                  ← drag from any node to connect infrastructure →
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Bottom Taskbar Area */}
