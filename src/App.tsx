@@ -110,12 +110,12 @@ const TopBar = ({ onOpenResearch }: { onOpenResearch: () => void }) => {
   const purchaseEraUpgrade = useISPStore(state => state.purchaseEraUpgrade);
   const { getAggregateModifiers } = useTechStore();
 
+  const [netRate, setNetRate] = useState(0);
   const prevMoneyRef = useRef(money);
-  const netRateRef = useRef(0);
 
   useEffect(() => {
     const delta = money - prevMoneyRef.current;
-    netRateRef.current = netRateRef.current * 0.9 + delta * 0.1;
+    setNetRate(prev => prev * 0.9 + delta * 0.1);
     prevMoneyRef.current = money;
   }, [money]);
 
@@ -145,8 +145,8 @@ const TopBar = ({ onOpenResearch }: { onOpenResearch: () => void }) => {
               <span className="text-sm font-mono tabular-nums text-emerald-400 font-bold block truncate">
                 ${money.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
-              <span className={`text-[9px] font-mono ${netRateRef.current >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {netRateRef.current >= 0 ? '+' : ''}${netRateRef.current.toFixed(2)}/t
+              <span className={`text-[9px] font-mono ${netRate >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {netRate >= 0 ? '+' : ''}${netRate.toFixed(2)}/t
               </span>
             </div>
           </div>
