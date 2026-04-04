@@ -1,8 +1,9 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useISPStore, RANGE_PRESETS, RangeLevel, ERAS_CONFIG, EraConfig, ISPNode, ISPNodeType } from './store/useISPStore';
 import { useTechStore } from './store/useTechStore';
 import { NODE_TEMPLATES } from './config/nodeRegistry';
 import DebugConsole from './components/DebugConsole';
+import TechTreePanel from './components/TechTreePanel';
 import EraWrapper from './components/EraWrapper';
 
 const formatData = (bytes: number): string => {
@@ -95,7 +96,7 @@ const MilestoneMonitor: React.FC = () => {
 };
 
 
-const TopBar = () => {
+const TopBar = ({ onOpenResearch }: { onOpenResearch: () => void }) => {
   const money = useISPStore(state => state.money);
   const techPoints = useISPStore(state => state.techPoints);
   const tpAccumulator = useISPStore(state => state.tpAccumulator);
@@ -294,6 +295,58 @@ const Sidebar = () => {
       >
         {isGodMode ? `God Upgrade // FREE` : money >= cost ? `Upgrade // $${cost.toLocaleString()}` : `Insufficient Funds // $${cost.toLocaleString()}`}
       </button>
+    </div>
+  );
+};
+
+const NetworkStatsPanel = () => {
+  const { nodes, links, money, networkHealth, techPoints } = useISPStore();
+  const { getAggregateModifiers } = useTechStore();
+  const multipliers = getAggregateModifiers();
+
+  const totalBandwidth = nodes.reduce((sum, n) => sum + (n.bandwidth * multipliers.bandwidthMultiplier), 0);
+  const totalTraffic = nodes.reduce((sum, n) => sum + n.traffic, 0);
+  const avgLatency = multipliers.latencyMultiplier * 100; // Simulated base
+
+  return (
+    <div className="grid grid-cols-2 gap-8 p-8 h-full max-w-4xl mx-auto items-center">
+      <div className="space-y-6">
+        <div>
+          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Network Integrity</span>
+          <div className="flex items-center gap-4">
+            <span className="text-3xl font-mono font-bold text-emerald-400">{Math.floor(networkHealth)}%</span>
+            <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+              <div className="h-full bg-emerald-500" style={{ width: `${networkHealth}%` }} />
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Active Nodes</span>
+            <span className="text-xl font-mono text-white">{nodes.length}</span>
+          </div>
+          <div>
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Active Links</span>
+            <span className="text-xl font-mono text-white">{links.length}</span>
+          </div>
+        </div>
+      </div>
+      <div className="space-y-6">
+        <div>
+          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Avg Network Latency</span>
+          <span className="text-3xl font-mono font-bold text-cyan-400">{avgLatency.toFixed(1)}ms</span>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Total Capacity</span>
+            <span className="text-xl font-mono text-white">{(totalBandwidth / 1000).toFixed(1)} GB</span>
+          </div>
+          <div>
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Research Progress</span>
+            <span className="text-xl font-mono text-amber-500">{techPoints.toLocaleString()} TP</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
@@ -767,6 +820,7 @@ const LogisticMap = () => {
 
 const App = () => {
   const { tick, tickRate } = useISPStore();
+  const [activeTab, setActiveTab] = useState<'map' | 'research' | 'network' | 'log'>('map');
 
   useEffect(() => {
     const timer = setInterval(() => tick(), tickRate);
@@ -775,26 +829,46 @@ const App = () => {
 
   return (
     <EraWrapper>
-      <TopBar />
+      <TopBar onOpenResearch={() => setActiveTab('research')} />
       
       <div className="flex-1 flex pt-14 relative min-h-0">
         <div className="flex-1 flex flex-col min-h-0">
-          <LogisticMap />
-          <LogPanel />
+          <div className="flex-1 relative flex flex-col min-h-0">
+            <LogisticMap />
+          </div>
+
+          {/* Bottom Taskbar Area */}
+          {activeTab !== 'map' && (
+            <div className="h-[280px] border-t border-white/10 bg-black/60 overflow-hidden animate-in slide-in-from-bottom duration-300">
+              {activeTab === 'research' && <TechTreePanel />}
+              {activeTab === 'network' && <NetworkStatsPanel />}
+              {activeTab === 'log' && <LogPanel />}
+            </div>
+          )}
+
+          {/* Taskbar Tabs */}
+          <div className="h-9 bg-black/80 border-t border-white/10 flex items-center px-4 gap-1 z-50">
+            {(['map', 'research', 'network', 'log'] as const).map(tab => (
+              <button 
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-3 py-1 text-[9px] font-mono uppercase tracking-widest transition-all
+                  ${activeTab === tab
+                    ? 'text-emerald-400 border-b border-emerald-500 bg-emerald-500/5'
+                    : 'text-slate-600 hover:text-slate-400 hover:bg-white/5'
+                  }`}
+              >
+                {tab}
+              </button>
+            ))}
+            <div className="flex-1" />
+            <span className="text-[8px] font-mono text-slate-700 tracking-wider">PROTOCOL_VX // TOPOLOGY_SYNCED</span>
+          </div>
         </div>
         <Sidebar />
       </div>
 
       {import.meta.env.DEV && <DebugConsole />}
-
-      <footer className="h-6 bg-black border-t border-white/5 px-4 flex items-center justify-between z-50">
-        <span className="text-[8px] font-mono text-slate-700 tracking-wider">PROTOCOL_VX // TOPOLOGY_SYNCED</span>
-        <div className="flex gap-2">
-            {[...Array(6)].map((_, i) => (
-                <div key={i} className="w-1 h-1 rounded-full bg-slate-800" />
-            ))}
-        </div>
-      </footer>
     </EraWrapper>
   );
 };
