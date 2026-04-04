@@ -559,7 +559,7 @@ const LogisticMap = () => {
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault()
-    const delta = e.deltaY > 0 ? 1.15 : 0.87
+    const delta = e.deltaY > 0 ? 0.87 : 1.15
     setZoomLevel(prev => Math.min(Math.max(prev * delta, 0.5), 20))
   }
 
@@ -698,9 +698,9 @@ const LogisticMap = () => {
             y="146"
             width="800"
             height="507"
-            opacity="0.35"
+            opacity="0.18"
             preserveAspectRatio="xMidYMid meet"
-            style={{ filter: 'brightness(0.4) saturate(0.3) hue-rotate(180deg)' }}
+            style={{ filter: 'brightness(0.35) saturate(0.2) hue-rotate(180deg) blur(0.4px)', pointerEvents: 'none' }}
           />
           <rect width="800" height="800" fill="url(#grid)" pointerEvents="none" />
 
