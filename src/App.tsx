@@ -417,7 +417,7 @@ const LogisticMap = () => {
   const maxTier = rangeLevel;
   const svgRef = useRef<SVGSVGElement>(null);
   const [zoomLevel, setZoomLevel] = useState(1.5)
-  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 })
+  const [isPanning, setIsPanning] = useState(false);
   const isPanningRef = useRef(false)
   const panStartRef = useRef({ x: 0, y: 0 })
   const panOffsetRef = useRef({ x: 0, y: 0 })
@@ -554,11 +554,10 @@ const LogisticMap = () => {
       if (p) setDragPos(p.x, p.y);
     }
   };
-
   const handlePointerUp = (e: React.PointerEvent, nodeId?: string) => {
     if (isPanningRef.current) {
-      isPanningRef.current = false
-      setPanOffset({ ...panOffsetRef.current })
+      isPanningRef.current = false;
+      setIsPanning(false);
       return
     }
     if (dragSourceId) {
@@ -641,8 +640,8 @@ const LogisticMap = () => {
 
   const svgW = 800 / zoomLevel
   const svgH = 800 / zoomLevel
-  const svgX = 400 - svgW / 2 + panOffset.x
-  const svgY = 400 - svgH / 2 + panOffset.y
+  const svgX = 400 - svgW / 2 + panOffsetRef.current.x
+  const svgY = 400 - svgH / 2 + panOffsetRef.current.y
   const dynamicViewBox = `${svgX} ${svgY} ${svgW} ${svgH}`
 
   return (
@@ -671,7 +670,7 @@ const LogisticMap = () => {
           }
         @keyframes dash { to { stroke-dashoffset: -20; } }
         .link-flow { animation: dash 1s linear infinite; }
-        .map-svg { transition: view-box 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+        .map-svg { transition: none; }
         .ghost-line { pointer-events: none; stroke-dasharray: 4,4; transition: stroke 0.2s; }
         .range-overlay { pointer-events: none; fill: rgba(16, 185, 129, 0.03); stroke: rgba(16, 185, 129, 0.1); stroke-dasharray: 2,2; }
       `}</style>
@@ -693,7 +692,8 @@ const LogisticMap = () => {
             pointerDownTimeRef.current = Date.now()
             pointerDownPosRef.current = { x: e.clientX, y: e.clientY }
             if (e.button === 1 || (e.button === 0 && !dragSourceId)) {
-              isPanningRef.current = true
+              isPanningRef.current = true;
+              setIsPanning(true);
               panStartRef.current = { x: e.clientX, y: e.clientY }
               e.currentTarget.setPointerCapture(e.pointerId)
             }
@@ -727,49 +727,59 @@ const LogisticMap = () => {
           />
           <rect width="800" height="800" fill="url(#grid)" pointerEvents="none" />
 
-          {links.map(link => {
-            const src = nodes.find(n => n.id === link.sourceId);
-            const tgt = nodes.find(n => n.id === link.targetId);
-            if (!src || !tgt || src.layer > maxTier || tgt.layer > maxTier) return null;
-
-            // Multi-session Link Tracking (Fix 5 & 10)
+          {/* PRE-CALCULATE ACTIVE LINKS (O(N) Optimization) */}
+          {(() => {
             const activePaths = useISPStore.getState().activePaths;
-            const isActive = Object.values(activePaths).some(sessions => 
-              sessions.some(session => {
+            const activeLinkKeys = new Set<string>();
+            Object.values(activePaths).forEach(sessions => {
+              sessions.forEach(session => {
                 const path = session.path;
                 for (let i = 0; i < path.length - 1; i++) {
-                  if ((path[i] === link.sourceId && path[i+1] === link.targetId) ||
-                      (path[i] === link.targetId && path[i+1] === link.sourceId)) return true;
+                  const key = [path[i], path[i+1]].sort().join('-');
+                  activeLinkKeys.add(key);
                 }
-                return false;
-              })
-            );
+              });
+            });
 
-            const load = (tgt.traffic / tgt.bandwidth);
-            const strokeColor = getLoadColor(load);
-            const dx = tgt.x - src.x;
-            const dy = tgt.y - src.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            const offset = dist * 0.15;
-            const angle = Math.atan2(dy, dx);
-            const controlX = (src.x + tgt.x) / 2 + offset * Math.cos(angle - Math.PI / 2);
-            const controlY = (src.y + tgt.y) / 2 + offset * Math.sin(angle - Math.PI / 2);
-            return (
-              <path 
-                key={link.id}
-                d={`M ${src.x} ${src.y} Q ${controlX} ${controlY} ${tgt.x} ${tgt.y}`}
-                fill="none"
-                className={`transition-all duration-1000 link-flow thematic-link ${isActive ? 'opacity-100' : 'opacity-20'}`}
-                stroke={strokeColor}
-                strokeWidth={0.5 + (link.bandwidth / 1000) * 0.8}
-                filter={(isActive && eraConfig.id === 'modern') ? "url(#glow)" : "none"}
-                strokeDasharray={eraConfig.id === '70s' ? "2,2" : "none"}
-              />
-            );
-          })}
+            return links.map(link => {
+              const src = nodes.find(n => n.id === link.sourceId);
+              const tgt = nodes.find(n => n.id === link.targetId);
+              if (!src || !tgt || src.layer > maxTier || tgt.layer > maxTier) return null;
 
-          {/* PACKET VISUALIZATION (#126) */}
-          {Object.entries(useISPStore.getState().activePaths).map(([nodeId, sessions]) => {
+              const linkKey = [link.sourceId, link.targetId].sort().join('-');
+              const isActive = activeLinkKeys.has(linkKey);
+
+              const load = (tgt.traffic / tgt.bandwidth);
+              const strokeColor = getLoadColor(load);
+              
+              // Skip curves during pan for performance
+              const isHighPerf = isPanning || zoomLevel < 0.8;
+              
+              const dx = tgt.x - src.x;
+              const dy = tgt.y - src.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              const offset = dist * 0.15;
+              const angle = Math.atan2(dy, dx);
+              const controlX = (src.x + tgt.x) / 2 + offset * Math.cos(angle - Math.PI / 2);
+              const controlY = (src.y + tgt.y) / 2 + offset * Math.sin(angle - Math.PI / 2);
+
+              return (
+                <path 
+                  key={link.id}
+                  d={isHighPerf ? `M ${src.x} ${src.y} L ${tgt.x} ${tgt.y}` : `M ${src.x} ${src.y} Q ${controlX} ${controlY} ${tgt.x} ${tgt.y}`}
+                  fill="none"
+                  className={`transition-all duration-1000 link-flow thematic-link ${isActive ? 'opacity-100' : 'opacity-20'}`}
+                  stroke={strokeColor}
+                  strokeWidth={0.5 + (link.bandwidth / 1000) * 0.8}
+                  filter={(isActive && !isHighPerf && eraConfig.id === 'modern') ? "url(#glow)" : "none"}
+                  strokeDasharray={eraConfig.id === '70s' ? "2,2" : "none"}
+                />
+              );
+            });
+          })()}
+
+          {/* PACKET VISUALIZATION (Cull at low zoom) */}
+          {zoomLevel >= 1.2 && Object.entries(useISPStore.getState().activePaths).map(([nodeId, sessions]) => {
             const sourceNode = nodes.find(n => n.id === nodeId);
             if (!sourceNode || sourceNode.layer > maxTier) return null;
 
