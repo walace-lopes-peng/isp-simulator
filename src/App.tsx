@@ -416,6 +416,10 @@ const LogisticMap = () => {
   const currentRange = RANGE_PRESETS[rangeLevel];
   const maxTier = rangeLevel;
   const svgRef = useRef<SVGSVGElement>(null);
+  const [zoomLevel, setZoomLevel] = useState(1.0)
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 })
+  const [isPanning, setIsPanning] = useState(false)
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 })
   const eraConfig = useISPStore(state => state.getCurrentEraConfig());
 
   const renderNodeShape = (node: ISPNode, r: number, strokeColor: string, stateClass: string) => {
@@ -522,6 +526,17 @@ const LogisticMap = () => {
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
+    if (isPanning) {
+      const svgW = 800 / zoomLevel
+      const svgH = 800 / zoomLevel
+      const containerW = svgRef.current?.clientWidth ?? 800
+      const containerH = svgRef.current?.clientHeight ?? 800
+      const dx = -(e.clientX - panStart.x) * (svgW / containerW)
+      const dy = -(e.clientY - panStart.y) * (svgH / containerH)
+      setPanOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }))
+      setPanStart({ x: e.clientX, y: e.clientY })
+      return
+    }
     if (dragSourceId) {
       const p = getSVGPoint(e);
       if (p) setDragPos(p.x, p.y);
@@ -529,6 +544,7 @@ const LogisticMap = () => {
   };
 
   const handlePointerUp = (e: React.PointerEvent, nodeId?: string) => {
+    if (isPanning) { setIsPanning(false); return }
     if (dragSourceId) {
       if (nodeId) (e as any).stopPropagation();
       endDragging(nodeId);
@@ -542,9 +558,10 @@ const LogisticMap = () => {
   };
 
   const handleWheel = (e: React.WheelEvent) => {
-    if (e.deltaY > 0 && rangeLevel < 4) setRange((rangeLevel + 1) as RangeLevel);
-    else if (e.deltaY < 0 && rangeLevel > 1) setRange((rangeLevel - 1) as RangeLevel);
-  };
+    e.preventDefault()
+    const delta = e.deltaY > 0 ? 1.15 : 0.87
+    setZoomLevel(prev => Math.min(Math.max(prev * delta, 0.5), 20))
+  }
 
   const handleMapClick = (e: React.MouseEvent<SVGSVGElement>) => {
     if (dragSourceId) return; 
@@ -601,6 +618,12 @@ const LogisticMap = () => {
     }
   };
 
+  const svgW = 800 / zoomLevel
+  const svgH = 800 / zoomLevel
+  const svgX = 400 - svgW / 2 + panOffset.x
+  const svgY = 400 - svgH / 2 + panOffset.y
+  const dynamicViewBox = `${svgX} ${svgY} ${svgW} ${svgH}`
+
   return (
     <div className="flex-1 relative flex flex-col min-h-0 min-w-0" onWheel={handleWheel}>
       <style>{`
@@ -633,29 +656,27 @@ const LogisticMap = () => {
       `}</style>
       
       {/* HUD Layer */}
-      <div className="absolute top-4 left-6 z-50 p-3 bg-black/60 backdrop-blur-xl rounded-lg border border-white/10 shadow-2xl">
-        <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest block mb-2">Network Focus // {currentRange.name}</label>
-        <div className="flex gap-1">
-          {([1, 2, 3, 4] as const).map(level => (
-            <button 
-              key={level}
-              onClick={() => setRange(level)}
-              className={`px-3 py-1.5 text-[9px] font-black border transition-all duration-300 ${rangeLevel === level ? 'bg-emerald-500 border-emerald-400 text-black shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'bg-white/5 border-white/5 text-slate-500 hover:bg-white/10 hover:text-slate-300'}`}
-            >
-              LEVEL {level}
-            </button>
-          ))}
+      <div className="absolute top-2 left-2 z-10">
+        <div className="bg-black/60 border border-white/10 px-2 py-1 rounded text-[8px] font-mono text-slate-500">
+          {Math.round(zoomLevel * 100)}%
         </div>
       </div>
 
       <div className="flex-1 flex items-center justify-center p-4">
-        <svg 
+        <svg
           ref={svgRef}
-          viewBox={currentRange.viewBox} 
-          preserveAspectRatio="xMidYMid meet" 
+          viewBox={dynamicViewBox}
+          preserveAspectRatio="xMidYMid meet"
           className="w-full h-full max-h-[85vh] aspect-square drop-shadow-2xl overflow-visible rounded-lg border border-white/10 shadow-inner bg-[#040d1a] map-svg"
+          onPointerDown={(e) => {
+            if (e.button === 1 || (e.button === 0 && !dragSourceId)) {
+              setIsPanning(true)
+              setPanStart({ x: e.clientX, y: e.clientY })
+              e.currentTarget.setPointerCapture(e.pointerId)
+            }
+          }}
           onPointerMove={handlePointerMove}
-          onPointerUp={() => handlePointerUp({} as any)}
+          onPointerUp={(e) => handlePointerUp(e)}
           onClick={handleMapClick}
         >
           <defs>
