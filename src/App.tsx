@@ -416,7 +416,7 @@ const LogisticMap = () => {
   const currentRange = RANGE_PRESETS[rangeLevel];
   const maxTier = rangeLevel;
   const svgRef = useRef<SVGSVGElement>(null);
-  const [zoomLevel, setZoomLevel] = useState(1.0)
+  const [zoomLevel, setZoomLevel] = useState(1.5)
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 })
   const [isPanning, setIsPanning] = useState(false)
   const [panStart, setPanStart] = useState({ x: 0, y: 0 })
@@ -560,7 +560,7 @@ const LogisticMap = () => {
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault()
     const delta = e.deltaY > 0 ? 0.87 : 1.15
-    setZoomLevel(prev => Math.min(Math.max(prev * delta, 0.5), 20))
+    setZoomLevel(prev => Math.min(Math.max(prev * delta, 0.5), 8))
   }
 
   const handleMapClick = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -700,7 +700,7 @@ const LogisticMap = () => {
             height="507"
             opacity="0.18"
             preserveAspectRatio="xMidYMid meet"
-            style={{ filter: 'brightness(0.35) saturate(0.2) hue-rotate(180deg) blur(0.4px)', pointerEvents: 'none' }}
+            style={{ filter: 'brightness(0.35) saturate(0.2) hue-rotate(180deg)', pointerEvents: 'none' }}
           />
           <rect width="800" height="800" fill="url(#grid)" pointerEvents="none" />
 
