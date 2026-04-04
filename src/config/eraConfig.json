@@ -9,7 +9,7 @@
       "unlockedHardware": ["copper-v1", "acoustic-coupler"],
       "modifiers": {
         "signalAttenuation": 1.5,
-        "revenueMultiplier": 0.0060,
+        "revenueMultiplier": 0.05,
         "maintenanceCost": 0.5
       },
       "unlockCondition": { "totalData": 0, "money": 0 }
@@ -23,7 +23,7 @@
       "unlockedHardware": ["coaxial", "dns-v1"],
       "modifiers": {
         "signalAttenuation": 1.2,
-        "revenueMultiplier": 0.010,
+        "revenueMultiplier": 0.08,
         "maintenanceCost": 0.8
       },
       "unlockCondition": { "totalData": 5120000000, "money": 20000 }
@@ -37,7 +37,7 @@
       "unlockedHardware": ["fiber-v1", "dial-up"],
       "modifiers": {
         "signalAttenuation": 0.8,
-        "revenueMultiplier": 0.025,
+        "revenueMultiplier": 0.15,
         "maintenanceCost": 1.2
       },
       "unlockCondition": { "totalData": 51200000000, "money": 100000 }
@@ -51,7 +51,7 @@
       "unlockedHardware": ["adsl", "fiber-home"],
       "modifiers": {
         "signalAttenuation": 0.5,
-        "revenueMultiplier": 0.060,
+        "revenueMultiplier": 0.25,
         "maintenanceCost": 2.0
       },
       "unlockCondition": { "totalData": 256000000000, "money": 300000 }
@@ -65,7 +65,7 @@
       "unlockedHardware": ["4g", "cdn-edge"],
       "modifiers": {
         "signalAttenuation": 0.2,
-        "revenueMultiplier": 0.150,
+        "revenueMultiplier": 0.45,
         "maintenanceCost": 3.5
       },
       "unlockCondition": { "totalData": 1024000000000, "money": 1500000 }
@@ -79,7 +79,7 @@
       "unlockedHardware": ["5g", "quantum-link"],
       "modifiers": {
         "signalAttenuation": 0.05,
-        "revenueMultiplier": 0.400,
+        "revenueMultiplier": 0.90,
         "maintenanceCost": 5.0
       },
       "unlockCondition": { "totalData": 5120000000000, "money": 5000000 }

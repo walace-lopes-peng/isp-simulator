@@ -18,6 +18,10 @@ const formatData = (bytes: number): string => {
   return `${tb.toFixed(2)} TB`;
 };
 
+const formatCurrency = (val: number): string => {
+  return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
 const abbreviateNodeName = (node: ISPNode): string => {
   const { name, id, isDevSpawned } = node;
   if (isDevSpawned) return `H-${id.slice(-4).toUpperCase()}`;
@@ -83,7 +87,7 @@ const MilestoneMonitor: React.FC = () => {
           </span>
         )}
         <span className={moneyMet ? 'text-emerald-500' : 'text-amber-500'}>
-          {moneyMet ? '✓' : '✗'} Capital: ${money.toLocaleString()}/${moneyTarget.toLocaleString()}
+          {moneyMet ? '✓' : '✗'} Capital: ${formatCurrency(money)}/${formatCurrency(moneyTarget)}
         </span>
         {eraConfig.id === '70s' && (
           <span className={isdnMet ? 'text-emerald-500' : 'text-red-500'}>
@@ -143,7 +147,7 @@ const TopBar = ({ onOpenResearch }: { onOpenResearch: () => void }) => {
             <span className="text-[9px] text-slate-500 uppercase font-bold block">Available Capital</span>
             <div className="flex items-baseline gap-2">
               <span className="text-sm font-mono tabular-nums text-emerald-400 font-bold block truncate">
-                ${money.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                ${formatCurrency(money)}
               </span>
               <span className={`text-[9px] font-mono ${netRate >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                 {netRate >= 0 ? '+' : ''}${netRate.toFixed(2)}/t
