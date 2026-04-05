@@ -426,6 +426,19 @@ const LogisticMap = () => {
   const pointerDownPosRef = useRef({ x: 0, y: 0 })
   const eraConfig = useISPStore(state => state.getCurrentEraConfig());
 
+  useEffect(() => {
+    const container = mapContainerRef.current
+    const parent = container?.parentElement
+    if (!container || !parent) return
+    const rect = parent.getBoundingClientRect()
+    panOffsetRef.current = {
+      x: (rect.width - rect.width * 1.5) / 2,
+      y: (rect.height - rect.height * 1.5) / 2,
+    }
+    container.style.transform =
+      `translate(${panOffsetRef.current.x}px, ${panOffsetRef.current.y}px) scale(1.5)`
+  }, [])
+
   const renderNodeShape = (node: ISPNode, r: number, strokeColor: string, stateClass: string) => {
     const isGateway = node.isCore && node.type === 'hub_local';
     
@@ -577,17 +590,19 @@ const LogisticMap = () => {
     if (!container) return
 
     const delta = e.deltaY > 0 ? 0.87 : 1.15
-
-    const rect = container.parentElement!.getBoundingClientRect()
-    const cursorX = e.clientX - rect.left
-    const cursorY = e.clientY - rect.top
+    const rect = container.getBoundingClientRect()
 
     setZoomLevel(prev => {
       const next = Math.min(Math.max(prev * delta, 0.5), 40)
 
+      // Convert cursor to world space before zoom
+      const worldX = (e.clientX - rect.left - panOffsetRef.current.x) / prev
+      const worldY = (e.clientY - rect.top - panOffsetRef.current.y) / prev
+
+      // Adjust pan so world point stays under cursor after zoom
       panOffsetRef.current = {
-        x: cursorX - (cursorX - panOffsetRef.current.x) * (next / prev),
-        y: cursorY - (cursorY - panOffsetRef.current.y) * (next / prev),
+        x: e.clientX - rect.left - worldX * next,
+        y: e.clientY - rect.top - worldY * next,
       }
 
       container.style.transform =
@@ -697,7 +712,7 @@ const LogisticMap = () => {
         </div>
       </div>
 
-      <div className="flex-1 relative overflow-hidden">
+      <div className="flex-1 relative overflow-hidden" style={{ padding: 0 }}>
         <div
           ref={mapContainerRef}
           style={{
@@ -714,8 +729,11 @@ const LogisticMap = () => {
         <svg
           ref={svgRef}
           viewBox="0 0 800 800"
-          preserveAspectRatio="xMidYMid meet"
-          className="w-full h-full max-h-[85vh] aspect-square drop-shadow-2xl overflow-visible rounded-lg border border-white/10 shadow-inner bg-[#040d1a] map-svg"
+          preserveAspectRatio="none"
+          width="100%"
+          height="100%"
+          style={{ display: 'block' }}
+          className="bg-[#040d1a] map-svg"
           onPointerDown={(e) => {
             pointerDownTimeRef.current = Date.now()
             pointerDownPosRef.current = { x: e.clientX, y: e.clientY }
