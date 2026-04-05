@@ -429,6 +429,9 @@ const LogisticMap = () => {
   const pointerDownTimeRef = useRef(0)
   const pointerDownPosRef = useRef({ x: 0, y: 0 })
   const eraConfig = useISPStore(state => state.getCurrentEraConfig());
+  
+  const vw = Number(svgViewBox.split(' ')[2] || 800);
+  const absoluteZoom = (800 / vw) * zoomLevel;
 
   useEffect(() => {
     const parent = mapContainerRef.current?.parentElement
@@ -856,9 +859,6 @@ const LogisticMap = () => {
               const load = (tgt.traffic / tgt.bandwidth);
               const strokeColor = getLoadColor(load);
               
-              // Skip curves during pan for performance
-              const isHighPerf = isPanning || zoomLevel < 0.8;
-              
               const dx = tgt.x - src.x;
               const dy = tgt.y - src.y;
               const dist = Math.sqrt(dx * dx + dy * dy);
@@ -870,20 +870,19 @@ const LogisticMap = () => {
               return (
                 <path 
                   key={link.id}
-                  d={isHighPerf ? `M ${src.x} ${src.y} L ${tgt.x} ${tgt.y}` : `M ${src.x} ${src.y} Q ${controlX} ${controlY} ${tgt.x} ${tgt.y}`}
+                  d={`M ${src.x} ${src.y} Q ${controlX} ${controlY} ${tgt.x} ${tgt.y}`}
                   fill="none"
-                  className={`transition-all duration-1000 link-flow thematic-link ${isActive ? 'opacity-100' : 'opacity-20'}`}
+                  className={`transition-all duration-1000 thematic-link ${isActive ? 'opacity-100' : 'opacity-20'}`}
                   stroke={strokeColor}
                   strokeWidth={0.5 + (link.bandwidth / 1000) * 0.8}
                   filter="none"
-                  strokeDasharray={eraConfig.id === '70s' ? "2,2" : "none"}
                 />
               );
             });
           })()}
 
           {/* PACKET VISUALIZATION (Cull at low zoom) */}
-          {zoomLevel >= 1.2 && Object.entries(useISPStore.getState().activePaths).map(([nodeId, sessions]) => {
+          {absoluteZoom >= 0.8 && Object.entries(useISPStore.getState().activePaths).map(([nodeId, sessions]) => {
             const sourceNode = nodes.find(n => n.id === nodeId);
             if (!sourceNode || sourceNode.layer > maxTier) return null;
 
