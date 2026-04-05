@@ -702,7 +702,7 @@ const LogisticMap = () => {
           ref={mapContainerRef}
           style={{
             transform: `translate(${panOffsetRef.current.x}px, ${panOffsetRef.current.y}px) scale(${zoomLevel})`,
-            transformOrigin: 'center center',
+            transformOrigin: '0 0',
             willChange: 'transform',
             width: '100%',
             height: '100%',
