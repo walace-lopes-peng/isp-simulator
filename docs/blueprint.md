@@ -1,4 +1,4 @@
-# 🗺️ PROJECT_BLUEPRINT: ISP Tycoon (v2.0)
+# 🗺️ PROJECT_BLUEPRINT: ISP Tycoon (v0.2.0)
 
 > [!NOTE]
 > This document is the living seed of the project. All design and architecture decisions must be validated against this vision. Updated to reflect actual codebase state after PRs #111, #112, #113.
@@ -220,4 +220,4 @@ Issues in current priority order:
 
 ---
 
-*Single Source of Truth — v2.0 [post-PR #111, #112, #113]*
+*Single Source of Truth — v0.2.0 [post-PR #111, #112, #113]*

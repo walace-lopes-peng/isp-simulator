@@ -18,6 +18,10 @@ const formatData = (bytes: number): string => {
   return `${tb.toFixed(2)} TB`;
 };
 
+const formatCurrency = (val: number): string => {
+  return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
 const abbreviateNodeName = (node: ISPNode): string => {
   const { name, id, isDevSpawned } = node;
   if (isDevSpawned) return `H-${id.slice(-4).toUpperCase()}`;
@@ -83,7 +87,7 @@ const MilestoneMonitor: React.FC = () => {
           </span>
         )}
         <span className={moneyMet ? 'text-emerald-500' : 'text-amber-500'}>
-          {moneyMet ? '✓' : '✗'} Capital: ${money.toLocaleString()}/${moneyTarget.toLocaleString()}
+          {moneyMet ? '✓' : '✗'} Capital: ${formatCurrency(money)}/${formatCurrency(moneyTarget)}
         </span>
         {eraConfig.id === '70s' && (
           <span className={isdnMet ? 'text-emerald-500' : 'text-red-500'}>
@@ -110,12 +114,12 @@ const TopBar = ({ onOpenResearch }: { onOpenResearch: () => void }) => {
   const purchaseEraUpgrade = useISPStore(state => state.purchaseEraUpgrade);
   const { getAggregateModifiers } = useTechStore();
 
+  const [netRate, setNetRate] = useState(0);
   const prevMoneyRef = useRef(money);
-  const netRateRef = useRef(0);
 
   useEffect(() => {
     const delta = money - prevMoneyRef.current;
-    netRateRef.current = netRateRef.current * 0.9 + delta * 0.1;
+    setNetRate(prev => prev * 0.9 + delta * 0.1);
     prevMoneyRef.current = money;
   }, [money]);
 
@@ -143,10 +147,10 @@ const TopBar = ({ onOpenResearch }: { onOpenResearch: () => void }) => {
             <span className="text-[9px] text-slate-500 uppercase font-bold block">Available Capital</span>
             <div className="flex items-baseline gap-2">
               <span className="text-sm font-mono tabular-nums text-emerald-400 font-bold block truncate">
-                ${money.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                ${formatCurrency(money)}
               </span>
-              <span className={`text-[9px] font-mono ${netRateRef.current >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {netRateRef.current >= 0 ? '+' : ''}${netRateRef.current.toFixed(2)}/t
+              <span className={`text-[9px] font-mono ${netRate >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {netRate >= 0 ? '+' : ''}${netRate.toFixed(2)}/t
               </span>
             </div>
           </div>
@@ -412,7 +416,70 @@ const LogisticMap = () => {
   const currentRange = RANGE_PRESETS[rangeLevel];
   const maxTier = rangeLevel;
   const svgRef = useRef<SVGSVGElement>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const [zoomLevel, setZoomLevel] = useState(1.5)
+  const [svgViewBox, setSvgViewBox] = useState('0 0 800 800')
+  const zoomRef = useRef(1.5)
+  const [isPanning, setIsPanning] = useState(false);
+  const isPanningRef = useRef(false)
+  const panStartRef = useRef({ x: 0, y: 0 })
+  const panOffsetRef = useRef({ x: 0, y: 0 })
+  const snapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const viewBoxRef = useRef('0 0 800 800')
+  const pointerDownTimeRef = useRef(0)
+  const pointerDownPosRef = useRef({ x: 0, y: 0 })
   const eraConfig = useISPStore(state => state.getCurrentEraConfig());
+  
+  const vw = Number(svgViewBox.split(' ')[2] || 800);
+  const absoluteZoom = (800 / vw) * zoomLevel;
+
+  useEffect(() => {
+    const parent = mapContainerRef.current?.parentElement
+    if (!parent) return
+    panOffsetRef.current = { x: 0, y: 0 }
+    if (mapContainerRef.current) {
+      mapContainerRef.current.style.transform = `translate(0px, 0px) scale(1)`
+    }
+    setZoomLevel(1)
+    zoomRef.current = 1
+    
+    // Snap initial load to crisp vectors
+    if (snapTimerRef.current) clearTimeout(snapTimerRef.current)
+    snapTimerRef.current = setTimeout(snapViewBox, 150)
+  }, [])
+
+  const snapViewBox = () => {
+    const container = mapContainerRef.current
+    const parent = container?.parentElement
+    const svg = svgRef.current
+    if (!container || !parent || !svg) return
+    
+    const rect = parent.getBoundingClientRect()
+    const ctm = svg.getScreenCTM()
+    if (!ctm) return
+    const inv = ctm.inverse()
+    
+    const ptTL = svg.createSVGPoint()
+    ptTL.x = rect.left
+    ptTL.y = rect.top
+    const svgTL = ptTL.matrixTransform(inv)
+    
+    const ptBR = svg.createSVGPoint()
+    ptBR.x = rect.right
+    ptBR.y = rect.bottom
+    const svgBR = ptBR.matrixTransform(inv)
+    
+    const newViewBox = `${svgTL.x} ${svgTL.y} ${svgBR.x - svgTL.x} ${svgBR.y - svgTL.y}`
+    viewBoxRef.current = newViewBox
+
+    svg.setAttribute('viewBox', newViewBox)
+    container.style.transform = 'translate(0px, 0px) scale(1)'
+    
+    panOffsetRef.current = { x: 0, y: 0 }
+    setZoomLevel(1)
+    zoomRef.current = 1
+    setSvgViewBox(newViewBox)
+  }
 
   const renderNodeShape = (node: ISPNode, r: number, strokeColor: string, stateClass: string) => {
     const isGateway = node.isCore && node.type === 'hub_local';
@@ -518,13 +585,37 @@ const LogisticMap = () => {
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
+    if (isPanningRef.current) {
+      const movedX = Math.abs(e.clientX - panStartRef.current.x)
+      const movedY = Math.abs(e.clientY - panStartRef.current.y)
+      if (movedX < 3 && movedY < 3) return
+
+      const dx = e.clientX - panStartRef.current.x
+      const dy = e.clientY - panStartRef.current.y
+      panOffsetRef.current = {
+        x: panOffsetRef.current.x + dx,
+        y: panOffsetRef.current.y + dy
+      }
+      panStartRef.current = { x: e.clientX, y: e.clientY }
+      if (mapContainerRef.current) {
+        mapContainerRef.current.style.transform =
+          `translate(${panOffsetRef.current.x}px, ${panOffsetRef.current.y}px) scale(${zoomLevel})`
+      }
+      return
+    }
     if (dragSourceId) {
       const p = getSVGPoint(e);
       if (p) setDragPos(p.x, p.y);
     }
   };
-
   const handlePointerUp = (e: React.PointerEvent, nodeId?: string) => {
+    if (isPanningRef.current) {
+      isPanningRef.current = false
+      if (isPanning) setIsPanning(false)
+      if (snapTimerRef.current) clearTimeout(snapTimerRef.current)
+      snapTimerRef.current = setTimeout(snapViewBox, 200)
+      return
+    }
     if (dragSourceId) {
       if (nodeId) (e as any).stopPropagation();
       endDragging(nodeId);
@@ -538,13 +629,54 @@ const LogisticMap = () => {
   };
 
   const handleWheel = (e: React.WheelEvent) => {
-    if (e.deltaY > 0 && rangeLevel < 4) setRange((rangeLevel + 1) as RangeLevel);
-    else if (e.deltaY < 0 && rangeLevel > 1) setRange((rangeLevel - 1) as RangeLevel);
-  };
+    e.preventDefault()
+    const container = mapContainerRef.current
+    if (!container) return
+
+    const delta = e.deltaY > 0 ? 0.87 : 1.15
+    const rect = container.parentElement!.getBoundingClientRect()
+    const cursorX = e.clientX - rect.left
+    const cursorY = e.clientY - rect.top
+
+    const prev = zoomRef.current
+    const [vx, vy, vw, vh] = viewBoxRef.current.split(' ').map(Number)
+    
+    // Enforce global max zoom (since next resets to 1 on snap)
+    const absoluteZoom = (800 / vw) * prev * delta
+    let next = prev * delta
+    if (absoluteZoom > 40) next = 40 / (800 / vw)
+    if (absoluteZoom < 0.25) next = 0.25 / (800 / vw)
+
+    zoomRef.current = next
+
+    const ratioX = vw / rect.width
+    const ratioY = vh / rect.height
+
+    const worldX = vx + ((cursorX - panOffsetRef.current.x) / prev) * ratioX
+    const worldY = vy + ((cursorY - panOffsetRef.current.y) / prev) * ratioY
+
+    panOffsetRef.current = {
+      x: cursorX - (worldX - vx) * (next / ratioX),
+      y: cursorY - (worldY - vy) * (next / ratioY),
+    }
+
+    container.style.transform =
+      `translate(${panOffsetRef.current.x}px, ${panOffsetRef.current.y}px) scale(${next})`
+
+    setZoomLevel(next)
+    
+    if (snapTimerRef.current) clearTimeout(snapTimerRef.current)
+    snapTimerRef.current = setTimeout(snapViewBox, 200)
+  }
 
   const handleMapClick = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (dragSourceId) return; 
-    
+    const elapsed = Date.now() - pointerDownTimeRef.current
+    const dx = Math.abs(e.clientX - pointerDownPosRef.current.x)
+    const dy = Math.abs(e.clientY - pointerDownPosRef.current.y)
+    if (elapsed > 200 || dx > 5 || dy > 5) return // was a pan
+
+    if (dragSourceId) return;
+
     // --- Interaction Guard ---
     if (selectedNodeId) {
       selectNode(null); // Click map to deselect
@@ -597,8 +729,24 @@ const LogisticMap = () => {
     }
   };
 
+
+
   return (
-    <div className="flex-1 relative flex flex-col min-h-0 min-w-0" onWheel={handleWheel}>
+    <div
+      className="flex-1 relative flex flex-col min-h-0 min-w-0 bg-[#040d1a]"
+      onWheel={handleWheel}
+      onPointerDown={(e) => {
+        pointerDownTimeRef.current = Date.now()
+        pointerDownPosRef.current = { x: e.clientX, y: e.clientY }
+        if (e.button === 0 && !dragSourceId) {
+          isPanningRef.current = true
+          setIsPanning(true)
+          panStartRef.current = { x: e.clientX, y: e.clientY }
+        }
+      }}
+      onPointerMove={handlePointerMove}
+      onPointerUp={(e) => handlePointerUp(e)}
+    >
       <style>{`
         @keyframes pulse-steady { 0%, 100% { opacity: 1; r: 5; } 50% { opacity: 0.7; r: 6; } }
         @keyframes pulse-soft { 0%, 100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.1); opacity: 0.4; } }
@@ -623,96 +771,118 @@ const LogisticMap = () => {
           }
         @keyframes dash { to { stroke-dashoffset: -20; } }
         .link-flow { animation: dash 1s linear infinite; }
-        .map-svg { transition: view-box 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+        .map-svg { transition: none; }
         .ghost-line { pointer-events: none; stroke-dasharray: 4,4; transition: stroke 0.2s; }
         .range-overlay { pointer-events: none; fill: rgba(16, 185, 129, 0.03); stroke: rgba(16, 185, 129, 0.1); stroke-dasharray: 2,2; }
       `}</style>
       
       {/* HUD Layer */}
-      <div className="absolute top-4 left-6 z-50 p-3 bg-black/60 backdrop-blur-xl rounded-lg border border-white/10 shadow-2xl">
-        <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest block mb-2">Network Focus // {currentRange.name}</label>
-        <div className="flex gap-1">
-          {([1, 2, 3, 4] as const).map(level => (
-            <button 
-              key={level}
-              onClick={() => setRange(level)}
-              className={`px-3 py-1.5 text-[9px] font-black border transition-all duration-300 ${rangeLevel === level ? 'bg-emerald-500 border-emerald-400 text-black shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'bg-white/5 border-white/5 text-slate-500 hover:bg-white/10 hover:text-slate-300'}`}
-            >
-              LEVEL {level}
-            </button>
-          ))}
+      <div className="absolute top-2 left-2 z-10">
+        <div className="bg-black/60 border border-white/10 px-2 py-1 rounded text-[8px] font-mono text-slate-500">
+          {Math.round(zoomLevel * 100)}%
         </div>
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-4">
-        <svg 
+      <div className="flex-1 relative overflow-hidden" style={{ padding: 0 }}>
+        <div
+          ref={mapContainerRef}
+          style={{
+            position: 'absolute',
+            top: 0, left: 0,
+            width: '100%',
+            height: '100%',
+            transformOrigin: '0 0',
+            willChange: 'transform',
+            transform: `translate(${panOffsetRef.current.x}px, ${panOffsetRef.current.y}px) scale(${zoomLevel})`,
+          }}
+        >
+        <svg
           ref={svgRef}
-          viewBox={currentRange.viewBox} 
-          preserveAspectRatio="xMidYMid meet" 
-          className="w-full h-full max-h-[85vh] aspect-square drop-shadow-2xl overflow-visible rounded-lg border border-white/10 shadow-inner bg-[#040d1a] map-svg"
-          onPointerMove={handlePointerMove}
-          onPointerUp={() => handlePointerUp({} as any)}
+          viewBox={svgViewBox}
+          preserveAspectRatio="xMidYMid slice"
+          width="100%"
+          height="100%"
+          className="block bg-[#040d1a] map-svg"
           onClick={handleMapClick}
         >
           <defs>
             <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
               <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="0.5"/>
             </pattern>
-            <filter id="glow">
-               <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
-               <feMerge>
-                   <feMergeNode in="coloredBlur"/>
-                   <feMergeNode in="SourceGraphic"/>
-               </feMerge>
-            </filter>
           </defs>
           
-          <image href="/assets/world-map.png" width="800" height="800" opacity="0.4" preserveAspectRatio="xMidYMid slice" />
+          <image
+            href="/assets/usa-all-counties.svg"
+            x="0"
+            y="146"
+            width="800"
+            height="507"
+            opacity="0.18"
+            preserveAspectRatio="xMidYMid slice"
+            style={{ filter: 'brightness(0.35) saturate(0.2) hue-rotate(180deg)', pointerEvents: 'none' }}
+          />
           <rect width="800" height="800" fill="url(#grid)" pointerEvents="none" />
 
-          {links.map(link => {
-            const src = nodes.find(n => n.id === link.sourceId);
-            const tgt = nodes.find(n => n.id === link.targetId);
-            if (!src || !tgt || src.layer > maxTier || tgt.layer > maxTier) return null;
+          {zoomLevel > 6 && (
+            <g opacity={Math.min((zoomLevel - 6) / 4, 0.4)}>
+              <defs>
+                <pattern id="cityblock" width="8" height="8" patternUnits="userSpaceOnUse">
+                  <rect width="8" height="8" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="0.3"/>
+                </pattern>
+              </defs>
+              <rect width="800" height="800" fill="url(#cityblock)" pointerEvents="none"/>
+            </g>
+          )}
 
-            // Multi-session Link Tracking (Fix 5 & 10)
+          {/* PRE-CALCULATE ACTIVE LINKS (O(N) Optimization) */}
+          {(() => {
             const activePaths = useISPStore.getState().activePaths;
-            const isActive = Object.values(activePaths).some(sessions => 
-              sessions.some(session => {
+            const activeLinkKeys = new Set<string>();
+            Object.values(activePaths).forEach(sessions => {
+              sessions.forEach(session => {
                 const path = session.path;
                 for (let i = 0; i < path.length - 1; i++) {
-                  if ((path[i] === link.sourceId && path[i+1] === link.targetId) ||
-                      (path[i] === link.targetId && path[i+1] === link.sourceId)) return true;
+                  const key = [path[i], path[i+1]].sort().join('-');
+                  activeLinkKeys.add(key);
                 }
-                return false;
-              })
-            );
+              });
+            });
 
-            const load = (tgt.traffic / tgt.bandwidth);
-            const strokeColor = getLoadColor(load);
-            const dx = tgt.x - src.x;
-            const dy = tgt.y - src.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            const offset = dist * 0.15;
-            const angle = Math.atan2(dy, dx);
-            const controlX = (src.x + tgt.x) / 2 + offset * Math.cos(angle - Math.PI / 2);
-            const controlY = (src.y + tgt.y) / 2 + offset * Math.sin(angle - Math.PI / 2);
-            return (
-              <path 
-                key={link.id}
-                d={`M ${src.x} ${src.y} Q ${controlX} ${controlY} ${tgt.x} ${tgt.y}`}
-                fill="none"
-                className={`transition-all duration-1000 link-flow thematic-link ${isActive ? 'opacity-100' : 'opacity-20'}`}
-                stroke={strokeColor}
-                strokeWidth={0.5 + (link.bandwidth / 1000) * 0.8}
-                filter={(isActive && eraConfig.id === 'modern') ? "url(#glow)" : "none"}
-                strokeDasharray={eraConfig.id === '70s' ? "2,2" : "none"}
-              />
-            );
-          })}
+            return links.map(link => {
+              const src = nodes.find(n => n.id === link.sourceId);
+              const tgt = nodes.find(n => n.id === link.targetId);
+              if (!src || !tgt || src.layer > maxTier || tgt.layer > maxTier) return null;
 
-          {/* PACKET VISUALIZATION (#126) */}
-          {Object.entries(useISPStore.getState().activePaths).map(([nodeId, sessions]) => {
+              const linkKey = [link.sourceId, link.targetId].sort().join('-');
+              const isActive = activeLinkKeys.has(linkKey);
+
+              const load = (tgt.traffic / tgt.bandwidth);
+              const strokeColor = getLoadColor(load);
+              
+              const dx = tgt.x - src.x;
+              const dy = tgt.y - src.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              const offset = dist * 0.15;
+              const angle = Math.atan2(dy, dx);
+              const controlX = (src.x + tgt.x) / 2 + offset * Math.cos(angle - Math.PI / 2);
+              const controlY = (src.y + tgt.y) / 2 + offset * Math.sin(angle - Math.PI / 2);
+
+              return (
+                <path 
+                  key={link.id}
+                  d={`M ${src.x} ${src.y} Q ${controlX} ${controlY} ${tgt.x} ${tgt.y}`}
+                  fill="none"
+                  className={`transition-all duration-1000 thematic-link ${isActive ? 'opacity-100' : 'opacity-20'}`}
+                  stroke={strokeColor}
+                  strokeWidth={0.5 + (link.bandwidth / 1000) * 0.8}
+                  filter="none"
+                />
+              );
+            });
+          })()}
+
+          {/* PACKET VISUALIZATION (Cull at low zoom) */}
+          {absoluteZoom >= 0.8 && Object.entries(useISPStore.getState().activePaths).map(([nodeId, sessions]) => {
             const sourceNode = nodes.find(n => n.id === nodeId);
             if (!sourceNode || sourceNode.layer > maxTier) return null;
 
@@ -838,6 +1008,7 @@ const LogisticMap = () => {
              );
            })}
          </svg>
+        </div>
       </div>
     </div>
   );

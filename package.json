@@ -1,6 +1,6 @@
 {
-  "name": "isp-game",
-  "version": "1.0.0",
+  "name": "logistic-map",
+  "version": "0.2.0",
   "description": "",
   "main": "index.js",
   "scripts": {

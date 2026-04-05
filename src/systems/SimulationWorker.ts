@@ -264,7 +264,7 @@ self.onmessage = (e: MessageEvent<WorkerState>) => {
     
     // OPEX
     const baseCost = node.layer === 1 ? 0.008 : node.layer === 2 ? 0.020 : node.layer === 3 ? 0.050 : 0.100;
-    totalMaintenanceCost += (baseCost * Math.pow(1.1, node.level - 1)) * dT;
+    totalMaintenanceCost += (baseCost * Math.pow(1.1, node.level - 1) * era.modifiers.maintenanceCost) * dT;
 
     if (!isReachable) return { ...node, traffic: 0, health: 100, hazard: undefined, latency: 0, signalStrength: 0 };
 

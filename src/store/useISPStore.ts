@@ -56,7 +56,7 @@ export interface ISPLink {
 }
 
 export const STARTING_POINTS = {
-  us_east: { name: "New York (US East)", x: 248, y: 318 },
+  us_east: { name: "New York (US East)", x: 692, y: 333 },
   us_west: { name: "San Francisco (US West)", x: 110, y: 280 },
   europe: { name: "London (Europe)", x: 410, y: 210 },
   sampa: { name: "São Paulo (LATAM)", x: 265, y: 590 },
