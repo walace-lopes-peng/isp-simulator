@@ -684,13 +684,16 @@ const LogisticMap = () => {
         </div>
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
+      <div className="flex-1 relative overflow-hidden" style={{ display: 'flex' }}>
         <div
           ref={mapContainerRef}
           style={{
             transform: `translate(${panOffsetRef.current.x}px, ${panOffsetRef.current.y}px) scale(${zoomLevel})`,
             transformOrigin: 'center center',
             willChange: 'transform',
+            width: '100%',
+            height: '100%',
+            position: 'relative',
           }}
         >
         <svg
