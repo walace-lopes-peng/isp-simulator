@@ -573,13 +573,26 @@ const LogisticMap = () => {
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault()
+    const container = mapContainerRef.current
+    if (!container) return
+
     const delta = e.deltaY > 0 ? 0.87 : 1.15
+
+    const rect = container.parentElement!.getBoundingClientRect()
+    const cursorX = e.clientX - rect.left
+    const cursorY = e.clientY - rect.top
+
     setZoomLevel(prev => {
       const next = Math.min(Math.max(prev * delta, 0.5), 40)
-      if (mapContainerRef.current) {
-        mapContainerRef.current.style.transform =
-          `translate(${panOffsetRef.current.x}px, ${panOffsetRef.current.y}px) scale(${next})`
+
+      panOffsetRef.current = {
+        x: cursorX - (cursorX - panOffsetRef.current.x) * (next / prev),
+        y: cursorY - (cursorY - panOffsetRef.current.y) * (next / prev),
       }
+
+      container.style.transform =
+        `translate(${panOffsetRef.current.x}px, ${panOffsetRef.current.y}px) scale(${next})`
+
       return next
     })
   }
