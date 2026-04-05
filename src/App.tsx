@@ -418,10 +418,13 @@ const LogisticMap = () => {
   const svgRef = useRef<SVGSVGElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [zoomLevel, setZoomLevel] = useState(1.5)
+  const [svgViewBox, setSvgViewBox] = useState('0 0 800 800')
   const [isPanning, setIsPanning] = useState(false);
   const isPanningRef = useRef(false)
   const panStartRef = useRef({ x: 0, y: 0 })
   const panOffsetRef = useRef({ x: 0, y: 0 })
+  const snapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const viewBoxRef = useRef('0 0 800 800')
   const pointerDownTimeRef = useRef(0)
   const pointerDownPosRef = useRef({ x: 0, y: 0 })
   const eraConfig = useISPStore(state => state.getCurrentEraConfig());
@@ -439,7 +442,43 @@ const LogisticMap = () => {
         `translate(${panOffsetRef.current.x}px, ${panOffsetRef.current.y}px) scale(1.5)`
     }
     setZoomLevel(1.5)
+    
+    // Snap initial load to crisp vectors
+    if (snapTimerRef.current) clearTimeout(snapTimerRef.current)
+    snapTimerRef.current = setTimeout(snapViewBox, 150)
   }, [])
+
+  const snapViewBox = () => {
+    const container = mapContainerRef.current
+    const parent = container?.parentElement
+    const svg = svgRef.current
+    if (!container || !parent || !svg) return
+    
+    const rect = parent.getBoundingClientRect()
+    const ctm = svg.getScreenCTM()
+    if (!ctm) return
+    const inv = ctm.inverse()
+    
+    const ptTL = svg.createSVGPoint()
+    ptTL.x = rect.left
+    ptTL.y = rect.top
+    const svgTL = ptTL.matrixTransform(inv)
+    
+    const ptBR = svg.createSVGPoint()
+    ptBR.x = rect.right
+    ptBR.y = rect.bottom
+    const svgBR = ptBR.matrixTransform(inv)
+    
+    const newViewBox = `${svgTL.x} ${svgTL.y} ${svgBR.x - svgTL.x} ${svgBR.y - svgTL.y}`
+    viewBoxRef.current = newViewBox
+
+    svg.setAttribute('viewBox', newViewBox)
+    container.style.transform = 'translate(0px, 0px) scale(1)'
+    
+    panOffsetRef.current = { x: 0, y: 0 }
+    setZoomLevel(1)
+    setSvgViewBox(newViewBox)
+  }
 
   const renderNodeShape = (node: ISPNode, r: number, strokeColor: string, stateClass: string) => {
     const isGateway = node.isCore && node.type === 'hub_local';
@@ -572,6 +611,8 @@ const LogisticMap = () => {
     if (isPanningRef.current) {
       isPanningRef.current = false
       if (isPanning) setIsPanning(false)
+      if (snapTimerRef.current) clearTimeout(snapTimerRef.current)
+      snapTimerRef.current = setTimeout(snapViewBox, 200)
       return
     }
     if (dragSourceId) {
@@ -597,20 +638,32 @@ const LogisticMap = () => {
     const cursorY = e.clientY - rect.top
 
     const prev = zoomLevel
-    const next = Math.min(Math.max(prev * delta, 0.5), 40)
+    const [vx, vy, vw, vh] = viewBoxRef.current.split(' ').map(Number)
+    
+    // Enforce global max zoom (since next resets to 1 on snap)
+    const absoluteZoom = (800 / vw) * prev * delta
+    let next = prev * delta
+    if (absoluteZoom > 40) next = 40 / (800 / vw)
+    if (absoluteZoom < 0.25) next = 0.25 / (800 / vw)
 
-    const worldX = (cursorX - panOffsetRef.current.x) / prev
-    const worldY = (cursorY - panOffsetRef.current.y) / prev
+    const ratioX = vw / rect.width
+    const ratioY = vh / rect.height
+
+    const worldX = vx + ((cursorX - panOffsetRef.current.x) / prev) * ratioX
+    const worldY = vy + ((cursorY - panOffsetRef.current.y) / prev) * ratioY
 
     panOffsetRef.current = {
-      x: cursorX - worldX * next,
-      y: cursorY - worldY * next,
+      x: cursorX - (worldX - vx) * (next / ratioX),
+      y: cursorY - (worldY - vy) * (next / ratioY),
     }
 
     container.style.transform =
       `translate(${panOffsetRef.current.x}px, ${panOffsetRef.current.y}px) scale(${next})`
 
     setZoomLevel(next)
+    
+    if (snapTimerRef.current) clearTimeout(snapTimerRef.current)
+    snapTimerRef.current = setTimeout(snapViewBox, 200)
   }
 
   const handleMapClick = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -742,7 +795,7 @@ const LogisticMap = () => {
         >
         <svg
           ref={svgRef}
-          viewBox="0 0 800 800"
+          viewBox={svgViewBox}
           preserveAspectRatio="xMidYMid meet"
           width="800"
           height="800"
