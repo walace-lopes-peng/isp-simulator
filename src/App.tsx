@@ -587,22 +587,27 @@ const LogisticMap = () => {
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault()
     const container = mapContainerRef.current
-    if (!container) return
+    const parent = container?.parentElement
+    if (!container || !parent) return
 
     const delta = e.deltaY > 0 ? 0.87 : 1.15
-    const rect = container.getBoundingClientRect()
+    const parentRect = parent.getBoundingClientRect()
+    
+    // Mouse relative to the static parent view
+    const cursorX = e.clientX - parentRect.left
+    const cursorY = e.clientY - parentRect.top
 
     setZoomLevel(prev => {
       const next = Math.min(Math.max(prev * delta, 0.5), 40)
 
-      // Convert cursor to world space before zoom
-      const worldX = (e.clientX - rect.left - panOffsetRef.current.x) / prev
-      const worldY = (e.clientY - rect.top - panOffsetRef.current.y) / prev
+      // The raw 'world' point under the cursor in unscaled space
+      const worldX = (cursorX - panOffsetRef.current.x) / prev
+      const worldY = (cursorY - panOffsetRef.current.y) / prev
 
-      // Adjust pan so world point stays under cursor after zoom
+      // Adjust Pan so that same world point lands exactly back under the cursor
       panOffsetRef.current = {
-        x: e.clientX - rect.left - worldX * next,
-        y: e.clientY - rect.top - worldY * next,
+        x: cursorX - (worldX * next),
+        y: cursorY - (worldY * next),
       }
 
       container.style.transform =
@@ -729,7 +734,7 @@ const LogisticMap = () => {
         <svg
           ref={svgRef}
           viewBox="0 0 800 800"
-          preserveAspectRatio="none"
+          preserveAspectRatio="xMidYMid slice"
           width="100%"
           height="100%"
           style={{ display: 'block' }}
@@ -746,6 +751,8 @@ const LogisticMap = () => {
           }}
           onPointerMove={handlePointerMove}
           onPointerUp={(e) => handlePointerUp(e)}
+          onPointerLeave={(e) => handlePointerUp(e as any)}
+          onPointerCancel={(e) => handlePointerUp(e as any)}
           onClick={handleMapClick}
         >
           <defs>
@@ -761,7 +768,7 @@ const LogisticMap = () => {
             width="800"
             height="507"
             opacity="0.18"
-            preserveAspectRatio="xMidYMid meet"
+            preserveAspectRatio="xMidYMid slice"
             style={{ filter: 'brightness(0.35) saturate(0.2) hue-rotate(180deg)', pointerEvents: 'none' }}
           />
           <rect width="800" height="800" fill="url(#grid)" pointerEvents="none" />
