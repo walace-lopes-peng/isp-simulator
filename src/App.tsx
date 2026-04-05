@@ -427,16 +427,18 @@ const LogisticMap = () => {
   const eraConfig = useISPStore(state => state.getCurrentEraConfig());
 
   useEffect(() => {
-    const container = mapContainerRef.current
-    const parent = container?.parentElement
-    if (!container || !parent) return
+    const parent = mapContainerRef.current?.parentElement
+    if (!parent) return
     const rect = parent.getBoundingClientRect()
     panOffsetRef.current = {
-      x: (rect.width - rect.width * 1.5) / 2,
-      y: (rect.height - rect.height * 1.5) / 2,
+      x: (rect.width - 800) / 2,
+      y: (rect.height - 800) / 2,
     }
-    container.style.transform =
-      `translate(${panOffsetRef.current.x}px, ${panOffsetRef.current.y}px) scale(1.5)`
+    if (mapContainerRef.current) {
+      mapContainerRef.current.style.transform =
+        `translate(${panOffsetRef.current.x}px, ${panOffsetRef.current.y}px) scale(1.5)`
+    }
+    setZoomLevel(1.5)
   }, [])
 
   const renderNodeShape = (node: ISPNode, r: number, strokeColor: string, stateClass: string) => {
@@ -587,34 +589,28 @@ const LogisticMap = () => {
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault()
     const container = mapContainerRef.current
-    const parent = container?.parentElement
-    if (!container || !parent) return
+    if (!container) return
 
     const delta = e.deltaY > 0 ? 0.87 : 1.15
-    const parentRect = parent.getBoundingClientRect()
-    
-    // Mouse relative to the static parent view
-    const cursorX = e.clientX - parentRect.left
-    const cursorY = e.clientY - parentRect.top
+    const rect = container.parentElement!.getBoundingClientRect()
+    const cursorX = e.clientX - rect.left
+    const cursorY = e.clientY - rect.top
 
-    setZoomLevel(prev => {
-      const next = Math.min(Math.max(prev * delta, 0.5), 40)
+    const prev = zoomLevel
+    const next = Math.min(Math.max(prev * delta, 0.5), 40)
 
-      // The raw 'world' point under the cursor in unscaled space
-      const worldX = (cursorX - panOffsetRef.current.x) / prev
-      const worldY = (cursorY - panOffsetRef.current.y) / prev
+    const worldX = (cursorX - panOffsetRef.current.x) / prev
+    const worldY = (cursorY - panOffsetRef.current.y) / prev
 
-      // Adjust Pan so that same world point lands exactly back under the cursor
-      panOffsetRef.current = {
-        x: cursorX - (worldX * next),
-        y: cursorY - (worldY * next),
-      }
+    panOffsetRef.current = {
+      x: cursorX - worldX * next,
+      y: cursorY - worldY * next,
+    }
 
-      container.style.transform =
-        `translate(${panOffsetRef.current.x}px, ${panOffsetRef.current.y}px) scale(${next})`
+    container.style.transform =
+      `translate(${panOffsetRef.current.x}px, ${panOffsetRef.current.y}px) scale(${next})`
 
-      return next
-    })
+    setZoomLevel(next)
   }
 
   const handleMapClick = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -680,7 +676,21 @@ const LogisticMap = () => {
 
 
   return (
-    <div className="flex-1 relative flex flex-col min-h-0 min-w-0" onWheel={handleWheel}>
+    <div
+      className="flex-1 relative flex flex-col min-h-0 min-w-0 bg-[#040d1a]"
+      onWheel={handleWheel}
+      onPointerDown={(e) => {
+        pointerDownTimeRef.current = Date.now()
+        pointerDownPosRef.current = { x: e.clientX, y: e.clientY }
+        if (e.button === 0 && !dragSourceId) {
+          isPanningRef.current = true
+          setIsPanning(true)
+          panStartRef.current = { x: e.clientX, y: e.clientY }
+        }
+      }}
+      onPointerMove={handlePointerMove}
+      onPointerUp={(e) => handlePointerUp(e)}
+    >
       <style>{`
         @keyframes pulse-steady { 0%, 100% { opacity: 1; r: 5; } 50% { opacity: 0.7; r: 6; } }
         @keyframes pulse-soft { 0%, 100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.1); opacity: 0.4; } }
@@ -721,38 +731,22 @@ const LogisticMap = () => {
         <div
           ref={mapContainerRef}
           style={{
-            transform: `translate(${panOffsetRef.current.x}px, ${panOffsetRef.current.y}px) scale(${zoomLevel})`,
+            position: 'absolute',
+            top: 0, left: 0,
+            width: '800px',
+            height: '800px',
             transformOrigin: '0 0',
             willChange: 'transform',
-            width: '100%',
-            height: '100%',
-            position: 'absolute',
-            top: 0,
-            left: 0,
+            transform: `translate(${panOffsetRef.current.x}px, ${panOffsetRef.current.y}px) scale(${zoomLevel})`,
           }}
         >
         <svg
           ref={svgRef}
           viewBox="0 0 800 800"
-          preserveAspectRatio="xMidYMid slice"
-          width="100%"
-          height="100%"
-          style={{ display: 'block' }}
-          className="bg-[#040d1a] map-svg"
-          onPointerDown={(e) => {
-            pointerDownTimeRef.current = Date.now()
-            pointerDownPosRef.current = { x: e.clientX, y: e.clientY }
-            if (e.button === 1 || (e.button === 0 && !dragSourceId)) {
-              isPanningRef.current = true;
-              setIsPanning(true);
-              panStartRef.current = { x: e.clientX, y: e.clientY }
-              e.currentTarget.setPointerCapture(e.pointerId)
-            }
-          }}
-          onPointerMove={handlePointerMove}
-          onPointerUp={(e) => handlePointerUp(e)}
-          onPointerLeave={(e) => handlePointerUp(e as any)}
-          onPointerCancel={(e) => handlePointerUp(e as any)}
+          preserveAspectRatio="xMidYMid meet"
+          width="800"
+          height="800"
+          className="block bg-[#040d1a] map-svg"
           onClick={handleMapClick}
         >
           <defs>
