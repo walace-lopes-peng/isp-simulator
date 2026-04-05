@@ -419,6 +419,7 @@ const LogisticMap = () => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [zoomLevel, setZoomLevel] = useState(1.5)
   const [svgViewBox, setSvgViewBox] = useState('0 0 800 800')
+  const zoomRef = useRef(1.5)
   const [isPanning, setIsPanning] = useState(false);
   const isPanningRef = useRef(false)
   const panStartRef = useRef({ x: 0, y: 0 })
@@ -432,16 +433,12 @@ const LogisticMap = () => {
   useEffect(() => {
     const parent = mapContainerRef.current?.parentElement
     if (!parent) return
-    const rect = parent.getBoundingClientRect()
-    panOffsetRef.current = {
-      x: (rect.width - 800) / 2,
-      y: (rect.height - 800) / 2,
-    }
+    panOffsetRef.current = { x: 0, y: 0 }
     if (mapContainerRef.current) {
-      mapContainerRef.current.style.transform =
-        `translate(${panOffsetRef.current.x}px, ${panOffsetRef.current.y}px) scale(1.5)`
+      mapContainerRef.current.style.transform = `translate(0px, 0px) scale(1)`
     }
-    setZoomLevel(1.5)
+    setZoomLevel(1)
+    zoomRef.current = 1
     
     // Snap initial load to crisp vectors
     if (snapTimerRef.current) clearTimeout(snapTimerRef.current)
@@ -477,6 +474,7 @@ const LogisticMap = () => {
     
     panOffsetRef.current = { x: 0, y: 0 }
     setZoomLevel(1)
+    zoomRef.current = 1
     setSvgViewBox(newViewBox)
   }
 
@@ -637,7 +635,7 @@ const LogisticMap = () => {
     const cursorX = e.clientX - rect.left
     const cursorY = e.clientY - rect.top
 
-    const prev = zoomLevel
+    const prev = zoomRef.current
     const [vx, vy, vw, vh] = viewBoxRef.current.split(' ').map(Number)
     
     // Enforce global max zoom (since next resets to 1 on snap)
@@ -645,6 +643,8 @@ const LogisticMap = () => {
     let next = prev * delta
     if (absoluteZoom > 40) next = 40 / (800 / vw)
     if (absoluteZoom < 0.25) next = 0.25 / (800 / vw)
+
+    zoomRef.current = next
 
     const ratioX = vw / rect.width
     const ratioY = vh / rect.height
@@ -786,8 +786,8 @@ const LogisticMap = () => {
           style={{
             position: 'absolute',
             top: 0, left: 0,
-            width: '800px',
-            height: '800px',
+            width: '100%',
+            height: '100%',
             transformOrigin: '0 0',
             willChange: 'transform',
             transform: `translate(${panOffsetRef.current.x}px, ${panOffsetRef.current.y}px) scale(${zoomLevel})`,
@@ -796,9 +796,9 @@ const LogisticMap = () => {
         <svg
           ref={svgRef}
           viewBox={svgViewBox}
-          preserveAspectRatio="xMidYMid meet"
-          width="800"
-          height="800"
+          preserveAspectRatio="xMidYMid slice"
+          width="100%"
+          height="100%"
           className="block bg-[#040d1a] map-svg"
           onClick={handleMapClick}
         >
