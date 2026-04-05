@@ -575,7 +575,7 @@ const LogisticMap = () => {
     e.preventDefault()
     const delta = e.deltaY > 0 ? 0.87 : 1.15
     setZoomLevel(prev => {
-      const next = Math.min(Math.max(prev * delta, 0.5), 8)
+      const next = Math.min(Math.max(prev * delta, 0.5), 40)
       if (mapContainerRef.current) {
         mapContainerRef.current.style.transform =
           `translate(${panOffsetRef.current.x}px, ${panOffsetRef.current.y}px) scale(${next})`
@@ -684,7 +684,7 @@ const LogisticMap = () => {
         </div>
       </div>
 
-      <div className="flex-1 relative overflow-hidden" style={{ display: 'flex' }}>
+      <div className="flex-1 relative overflow-hidden">
         <div
           ref={mapContainerRef}
           style={{
@@ -693,7 +693,9 @@ const LogisticMap = () => {
             willChange: 'transform',
             width: '100%',
             height: '100%',
-            position: 'relative',
+            position: 'absolute',
+            top: 0,
+            left: 0,
           }}
         >
         <svg
@@ -719,13 +721,6 @@ const LogisticMap = () => {
             <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
               <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="0.5"/>
             </pattern>
-            <filter id="glow">
-               <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
-               <feMerge>
-                   <feMergeNode in="coloredBlur"/>
-                   <feMergeNode in="SourceGraphic"/>
-               </feMerge>
-            </filter>
           </defs>
           
           <image
@@ -739,6 +734,17 @@ const LogisticMap = () => {
             style={{ filter: 'brightness(0.35) saturate(0.2) hue-rotate(180deg)', pointerEvents: 'none' }}
           />
           <rect width="800" height="800" fill="url(#grid)" pointerEvents="none" />
+
+          {zoomLevel > 6 && (
+            <g opacity={Math.min((zoomLevel - 6) / 4, 0.4)}>
+              <defs>
+                <pattern id="cityblock" width="8" height="8" patternUnits="userSpaceOnUse">
+                  <rect width="8" height="8" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="0.3"/>
+                </pattern>
+              </defs>
+              <rect width="800" height="800" fill="url(#cityblock)" pointerEvents="none"/>
+            </g>
+          )}
 
           {/* PRE-CALCULATE ACTIVE LINKS (O(N) Optimization) */}
           {(() => {
@@ -784,7 +790,7 @@ const LogisticMap = () => {
                   className={`transition-all duration-1000 link-flow thematic-link ${isActive ? 'opacity-100' : 'opacity-20'}`}
                   stroke={strokeColor}
                   strokeWidth={0.5 + (link.bandwidth / 1000) * 0.8}
-                  filter={(isActive && !isHighPerf && eraConfig.id === 'modern') ? "url(#glow)" : "none"}
+                  filter="none"
                   strokeDasharray={eraConfig.id === '70s' ? "2,2" : "none"}
                 />
               );
