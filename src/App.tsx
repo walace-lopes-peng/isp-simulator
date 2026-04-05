@@ -416,6 +416,7 @@ const LogisticMap = () => {
   const currentRange = RANGE_PRESETS[rangeLevel];
   const maxTier = rangeLevel;
   const svgRef = useRef<SVGSVGElement>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
   const [zoomLevel, setZoomLevel] = useState(1.5)
   const [isPanning, setIsPanning] = useState(false);
   const isPanningRef = useRef(false)
@@ -532,25 +533,18 @@ const LogisticMap = () => {
     if (isPanningRef.current) {
       const movedX = Math.abs(e.clientX - panStartRef.current.x)
       const movedY = Math.abs(e.clientY - panStartRef.current.y)
-      if (movedX < 3 && movedY < 3) return // not moved enough yet
+      if (movedX < 3 && movedY < 3) return
 
-      if (!isPanning) setIsPanning(true) // only set state once threshold crossed
-
-      const svgW = 800 / zoomLevel
-      const svgH = 800 / zoomLevel
-      const containerW = svgRef.current?.clientWidth ?? 800
-      const containerH = svgRef.current?.clientHeight ?? 800
-      const dx = -(e.clientX - panStartRef.current.x) * (svgW / containerW)
-      const dy = -(e.clientY - panStartRef.current.y) * (svgH / containerH)
+      const dx = e.clientX - panStartRef.current.x
+      const dy = e.clientY - panStartRef.current.y
       panOffsetRef.current = {
         x: panOffsetRef.current.x + dx,
         y: panOffsetRef.current.y + dy
       }
       panStartRef.current = { x: e.clientX, y: e.clientY }
-      if (svgRef.current) {
-        const svgX = 400 - svgW/2 + panOffsetRef.current.x
-        const svgY = 400 - svgH/2 + panOffsetRef.current.y
-        svgRef.current.setAttribute('viewBox', `${svgX} ${svgY} ${svgW} ${svgH}`)
+      if (mapContainerRef.current) {
+        mapContainerRef.current.style.transform =
+          `translate(${panOffsetRef.current.x}px, ${panOffsetRef.current.y}px) scale(${zoomLevel})`
       }
       return
     }
@@ -580,7 +574,14 @@ const LogisticMap = () => {
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault()
     const delta = e.deltaY > 0 ? 0.87 : 1.15
-    setZoomLevel(prev => Math.min(Math.max(prev * delta, 0.5), 8))
+    setZoomLevel(prev => {
+      const next = Math.min(Math.max(prev * delta, 0.5), 8)
+      if (mapContainerRef.current) {
+        mapContainerRef.current.style.transform =
+          `translate(${panOffsetRef.current.x}px, ${panOffsetRef.current.y}px) scale(${next})`
+      }
+      return next
+    })
   }
 
   const handleMapClick = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -643,11 +644,7 @@ const LogisticMap = () => {
     }
   };
 
-  const svgW = 800 / zoomLevel
-  const svgH = 800 / zoomLevel
-  const svgX = 400 - svgW / 2 + panOffsetRef.current.x
-  const svgY = 400 - svgH / 2 + panOffsetRef.current.y
-  const dynamicViewBox = `${svgX} ${svgY} ${svgW} ${svgH}`
+
 
   return (
     <div className="flex-1 relative flex flex-col min-h-0 min-w-0" onWheel={handleWheel}>
@@ -687,10 +684,18 @@ const LogisticMap = () => {
         </div>
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-4">
+      <div className="flex-1 flex items-center justify-center p-4 overflow-hidden">
+        <div
+          ref={mapContainerRef}
+          style={{
+            transform: `translate(${panOffsetRef.current.x}px, ${panOffsetRef.current.y}px) scale(${zoomLevel})`,
+            transformOrigin: 'center center',
+            willChange: 'transform',
+          }}
+        >
         <svg
           ref={svgRef}
-          viewBox={dynamicViewBox}
+          viewBox="0 0 800 800"
           preserveAspectRatio="xMidYMid meet"
           className="w-full h-full max-h-[85vh] aspect-square drop-shadow-2xl overflow-visible rounded-lg border border-white/10 shadow-inner bg-[#040d1a] map-svg"
           onPointerDown={(e) => {
@@ -910,6 +915,7 @@ const LogisticMap = () => {
              );
            })}
          </svg>
+        </div>
       </div>
     </div>
   );
