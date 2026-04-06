@@ -42,9 +42,10 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          BRANCH_NAME=${{ github.event.pull_request.head.ref || github.ref_name }}
           git add SPRINT.md
           if ! git diff --staged --quiet; then
             git commit -m "chore: auto-update SPRINT.md"
-            git pull --rebase origin ${{ github.event.pull_request.head.ref || github.ref_name }}
-            git push origin HEAD:${{ github.event.pull_request.head.ref || github.ref_name }}
+            git pull --rebase origin $BRANCH_NAME
+            git push origin HEAD:$BRANCH_NAME
           fi
