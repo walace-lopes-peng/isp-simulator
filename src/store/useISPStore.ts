@@ -18,6 +18,7 @@ export interface EraConfig {
     revenueMultiplier: number;
     maintenanceCost: number;
   };
+  maxLinkBandwidth: number;
   unlockCondition: { totalData: number; money: number };
 }
 
@@ -360,21 +361,33 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   }),
 
   connectNodes: (srcId, tgtId) => {
-    const { valid, cost } = get().validateLink(srcId, tgtId);
-    if (!valid && !get().isGodMode) return;
-    
+    const state = get();
+    const { valid, cost } = state.validateLink(srcId, tgtId);
+    if (!valid && !state.isGodMode) return;
+
+    const src = state.nodes.find(n => n.id === srcId);
+    const tgt = state.nodes.find(n => n.id === tgtId);
+    const era = state.getCurrentEraConfig();
+    const hasFiber = era.unlockedHardware.some(h => h.startsWith('fiber'));
+    const type: ISPLink['type'] = hasFiber ? 'fiber' : 'cable';
+    const bandwidth = Math.min(
+      src?.bandwidth ?? era.maxLinkBandwidth,
+      tgt?.bandwidth ?? era.maxLinkBandwidth,
+      era.maxLinkBandwidth
+    );
+
     const newLink: ISPLink = {
       id: `link-${Date.now()}`,
       sourceId: srcId,
       targetId: tgtId,
-      bandwidth: 1000,
-      type: 'cable'
+      bandwidth,
+      type
     };
 
-    set((state) => ({
-      money: state.isGodMode ? state.money : state.money - (cost || 0),
-      links: [...state.links, newLink],
-      logs: [`SYS_LINK: NEW_LINK [COST: $${cost}]`, ...state.logs].slice(0, 15)
+    set((s) => ({
+      money: s.isGodMode ? s.money : s.money - (cost || 0),
+      links: [...s.links, newLink],
+      logs: [`SYS_LINK: NEW_LINK ${type.toUpperCase()} [BW: ${bandwidth}] [COST: $${cost}]`, ...s.logs].slice(0, 15)
     }));
   },
 
