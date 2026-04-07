@@ -1,4 +1,4 @@
-const fs = require('fs');
+import fs from 'fs';
 const REPO = process.env.GITHUB_REPOSITORY;
 const TOKEN = process.env.GITHUB_TOKEN;
 const SPRINT_ISSUE_NUMBER = 27;
