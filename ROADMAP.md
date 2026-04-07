@@ -1,39 +1,67 @@
-# 🌐 ISP Simulator: Development Roadmap
+# **ISP SIMULATOR: STRATEGIC ROADMAP (NORTH STAR)**
 
-This document outlines the strategic evolution of the ISP Simulator, from the initial architectural "Kernel" to a high-fidelity, immersive historical simulation.
-
-## 🚀 Phase 0: The Kernel (COMPLETED)
-*Focus: Establishing the logic and geographical foundations.*
-- [x] **BFS Topology Engine**: Data reachability logic part from Core Gateway '0'.
-- [x] **Geographical UI**: Transition from abstract radar to global map SVG.
-- [x] **Semantic Focus**: Scroll-based network tiering (Global -> Regional -> Local).
-- [x] **Economic Basics**: Distance-based link costs and capital validation.
-
-## 🏗️ Phase 1: The Garage Era (Current Focus)
-*Focus: Immersion, UI Polish, and early network history (v0.5 - v0.8).*
-- [ ] **OS Visual Overlays**: CRT Shaders for the 70s, Beveled grey boxes for the 90s.
-- [ ] **Interactive Linking**: Ghost links, cursor haptics, and live cost tooltips.
-- [ ] **Semantic Zoom Scaling**: Nodes that shrink to dots on Global view instead of disappearing.
-- [ ] **Reactive Link Paths**: Links that follow nodes dynamically if topographies shift.
-
-## 🌐 Phase 2: The Network World (v1.0 Launch)
-*Focus: Dynamic systems, alerts, and high-fidelity feedback.*
-- [ ] **Living World Events**: Undersea cable sharks, satellite debris, and regional outages.
-- [ ] **Procedural Audio**: 60Hz hums, saturation alarms, and era-specific dial-up sounds.
-- [ ] **Signal Visualization**: Directional data particles and breathing signal range circles.
-- [ ] **Global News Ticker**: Contextual events that affect traffic multipliers.
-
-## 🔭 Future Implementation (v2.0+)
-*Focus: Modern frontiers and deep management.*
-- [ ] **Undersea Cable Management**: Laying trans-oceanic fibers with specialized vessels.
-- [ ] **Satellite Constellations**: Implementing LEO networks like Starlink.
-- [ ] **Cyber-Security Layer**: Protecting hubs from DDoS attacks and latency spikes.
-- [ ] **Multiplayer "Peering"**: Connect with other players to exchange traffic and reduce transit costs.
+## **1. Visão Geral do Produto**
+Simulador de gerenciamento de infraestrutura de internet evolutivo. O jogador inicia como um operador de rede local nos anos 70 e progride tecnologicamente até se tornar um provedor global de Tier-1 na era moderna.
 
 ---
-### 🧬 Vision: The "Cebola" (Onion) Strategy
-We build from the **Store (Core Logic)** outward to the **Components (Visuals)**. 
-1. **Core**: State, Math, Connectivity.
-2. **Logic**: AI Traffic, Events, Economy.
-3. **UI/UX**: Maps, Controls, Feedback.
-4. **Immersion**: Shaders, Audio, Atmosphere.
+
+## **2. Fases de Progressão (Eras)**
+
+### **Fase 1: O Alicerce (Anos 70 - Local)**
+*   **Escala:** Bairro/Cidade.
+*   **Tecnologia:** IMPs, Mainframes, Linhas de Cobre Dedicadas.
+*   **Interface:** Terminal/Prompt de comando (Fóssil).
+*   **Desafio:** **Ruído de Sinal** e **Latência de Chaveamento**.
+*   **Economia:** Contratos governamentais e acadêmicos.
+
+### **Fase 2: A Expansão (Anos 90 - Regional/Nacional)**
+*   **Escala:** Estado/País.
+*   **Tecnologia:** Modems Dial-up, DSL, Roteadores Primitivos.
+*   **Interface:** GUI inspirada em Windows 95/Classic OS (Bevel edges).
+*   **Desafio:** **Saturação de Linha** e **Carga Térmica** em Hubs.
+*   **Economia:** Assinaturas residenciais em massa.
+
+### **Fase 3: A Dominação (Atualidade - Global)**
+*   **Escala:** Continental/Transoceânica.
+*   **Tecnologia:** Fibra Óptica (FTTH), Cabos Submarinos, Satélites.
+*   **Interface:** Dashboard moderno, minimalista e dark mode.
+*   **Desafio:** **Latência Física (ms)** e **Congestionamento de Backbone**.
+*   **Economia:** Venda de trânsito IP e acordos de Peering.
+
+---
+
+## **3. Arquitetura de Redes (Hierarquia)**
+O jogo impõe uma topologia de árvore obrigatória:
+1.  **Terminal Nodes:** Clientes finais (casas, empresas).
+2.  **LEP (Local Exchange Point):** Agregador de bairro (Obrigatório Fase 1).
+3.  **PoP (Point of Presence):** Hub regional (Obrigatório Fase 2).
+4.  **Tier-1 Gateway:** Conexão transoceânica (Obrigatório Fase 3).
+
+---
+
+## **4. Pilares de Gameplay & Desafios**
+*   **Network Health:** Métrica baseada em (Capacidade - Carga) - Penalidades.
+*   **Hazards Dinâmicos:** Ruído (Cobre), Calor (Hubs), Rompimento de Cabos (Âncoras/Terremotos).
+*   **Semantic Zoom:** Troca de assets SVG conforme o `range` (Local vs. Global).
+
+---
+
+## **5. Protocolo de Governança de IA (Regras de Agente)**
+
+### **Regra de Atualização Contínua (Mandatória)**
+**Qualquer alteração na lógica de negócio, novas mecânicas aprovadas ou mudanças de direção técnica devem ser refletidas imediatamente neste ROADMAP e no `PROJECT_BLUEPRINT.md`.**
+
+### **Hierarquia de Instrução**
+1.  `.agent/`: Instruções de comportamento e comandos CLI.
+2.  `PROJECT_BLUEPRINT.md`: Regras técnicas imutáveis e fórmulas.
+3.  `ROADMAP.md`: Visão de longo prazo e ordem de implementação.
+4.  `SPRINT.md`: Tarefas imediatas e bugs (Critical Path).
+
+---
+
+## **6. Próximos Marcos (Milestones)**
+1.  **Sync de Estado:** Estabilizar `useISPStore` com suporte a tipos de nós (LEP/PoP).
+2.  **Asset Swapping:** Implementar a troca de SVG entre níveis Local/Global.
+3.  **Engine de Hazards:** Criar o loop de degradação de sinal por calor/ruído.
+
+**Hipótese:** A separação estrita de mapas por nível (Local/Regional/Global) reduzirá em 40% a carga de renderização no DOM, permitindo simulações de tráfego mais complexas sem perda de FPS."

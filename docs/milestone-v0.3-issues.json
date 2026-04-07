@@ -1,0 +1,113 @@
+{
+  "milestone": "v0.3 — Core Loop",
+  "issues": [
+    {
+      "id": 104,
+      "title": "[BUG] Link creation ignores era and tech — bandwidth and type always hardcoded",
+      "labels": ["bug", "enhancement", "P0-blocker", "phase-1", "simulation"],
+      "priority": "P0-blocker",
+      "status": "Open",
+      "author": "walace-lopes-peng",
+      "description": "Link creation logic currently ignores the current era and unlocked technologies, using hardcoded values for bandwidth and node types."
+    },
+    {
+      "id": 145,
+      "title": "[FEAT] Economic Pressure & Recovery — Debt Escalation System",
+      "labels": ["feat", "gameplay", "P0-blocker", "phase-1"],
+      "priority": "P0-blocker",
+      "status": "Open",
+      "author": "walace-lopes-peng",
+      "description": "Implement a system where debt escalates over time, creating economic pressure and requiring strategic recovery plans."
+    },
+    {
+      "id": 149,
+      "title": "[CI] Add npm test and ai-linter to CI pipeline",
+      "labels": ["fix", "Bug fix", "P0-blocker", "phase-1"],
+      "priority": "P0-blocker",
+      "status": "Open",
+      "author": "devanomaly",
+      "description": "Integrate automated testing and AI-driven linting into the CI pipeline to ensure code quality and consistency."
+    },
+    {
+      "id": 150,
+      "title": "[BUG] Broken board-sync.yml — unresolved merge conflict markers",
+      "labels": ["bug", "Something isn't working", "P0-blocker", "phase-1"],
+      "priority": "P0-blocker",
+      "status": "Open",
+      "author": "devanomaly",
+      "description": "The board-sync.yml workflow file contains unresolved merge conflict markers which prevent it from running correctly."
+    },
+    {
+      "id": 151,
+      "title": "[CHORE] Fix stale documentation — 6 docs-vs-code mismatches",
+      "labels": ["docs", "Documentation only", "P1-high", "Should be fixed soon", "phase-1"],
+      "priority": "P1-high",
+      "status": "Open",
+      "author": "devanomaly",
+      "description": "Update documentation to match the current implementation in the codebase, fixing at least 6 identified mismatches."
+    },
+    {
+      "id": 152,
+      "title": "[CHORE] npm audit fix — resolve known CVEs in dev dependencies",
+      "labels": ["chore", "Tooling, config, maintenance", "P2-medium", "Normal priority", "phase-1"],
+      "priority": "P2-medium",
+      "status": "Open",
+      "author": "devanomaly",
+      "description": "Address known security vulnerabilities in development dependencies by running and verifying npm audit fixes."
+    },
+    {
+      "id": 146,
+      "title": "[FEAT] Persist game state to localStorage — survive browser refresh",
+      "labels": ["feat", "New feature", "gameplay", "Gameplay systems and mechanics", "P1-high", "Should be fixed soon", "phase-1"],
+      "priority": "P1-high",
+      "status": "Open",
+      "author": "walace-lopes-peng",
+      "description": "Implement game state persistence using localStorage to allow players to continue their session after a page refresh."
+    },
+    {
+      "id": 8,
+      "title": "[Bug] Responsive Design: Scale Issues on Desktop & Mobile",
+      "labels": ["ai-agent", "fix", "Bug fix", "P1-high", "Should be fixed soon", "ui-theme", "v1-blocker"],
+      "priority": "P1-high",
+      "status": "Open",
+      "author": "walace-lopes-peng",
+      "description": "Resolve UI scaling and layout issues on both desktop and mobile resolutions for a better user experience."
+    },
+    {
+      "id": 5,
+      "title": "[Code Quality] Stale Store Actions Cleanup",
+      "labels": ["ai-agent", "chore", "cleanup", "P2-medium", "store", "tech-debt"],
+      "priority": "P2-medium",
+      "status": "Open",
+      "author": "walace-lopes-peng",
+      "description": "Audit and remove unused or deprecated actions from the global store to reduce technical debt."
+    },
+    {
+      "id": 153,
+      "title": "[PROCESS] Define v0.3 playtest gate — validate core loop before Phase 2",
+      "labels": ["phase-1"],
+      "priority": "P2-medium",
+      "status": "Open",
+      "author": "devanomaly",
+      "description": "Establish clear criteria and metrics for the v0.3 playtest to validate the core loop mechanics before starting Phase 2."
+    },
+    {
+      "id": 11,
+      "title": "[Docs] Developer Onboarding & Gameplay Tutorial System",
+      "labels": ["ai-agent", "docs", "P1-high", "v1-blocker"],
+      "priority": "P1-high",
+      "status": "Open",
+      "author": "walace-lopes-peng",
+      "description": "Create documentation for new developers and an in-game tutorial system to help players understand core mechanics."
+    },
+    {
+      "id": null,
+      "title": "[FEAT] First-session milestones — onboarding rewards for early actions",
+      "labels": ["feat", "gameplay", "phase-1", "ux"],
+      "priority": "P2-medium",
+      "status": "Open",
+      "author": "devanomaly",
+      "description": "Implement rewards and milestones specifically for the first session to encourage player engagement and onboarding."
+    }
+  ]
+}

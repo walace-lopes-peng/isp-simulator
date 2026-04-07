@@ -1,0 +1,148 @@
+{
+  "technologies": [
+    {
+      "id": "copper_standard",
+      "displayName": "Standard Copper Wire",
+      "description": "Basic twisted-pair copper infrastructure used for voice and early data transmission.",
+      "unlocksAtEra": "70s",
+      "availableInScopes": [1],
+      "tpCost": 0,
+      "requires": [],
+      "modifiers": {
+        "bandwidthMultiplier": 1.0,
+        "latencyMultiplier": 1.0,
+        "capacityMultiplier": 1.0,
+        "maxDistance": 300,
+        "signalQuality": 0.55,
+        "connectionReliability": 0.70
+      },
+      "position": { "x": 0, "y": 0 }
+    },
+    {
+      "id": "manual_switching",
+      "displayName": "Manual Patch Switching",
+      "description": "Human-operated or primitive mechanical switching. High latency but allows basic network routing.",
+      "unlocksAtEra": "70s",
+      "availableInScopes": [1],
+      "tpCost": 450,
+      "requires": ["copper_standard"],
+      "modifiers": {
+        "bandwidthMultiplier": 1.0,
+        "latencyMultiplier": 2.0,
+        "capacityMultiplier": 1.0,
+        "maxDistance": 300,
+        "signalQuality": 0.55,
+        "connectionReliability": 0.70
+      },
+      "position": { "x": 200, "y": 0 }
+    },
+    {
+      "id": "coaxial_early",
+      "displayName": "Early Coaxial Shielding",
+      "description": "Thick shielded cable reduces interference and extends signal range significantly.",
+      "unlocksAtEra": "70s",
+      "availableInScopes": [1, 2],
+      "tpCost": 900,
+      "requires": ["copper_standard"],
+      "modifiers": {
+        "bandwidthMultiplier": 1.8,
+        "latencyMultiplier": 1.2,
+        "capacityMultiplier": 1.0,
+        "maxDistance": 600,
+        "signalQuality": 0.72,
+        "connectionReliability": 0.80
+      },
+      "position": { "x": 400, "y": 0 }
+    },
+    {
+      "id": "tdm_basic",
+      "displayName": "Basic Time-Division Multiplexing",
+      "description": "Early TDM allows multiple low-speed signals to share a single high-speed link.",
+      "unlocksAtEra": "70s",
+      "availableInScopes": [1, 2],
+      "tpCost": 1500,
+      "requires": ["coaxial_early"],
+      "modifiers": {
+        "bandwidthMultiplier": 1.8,
+        "latencyMultiplier": 1.5,
+        "capacityMultiplier": 2.0,
+        "maxDistance": 600,
+        "signalQuality": 0.72,
+        "connectionReliability": 0.80
+      },
+      "position": { "x": 600, "y": 0 }
+    },
+    {
+      "id": "coaxial_mature",
+      "displayName": "High-Grade Coaxial Backbones",
+      "description": "Industrial-standard coaxial cabling for inter-city trunking and high-bandwidth regional links.",
+      "unlocksAtEra": "80s",
+      "availableInScopes": [1, 2],
+      "tpCost": 2400,
+      "requires": ["coaxial_early"],
+      "modifiers": {
+        "bandwidthMultiplier": 3.0,
+        "latencyMultiplier": 1.0,
+        "capacityMultiplier": 1.5,
+        "maxDistance": 1000,
+        "signalQuality": 0.85,
+        "connectionReliability": 0.90
+      },
+      "position": { "x": 0, "y": 200 }
+    },
+    {
+      "id": "digital_switching",
+      "displayName": "Digital Cross-Connect Systems",
+      "description": "Solid-state digital switching eliminates mechanical delays, drastically reducing latency.",
+      "unlocksAtEra": "80s",
+      "availableInScopes": [1, 2, 3],
+      "tpCost": 3600,
+      "requires": ["manual_switching", "coaxial_early"],
+      "modifiers": {
+        "bandwidthMultiplier": 3.0,
+        "latencyMultiplier": 0.5,
+        "capacityMultiplier": 1.5,
+        "maxDistance": 1000,
+        "signalQuality": 0.88,
+        "connectionReliability": 0.95
+      },
+      "position": { "x": 200, "y": 200 }
+    },
+    {
+      "id": "fiber_experimental",
+      "displayName": "Experimental Fiber Optics",
+      "description": "Cutting-edge laser-based transmission through pure glass filaments. Massive bandwidth and distance.",
+      "unlocksAtEra": "80s",
+      "availableInScopes": [1, 2],
+      "tpCost": 12000,
+      "requires": ["coaxial_mature", "digital_switching"],
+      "modifiers": {
+        "bandwidthMultiplier": 10.0,
+        "latencyMultiplier": 0.3,
+        "capacityMultiplier": 4.0,
+        "maxDistance": 5000,
+        "signalQuality": 0.98,
+        "connectionReliability": 0.99
+      },
+      "position": { "x": 400, "y": 200 }
+    },
+    {
+      "id": "isdn_early",
+      "displayName": "Early ISDN Architecture",
+      "description": "Integrated Services Digital Network. Fully digital end-to-end connectivity over improved lines.",
+      "unlocksAtEra": "80s",
+      "availableInScopes": [1, 2, 3],
+      "tpCost": 7500,
+      "requires": ["digital_switching"],
+      "modifiers": {
+        "bandwidthMultiplier": 5.0,
+        "latencyMultiplier": 0.6,
+        "capacityMultiplier": 2.5,
+        "maxDistance": 2000,
+        "signalQuality": 0.90,
+        "connectionReliability": 0.93
+      },
+      "position": { "x": 600, "y": 200 }
+    }
+  ]
+}

@@ -1,33 +1,28 @@
-# 🤖 AI Agent System Instructions - ISP Simulator
+# Master Protocol
 
-## 0. Mandatory Task Initialization (CRITICAL)
-Before executing ANY code modification or creating ANY PR, you MUST:
-1. **List all `.md` files** in the root directory and the `skills/` folder.
-2. **Review `agent-instructions.md`** (this file) and any relevant skill files.
-3. **Verify Compliance**: Ensure your planned action follows the "Architecture & Governance" rules.
-4. **Template Audit**: Check `.github/` for PR or Issue templates before opening one.
+## 1. Token Conservation
+- Keep replies under 3 sentences.
+- Output max 30 lines of code unless creating a new file.
+- Start directly with the solution; do not summarize the prompt.
+- Ask for permission before structural repo scans.
 
-## 1. Environment & Shell Protocol
-- **Terminal:** Always assume the user is using **PowerShell 7 (pwsh)**.
-- **Command Chaining:** Use `&&` for logical AND operations in terminal commands.
-- **Pre-flight Check:** Before running complex git or npm chains, verify the environment:
-  `if ($PSVersionTable.PSVersion.Major -lt 7) { throw "Upgrade to PowerShell 7 required" }`
+## 2. Pre-Flight & Governance
+- Read `PROJECT_BLUEPRINT.md`, `_agent/git_steward_protocol.md`, and `.github/PULL_REQUEST_TEMPLATE.md` before acting.
+- Verify active branch (`feat/` or `fix/`). Do not work on `main` or `dev` unless explicitly instructed.
+- Anchor all work to specific Issue IDs or Milestones (e.g., `#11`).
+- Require explicit "Implement" prompt before making architectural pivots or introducing major systems.
+- Group related changes atomically per commit.
+- Use Conventional Commits: `type(scope): description (#id)`.
 
-## 2. Architecture & Governance (Strict)
-- **State Management:** ALL game logic, math, and state transitions MUST live in `src/store/useISPStore.ts`.
-- **UI Components:** Components must be "dumb" and purely visual. Do NOT calculate revenue or latency inside a `.tsx` file.
-- **Era Consistency:** Use Tailwind dynamic classes. Never hardcode colors that don't scale between `70s`, `90s`, and `modern`.
+## 3. Structural Guardrails
+- Core Logic: Use Zustand (`src/store/useISPStore.ts`) for all math and business logic, exclusively within `tick()`.
+- UI: Use React components solely for rendering (Dumb UI).
+- Stylization: Apply Vanilla/Tailwind CSS emphasizing Cyberpunk/Windows 95/Neon aesthetics.
+- Positioning: Use absolute `x,y` coordinates for map elements.
+- Typing: Enforce strict types (`Era`, `ISPNode`, `ISPLink`). Cast numeric IDs using `String(id)`.
 
-## 3. Git & Documentation Workflow
-- **Commit Pattern:** Follow Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`).
-- **Issue/PR Link:** Every task must be linked to an issue using `Closes #ID`.
-- **Auto-merge Rule:** You are allowed to suggest immediate merges for `.md` files in the `/docs` folder, as they bypass manual approval.
-
-## 4. Domain Formulas
-Always use the established physics of the simulation:
-- **Latency ($L$):** $L = T / B$
-- **Saturation:** Critical state when $Traffic \ge Bandwidth$.
-- **Revenue:** Scaled by Era multipliers and penalized by Latency.
-
----
-*Note: If a user request violates the 'Separation of Concerns', warn them before proceeding.*
+## 4. Performance & Validation
+- Throttle `tick()` to prevent render loop overload.
+- Optimize SVG maps to minimize path points.
+- Run `npm run build`, `npm test`, and `node scripts/ai-linter.js` before submitting any PR.
+- Critical architectural violations trigger automatic REVERT.

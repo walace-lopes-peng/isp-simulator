@@ -1,0 +1,13 @@
+dcfc5ce7ae42d5cf32cfbc1807348a37c9a5feee
+100644 056ec9655643434378c96b25777be1f81fffb917 1	.github/workflows/board-sync.yml
+100644 8588df4cbc2c8029dc18479d1130e2e481c44a6d 2	.github/workflows/board-sync.yml
+100644 486afa376ff966c2ec9c5352d5bc813b43268746 1	SPRINT.md
+100644 620f12b2d79a723634017a5e5ce094a631130a88 2	SPRINT.md
+100644 3f48f00bb1f414fa6537177a046708b8debec272 1	scripts/sync-board.js
+100644 aa38e0685daa0bae22f588c347f8e5095b2a91dc 2	scripts/sync-board.js
+100644 68bcfb3510f9f275e75b2c879ae6dac3fe642cb6 3	scripts/sync-board.js
+
+CONFLICT (modify/delete): .github/workflows/board-sync.yml deleted in origin/dev and modified in HEAD.  Version HEAD of .github/workflows/board-sync.yml left in tree.
+CONFLICT (modify/delete): SPRINT.md deleted in origin/dev and modified in HEAD.  Version HEAD of SPRINT.md left in tree.
+Auto-merging scripts/sync-board.js
+CONFLICT (content): Merge conflict in scripts/sync-board.js
