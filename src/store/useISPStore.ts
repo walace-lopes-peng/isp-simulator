@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import eraConfigData from '../config/eraConfig.json';
 import { NODE_TEMPLATES } from '../config/nodeRegistry';
 import type { ISPNodeType } from '../config/nodeRegistry';
@@ -157,7 +158,9 @@ interface ISPStore {
   isNonCore: (id: string) => boolean;
 }
 
-export const useISPStore = create<ISPStore>((set, get) => ({
+export const useISPStore = create<ISPStore>()(
+  persist(
+    (set, get) => ({
   money: 5000,
   techPoints: 50,
   tpAccumulator: 0,
@@ -627,4 +630,22 @@ export const useISPStore = create<ISPStore>((set, get) => ({
       { id: 'l1-b', name: 'LOCAL TERMINAL B', x: DEFAULT_START.x - 15, y: DEFAULT_START.y + 15, bandwidth: 56, baseBandwidth: 56, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100, isCore: true },
     ]
   })),
-}));
+  }),
+    {
+      name: 'isp-game-v1',
+      partialize: (state) => ({
+        nodes: state.nodes,
+        links: state.links,
+        money: state.money,
+        techPoints: state.techPoints,
+        tpAccumulator: state.tpAccumulator,
+        totalData: state.totalData,
+        currentEra: state.currentEra,
+        debtTier: state.debtTier,
+        emergencyLoanUsed: state.emergencyLoanUsed,
+        emergencyLoanActive: state.emergencyLoanActive,
+        emergencyLoanTicksRemaining: state.emergencyLoanTicksRemaining,
+      }),
+    }
+  )
+);
