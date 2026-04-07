@@ -379,7 +379,13 @@ const Sidebar = () => {
                   onClick={() => sellLink(l.id)}
                   className="w-full py-1 mb-1 rounded border bg-red-500/5 border-red-500/20 text-red-400/80 text-[8px] font-mono hover:bg-red-500/15 transition-all"
                 >
-                  {l.id.slice(-6)} ({l.type}) // $75
+                  {(() => {
+                    const src = nodes.find(n => n.id === l.sourceId)
+                    const tgt = nodes.find(n => n.id === l.targetId)
+                    const srcName = src ? abbreviateNodeName(src) : l.sourceId.slice(-4)
+                    const tgtName = tgt ? abbreviateNodeName(tgt) : l.targetId.slice(-4)
+                    return `${srcName} → ${tgtName} // $75`
+                  })()}
                 </button>
               ))}
             </div>
