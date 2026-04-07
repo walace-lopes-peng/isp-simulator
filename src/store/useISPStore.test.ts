@@ -76,12 +76,12 @@ describe('useISPStore Gold Standard', () => {
         expect(link.bandwidth).toBeLessThanOrEqual(300);
     });
 
-    it('should create fiber links when era unlocks fiber hardware', () => {
+    it('should create cable links by default regardless of era', () => {
         useISPStore.setState({ currentEra: '90s', isGodMode: true });
         const state = useISPStore.getState();
         state.connectNodes('0', 'l1-a');
         const link = useISPStore.getState().links[0];
         expect(link).toBeDefined();
-        expect(link.type).toBe('fiber');
+        expect(link.type).toBe('cable');
     });
 });

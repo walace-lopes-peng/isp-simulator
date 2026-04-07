@@ -368,8 +368,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     const src = state.nodes.find(n => n.id === srcId);
     const tgt = state.nodes.find(n => n.id === tgtId);
     const era = state.getCurrentEraConfig();
-    const hasFiber = era.unlockedHardware.some(h => h.startsWith('fiber'));
-    const type: ISPLink['type'] = hasFiber ? 'fiber' : 'cable';
+    const type: ISPLink['type'] = 'cable';
     const bandwidth = Math.min(
       src?.bandwidth ?? era.maxLinkBandwidth,
       tgt?.bandwidth ?? era.maxLinkBandwidth,
