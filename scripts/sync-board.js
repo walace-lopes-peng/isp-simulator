@@ -1,3 +1,4 @@
+const fs = require('fs');
 const REPO = process.env.GITHUB_REPOSITORY;
 const TOKEN = process.env.GITHUB_TOKEN;
 const SPRINT_ISSUE_NUMBER = 27;
@@ -67,7 +68,48 @@ function prRow(pr) {
   return `| #${pr.number} | [${pr.title}](${pr.html_url}) | ${prStatus(pr)} |`;
 }
 
+async function closeIssue(issueNumber) {
+  console.log(`Closing Issue #${issueNumber}...`);
+  await gh(`/issues/${issueNumber}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ state: 'closed' }),
+  });
+  console.log(`Issue #${issueNumber} closed successfully.`);
+}
+
+async function handleAutoClosing() {
+  const eventPath = process.env.GITHUB_EVENT_PATH;
+  if (!eventPath) return;
+
+  const event = JSON.parse(fs.readFileSync(eventPath, 'utf8'));
+  
+  // Only trigger on merged pull requests
+  if (event.action === 'closed' && event.pull_request && event.pull_request.merged) {
+    const body = event.pull_request.body || "";
+    const issueRegex = /(?:close|closes|fixes|fix|resolve|resolves)\s+#(\d+)/gi;
+    let match;
+    const closedIssues = new Set();
+
+    while ((match = issueRegex.exec(body)) !== null) {
+      closedIssues.add(match[1]);
+    }
+
+    if (closedIssues.size > 0) {
+      console.log(`Detected PR merge with issue closing keywords. Processing: ${Array.from(closedIssues).join(', ')}`);
+      for (const issueId of closedIssues) {
+        await closeIssue(issueId);
+      }
+    }
+  }
+}
+
 async function main() {
+  try {
+    await handleAutoClosing();
+  } catch (autoCloseError) {
+    console.error('Non-critical error in handleAutoClosing:', autoCloseError.message);
+  }
+
   const [issues, prs] = await Promise.all([
     gh('/issues?state=open&per_page=100'),
     gh('/pulls?state=open&per_page=100'),

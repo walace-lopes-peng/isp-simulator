@@ -1,0 +1,7 @@
+commit ceb3cf62fdb995adbe1470050d49dc685a0ea225
+Author: walace.peng <dev.mailwls@gmail.com>
+Date:   Fri Apr 3 01:48:32 2026 -0300
+
+    fix(ci): resolve merge conflict in board-sync workflow
+    
+    feat(scripts): improve sprint board priority ordering

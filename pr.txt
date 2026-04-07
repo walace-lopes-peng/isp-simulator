@@ -1,0 +1,25 @@
+title:	fix: resolve merge conflict in board-sync.yml (closes #150)
+state:	OPEN
+author:	devanomaly
+labels:	
+assignees:	
+reviewers:	
+projects:	
+milestone:	
+number:	155
+url:	https://github.com/walace-lopes-peng/isp-simulator/pull/155
+additions:	79
+deletions:	12
+auto-merge:	disabled
+--
+## Summary
+- Resolved unresolved merge conflict markers in `.github/workflows/board-sync.yml`
+- Consolidated push logic to use a single `BRANCH_NAME` variable instead of repeated inline expressions
+- Kept pre-push `git pull --rebase` to guard against concurrent pushes
+
+## Test plan
+- [ ] YAML is valid (no conflict markers)
+- [ ] Workflow triggers correctly on push to `dev`, issue events, and PR events
+- [ ] `$BRANCH_NAME` resolves correctly for both PR and push contexts
+
+Closes #150
