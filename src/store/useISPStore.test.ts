@@ -4,6 +4,7 @@ import { useISPStore, getDebtTier } from './useISPStore';
 describe('useISPStore Gold Standard', () => {
     beforeEach(() => {
         useISPStore.getState().resetTopology();
+        useISPStore.setState({ currentEra: '70s' });
     });
 
     it('should initialize with NYC coordinates at (692, 333) for the Pioneer Era', () => {
@@ -62,6 +63,26 @@ describe('useISPStore Gold Standard', () => {
         useISPStore.setState({ totalData: 1000, money: 1000, canUpgradeEra: true });
         state.purchaseEraUpgrade();
         expect(useISPStore.getState().currentEra).not.toBe('70s');
+    });
+
+    it('should create cable links with era-capped bandwidth in 70s', () => {
+        useISPStore.setState({ isGodMode: true });
+        const state = useISPStore.getState();
+        expect(state.currentEra).toBe('70s');
+        state.connectNodes('0', 'l1-a');
+        const link = useISPStore.getState().links[0];
+        expect(link).toBeDefined();
+        expect(link.type).toBe('cable');
+        expect(link.bandwidth).toBeLessThanOrEqual(300);
+    });
+
+    it('should create cable links by default regardless of era', () => {
+        useISPStore.setState({ currentEra: '90s', isGodMode: true });
+        const state = useISPStore.getState();
+        state.connectNodes('0', 'l1-a');
+        const link = useISPStore.getState().links[0];
+        expect(link).toBeDefined();
+        expect(link.type).toBe('cable');
     });
 });
 
