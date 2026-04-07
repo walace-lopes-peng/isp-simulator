@@ -97,6 +97,7 @@ interface ISPStore {
   selectedNodeId: string | null;
   isLinking: boolean;
   isGodMode: boolean;
+  claimedMilestones: string[];
   tickRate: number;
   networkHealth: number;
   avgLatency: number;
@@ -156,6 +157,7 @@ interface ISPStore {
   sellNode: (nodeId: string) => void;
   takeEmergencyLoan: () => void;
   isNonCore: (id: string) => boolean;
+  awardMilestone: (milestoneId: string, bonus: number, message: string) => void;
 }
 
 export const useISPStore = create<ISPStore>()(
@@ -191,6 +193,7 @@ export const useISPStore = create<ISPStore>()(
   emergencyLoanUsed: false,
   emergencyLoanActive: false,
   emergencyLoanTicksRemaining: 0,
+  claimedMilestones: [],
 
   setActiveDevNodeType: (type: string) => {
     if (NODE_TEMPLATES.some(t => t.type === type)) {
@@ -321,6 +324,7 @@ export const useISPStore = create<ISPStore>()(
       }
 
       const allLogs = [...debtLogs, ...newLogs];
+      const newTotalData = state.totalData + Math.floor(totalLoad * (state.tickRate / 1000) * 125);
 
       set({
         nodes: debtNodes,
@@ -329,7 +333,7 @@ export const useISPStore = create<ISPStore>()(
         debtTier: newTier,
         emergencyLoanActive: loanActive,
         emergencyLoanTicksRemaining: loanTicks,
-        totalData: state.totalData + Math.floor(totalLoad * (state.tickRate / 1000) * 125),
+        totalData: newTotalData,
         techPoints: state.techPoints + tpToAdd,
         tpAccumulator: newTpAccumulator - tpToAdd,
         networkHealth,
@@ -337,6 +341,13 @@ export const useISPStore = create<ISPStore>()(
         activePaths: e.data.activePaths || {},
         logs: allLogs.length > 0 ? [...allLogs, ...state.logs].slice(0, 20) : state.logs
       });
+
+      if (revenue > 0) {
+        get().awardMilestone('first_revenue', 100, 'First paying customer. Keep the packets flowing.');
+      }
+      if (newTotalData >= 1024) {
+        get().awardMilestone('first_kb', 500, 'First kilobyte delivered. Your network is working.');
+      }
     };
     set({ worker });
   },
@@ -479,6 +490,8 @@ export const useISPStore = create<ISPStore>()(
       links: [...s.links, newLink],
       logs: [`SYS_LINK: NEW_LINK ${type.toUpperCase()} [BW: ${bandwidth}] [COST: $${cost}]`, ...s.logs].slice(0, 15)
     }));
+
+    get().awardMilestone('first_link', 250, 'First connection established. Revenue coming online.');
   },
 
   removeNode: (id: string) => {
@@ -614,6 +627,17 @@ export const useISPStore = create<ISPStore>()(
     };
   }),
 
+  awardMilestone: (milestoneId: string, bonus: number, message: string) => {
+    const state = get();
+    if (state.claimedMilestones.includes(milestoneId)) return;
+    if (state.isGodMode) return;
+    set({
+      claimedMilestones: [...state.claimedMilestones, milestoneId],
+      money: state.money + bonus,
+      logs: [`[MILESTONE] ${message} +$${bonus}`, ...state.logs].slice(0, 20),
+    });
+  },
+
   toggleGodMode: () => set((state) => ({ isGodMode: !state.isGodMode })),
   setTickRate: (rate) => set({ tickRate: rate }),
   resetTopology: () => set((state) => ({
@@ -645,6 +669,7 @@ export const useISPStore = create<ISPStore>()(
         emergencyLoanUsed: state.emergencyLoanUsed,
         emergencyLoanActive: state.emergencyLoanActive,
         emergencyLoanTicksRemaining: state.emergencyLoanTicksRemaining,
+        claimedMilestones: state.claimedMilestones,
       }),
     }
   )
