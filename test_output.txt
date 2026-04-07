@@ -1,4 +1,4 @@
-FAIL src/store/useISPStore.test.ts
+FAIL src/store/__tests__/useISPStore.test.ts
   ÔùÅ Test suite failed to run
 
     Jest encountered an unexpected token
@@ -23,26 +23,23 @@ FAIL src/store/useISPStore.test.ts
 
     Details:
 
-    C:\Users\walac\Documents\Projetos\ISP Game\src\store\useISPStore.ts:58
+    C:\Users\walac\Documents\Projetos\ISP Game\src\store\useISPStore.ts:61
             const worker = new Worker(new URL('../systems/SimulationWorker.ts', import.meta.url));
                                                                                        ^^^^
 
     SyntaxError: Cannot use 'import.meta' outside a module
 
-    > 1 | import { useISPStore } from './useISPStore';
+    > 1 | import { useISPStore, ERAS_CONFIG } from '../useISPStore';
         | ^
       2 |
-      3 | describe('useISPStore state manipulation', () => {
-      4 |
+      3 | describe('useISPStore validateLink Physics', () => {
+      4 |   beforeEach(() => {
 
       at Runtime.createScriptFromCode (node_modules/jest-runtime/build/index.js:1314:40)
-      at Object.<anonymous> (src/store/useISPStore.test.ts:1:1)
+      at Object.<anonymous> (src/store/__tests__/useISPStore.test.ts:1:1)
 
-PASS src/systems/SimulationWorker.test.ts
-PASS src/utils/geoUtils.test.ts
-
-Test Suites: 1 failed, 2 passed, 3 total
-Tests:       5 passed, 5 total
+Test Suites: 1 failed, 1 total
+Tests:       0 total
 Snapshots:   0 total
-Time:        0.648 s, estimated 1 s
-Ran all test suites matching src/.
+Time:        1.763 s
+Ran all test suites.

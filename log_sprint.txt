@@ -1,0 +1,5 @@
+commit 96827e60e5098682f2679f15f6368c85567c5594
+Author: walace.peng <dev.mailwls@gmail.com>
+Date:   Sun Mar 29 22:26:08 2026 -0300
+
+    chore(sprint-board): migrate to issue-based automation (#27)

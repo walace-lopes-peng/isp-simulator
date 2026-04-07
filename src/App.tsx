@@ -1,15 +1,137 @@
-import React, { useEffect, useRef } from 'react';
-import { useISPStore, RANGE_PRESETS, RangeLevel } from './store/useISPStore';
+import React, { useEffect, useRef, useState } from 'react';
+import { useISPStore, RANGE_PRESETS, RangeLevel, ERAS_CONFIG, EraConfig, ISPNode, ISPNodeType, getDebtTier } from './store/useISPStore';
+import { useTechStore } from './store/useTechStore';
+import { NODE_TEMPLATES } from './config/nodeRegistry';
 import DebugConsole from './components/DebugConsole';
+import TechTreePanel from './components/TechTreePanel';
 import EraWrapper from './components/EraWrapper';
+
+const formatData = (bytes: number): string => {
+  if (bytes < 1024) return `${bytes} B`;
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${kb.toFixed(1)} KB`;
+  const mb = kb / 1024;
+  if (mb < 1024) return `${mb.toFixed(2)} MB`;
+  const gb = mb / 1024;
+  if (gb < 1024) return `${gb.toFixed(2)} GB`;
+  const tb = gb / 1024;
+  return `${tb.toFixed(2)} TB`;
+};
+
+const formatCurrency = (val: number): string => {
+  return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+const abbreviateNodeName = (node: ISPNode): string => {
+  const { name, id, isDevSpawned } = node;
+  if (isDevSpawned) return `H-${id.slice(-4).toUpperCase()}`;
+  
+  const upper = (name || "").toUpperCase();
+  if (upper === "CORE GATEWAY") return "GW";
+  if (upper.includes("BACKBONE")) return `BB-${upper.replace(/BACKBONE/g, "").trim()}`;
+  if (upper.includes("TERMINAL")) return `T-${upper.replace(/LOCAL TERMINAL/g, "").replace(/TERMINAL/g, "").trim()}`;
+  if (upper.includes("HUB")) return `H-${upper.replace(/LOCAL HUB/g, "").replace(/REGIONAL HUB/g, "").replace(/HUB/g, "").trim()}`;
+  if (upper.includes("GATEWAY")) return "GW";
+  
+  return upper.slice(0, 4);
+};
+
 
 // --- UI COMPONENTS ---
 
-const TopBar = () => {
-  const { money, totalData, nodes, networkHealth, canUpgradeEra, purchaseEraUpgrade, isGodMode } = useISPStore();
-  const eraConfig = useISPStore(state => state.getCurrentEraConfig());
+const MilestoneMonitor: React.FC = () => {
+  const currentEraId = useISPStore(state => state.currentEra);
+  const totalData = useISPStore(state => state.totalData);
+  const money = useISPStore(state => state.money);
+  const nodes = useISPStore(state => state.nodes);
+  const isGodMode = useISPStore(state => state.isGodMode);
+  
+  const unlockedTechIds = useTechStore(state => state.unlockedTechIds);
+
+  const eraConfig = ERAS_CONFIG.find(e => e.id === currentEraId) ?? ERAS_CONFIG[0];
+  const currentIndex = ERAS_CONFIG.findIndex(e => e.id === currentEraId);
+  const nextEra = currentIndex >= 0 && currentIndex < ERAS_CONFIG.length - 1
+    ? ERAS_CONFIG[currentIndex + 1]
+    : null;
+
+  if (!nextEra) return null;
+
+  const hubs = nodes.filter(n => n.type === 'hub_local').length;
+  const isdn = unlockedTechIds.includes('isdn_early');
+  
+  const dataTarget = nextEra.unlockCondition.totalData;
+  const moneyTarget = nextEra.unlockCondition.money;
+  
+  const dataMet = totalData >= dataTarget;
+  const moneyMet = money >= moneyTarget;
+  const hubsMet = eraConfig.id === '70s' ? hubs >= 3 : true;
+  const isdnMet = eraConfig.id === '70s' ? isdn : true;
+
+  const isClose = (totalData / dataTarget > 0.5) || (money / moneyTarget > 0.5);
+  if (!isClose && eraConfig.id !== '70s' && !isGodMode) return null;
+
+  return (
+    <div className="flex items-center gap-3 bg-black/40 px-3 py-1 rounded border border-white/5 mr-2 min-w-[280px]">
+      <div className="flex flex-col">
+          <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Next Epoch</span>
+          <span className="text-[8px] font-mono text-slate-400 italic">Requirements</span>
+      </div>
+      <div className="h-6 w-px bg-white/10" />
+      <div className="grid grid-cols-[140px_120px] gap-x-4 gap-y-0.5 text-[8px] font-mono tabular-nums leading-none tracking-tight">
+        <span className={dataMet ? 'text-emerald-500' : 'text-amber-500'}>
+          {dataMet ? '✓' : '✗'} Data: {formatData(totalData)}/{formatData(dataTarget)}
+        </span>
+        {eraConfig.id === '70s' && (
+          <span className={hubsMet ? 'text-emerald-500' : 'text-red-500'}>
+            {hubsMet ? '✓' : '✗'} Hubs: {hubs}/3
+          </span>
+        )}
+        <span className={moneyMet ? 'text-emerald-500' : 'text-amber-500'}>
+          {moneyMet ? '✓' : '✗'} Capital: ${formatCurrency(money)}/${formatCurrency(moneyTarget)}
+        </span>
+        {eraConfig.id === '70s' && (
+          <span className={isdnMet ? 'text-emerald-500' : 'text-red-500'}>
+            {isdnMet ? '✓' : '✗'} ISDN: {isdn ? 'Unlocked' : 'Not researched'}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+};
+
+
+const TopBar = ({ onOpenResearch }: { onOpenResearch: () => void }) => {
+  const money = useISPStore(state => state.money);
+  const techPoints = useISPStore(state => state.techPoints);
+  const tpAccumulator = useISPStore(state => state.tpAccumulator);
+  const totalData = useISPStore(state => state.totalData);
+  const nodes = useISPStore(state => state.nodes);
+  const networkHealth = useISPStore(state => state.networkHealth);
+  const canUpgradeEra = useISPStore(state => state.canUpgradeEra);
+  const isGodMode = useISPStore(state => state.isGodMode);
+  const currentEraId = useISPStore(state => state.currentEra);
+  const debtTier = useISPStore(state => state.debtTier);
+  const emergencyLoanUsed = useISPStore(state => state.emergencyLoanUsed);
+  const emergencyLoanActive = useISPStore(state => state.emergencyLoanActive);
+  const takeEmergencyLoan = useISPStore(state => state.takeEmergencyLoan);
+
+  const purchaseEraUpgrade = useISPStore(state => state.purchaseEraUpgrade);
+  const { getAggregateModifiers } = useTechStore();
+
+  const [netRate, setNetRate] = useState(0);
+  const prevMoneyRef = useRef(money);
+
+  useEffect(() => {
+    const delta = money - prevMoneyRef.current;
+    setNetRate(prev => prev * 0.9 + delta * 0.1);
+    prevMoneyRef.current = money;
+  }, [money]);
+
+  const eraConfig = ERAS_CONFIG.find(e => e.id === currentEraId) ?? ERAS_CONFIG[0];
+  const multipliers = getAggregateModifiers();
+  
   const traffic = nodes.reduce((sum, n) => sum + n.traffic, 0);
-  const bandwidth = nodes.reduce((sum, n) => sum + n.bandwidth, 0);
+  const bandwidth = nodes.reduce((sum, n) => sum + (n.bandwidth * multipliers.bandwidthMultiplier), 0);
   const loadRatio = bandwidth > 0 ? traffic / bandwidth : 0;
   
   const status = loadRatio >= 1.0 ? 'CRITICAL' : loadRatio > 0.8 ? 'STRESSED' : 'STABLE';
@@ -25,16 +147,40 @@ const TopBar = () => {
         </div>
         <div className="h-8 w-px bg-white/5" />
         <div className="flex gap-6 items-center">
-          <div>
+          <div className="w-40 flex-shrink-0">
             <span className="text-[9px] text-slate-500 uppercase font-bold block">Available Capital</span>
-            <span className="text-sm font-mono text-emerald-400 font-bold">${money.toLocaleString()}</span>
+            <div className="flex items-baseline gap-2">
+              <span className={`text-sm font-mono tabular-nums font-bold block truncate ${debtTier > 0 ? 'text-red-500 animate-pulse' : 'text-emerald-400'}`}>
+                ${formatCurrency(money)}
+              </span>
+              <span className={`text-[9px] font-mono ${netRate >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {netRate >= 0 ? '+' : ''}${netRate.toFixed(2)}/t
+              </span>
+            </div>
+            {debtTier > 0 && !isGodMode && (
+              <span className="text-[7px] font-mono text-red-400 uppercase tracking-wider">
+                DEBT T{debtTier} {emergencyLoanActive ? '// LOAN ACTIVE' : ''}
+              </span>
+            )}
           </div>
-          <div>
+          <div className="group relative flex flex-col w-32 flex-shrink-0">
+            <span className="text-[9px] text-slate-500 uppercase font-bold block">Research Insight</span>
+            <div className="flex items-baseline gap-1">
+              <span className="text-sm font-mono tabular-nums text-cyan-400 font-bold tracking-tight block truncate">
+                TP: {techPoints.toLocaleString()}
+              </span>
+              <span className="text-[8px] font-mono text-cyan-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                .{((tpAccumulator || 0) * 1000).toFixed(0).padStart(3, '0')}
+              </span>
+            </div>
+            <div className="absolute -bottom-2 left-0 w-max h-px bg-cyan-500/50 scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-300" />
+          </div>
+          <div className="w-24 flex-shrink-0">
             <span className="text-[9px] text-slate-500 uppercase font-bold block">Total Data</span>
-            <span className="text-sm font-mono text-slate-200">{Math.floor(totalData / 100).toLocaleString()} GB</span>
+            <span className="text-sm font-mono tabular-nums text-slate-200 block truncate">{formatData(totalData)}</span>
           </div>
           <div className="h-8 w-px bg-white/5 mx-2" />
-          <div className="flex flex-col">
+          <div className="flex flex-col w-28 flex-shrink-0">
             <span className="text-[9px] text-slate-500 uppercase font-bold block">Network Health</span>
             <div className="flex items-center gap-2">
               <span className={`text-sm font-mono font-bold ${healthColor}`}>{Math.floor(networkHealth)}%</span>
@@ -51,7 +197,23 @@ const TopBar = () => {
           <span className="text-[9px] text-slate-500 uppercase font-bold block">Network Status</span>
           <span className={`text-[10px] font-black tracking-tighter ${statusColor}`}>{status} // {(loadRatio * 100).toFixed(0)}% LOAD</span>
         </div>
+        
         <div className="flex gap-2 items-center">
+          <MilestoneMonitor />
+
+          {money < -1000 && !isGodMode && !emergencyLoanUsed && (
+            <button
+              onClick={takeEmergencyLoan}
+              className="px-2 py-1 bg-red-500/20 text-red-400 border border-red-500/50 rounded font-black text-[9px] uppercase tracking-wider hover:bg-red-500/40 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.2)]"
+            >
+              EMERGENCY LOAN
+            </button>
+          )}
+          {money < -1000 && !isGodMode && emergencyLoanUsed && (
+            <div className="px-2 py-1 bg-white/5 border border-white/10 rounded text-[9px] text-slate-600 font-mono uppercase cursor-not-allowed">
+              LOAN USED
+            </div>
+          )}
           {isGodMode && (
             <div className="px-2 py-1 bg-amber-500 text-black rounded font-black text-[9px] uppercase tracking-wider animate-pulse shadow-[0_0_10px_rgba(245,158,11,0.5)]">
               GOD MODE ACTIVE
@@ -60,7 +222,7 @@ const TopBar = () => {
           {canUpgradeEra && (
             <button 
               onClick={purchaseEraUpgrade}
-              className="px-3 py-1 bg-amber-500/20 text-amber-500 border border-amber-500/50 rounded font-black text-[9px] uppercase tracking-wider hover:bg-amber-500/40 animate-pulse"
+              className="px-3 py-1 bg-amber-500/20 text-amber-500 border border-amber-500/50 rounded font-black text-[9px] uppercase tracking-wider hover:bg-amber-500/40 animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.2)]"
             >
               UPGRADE ERA
             </button>
@@ -75,7 +237,7 @@ const TopBar = () => {
 };
 
 const Sidebar = () => {
-  const { selectedNodeId, nodes, links, upgradeNode, money, selectNode, isLinking, toggleLinking, isGodMode } = useISPStore();
+  const { selectedNodeId, nodes, links, upgradeNode, money, selectNode, isLinking, toggleLinking, isGodMode, sellNode, sellLink } = useISPStore();
   const node = nodes.find(n => n.id === selectedNodeId);
 
   if (!node) return (
@@ -86,6 +248,8 @@ const Sidebar = () => {
       <p className="text-[10px] font-mono text-slate-600 uppercase tracking-tighter">Select a node to inspect architecture</p>
     </div>
   );
+
+  const template = NODE_TEMPLATES.find(t => t.type === node.type);
 
   const cost = Math.floor(50 * Math.pow(1.15, node.level));
   const load = node.bandwidth > 0 ? node.traffic / node.bandwidth : 0;
@@ -98,11 +262,18 @@ const Sidebar = () => {
         <div>
           <h2 className="text-[10px] font-black text-emerald-500 uppercase tracking-tighter mb-1">{node.name}</h2>
           <div className="flex gap-2 items-center">
-            <span className={`text-[8px] font-mono uppercase ${isReachable ? 'text-emerald-500' : 'text-red-500 animate-pulse'}`}>
-              {isReachable ? 'CONNECTED // ONLINE' : 'ISOLATED // NO_SIGNAL'}
+            <span className={`text-[8px] font-mono uppercase ${node.health <= 0 ? 'text-red-500 animate-pulse' : isReachable ? 'text-emerald-500' : 'text-amber-500'}`}>
+              {node.health <= 0 ? 'STATUS_FAILED // CRITICAL' : isReachable ? 'CONNECTED // ONLINE' : 'ISOLATED // NO_SIGNAL'}
             </span>
-            <span className="text-[7px] bg-white/10 px-1 py-0.5 rounded text-slate-400 font-mono tracking-tighter">{node.type}</span>
+            <span className="text-[7px] bg-white/10 px-1 py-0.5 rounded text-slate-400 font-mono tracking-tighter">
+              {template?.displayName ?? node.type}
+            </span>
           </div>
+          {template?.description && (
+            <p className="text-[8px] text-slate-500 italic mt-1 leading-tight">
+              {template.description}
+            </p>
+          )}
         </div>
         <button onClick={() => { selectNode(null); if (isLinking) toggleLinking(); }} className="text-slate-600 hover:text-white text-xs">×</button>
       </div>
@@ -136,6 +307,28 @@ const Sidebar = () => {
           </div>
         </div>
 
+        {node.health < 100 && (
+          <div className="pt-2 border-t border-white/5 flex flex-col gap-2">
+            <div className="flex justify-between items-center">
+              <span className="text-[9px] text-slate-400 uppercase font-bold tracking-tighter">Integrity</span>
+              <span className={`text-[9px] font-mono ${node.health < 30 ? 'text-red-500' : 'text-amber-500'}`}>{node.health}%</span>
+            </div>
+            <button 
+              onClick={() => useISPStore.getState().repairNode(node.id)}
+              disabled={!isGodMode && money < 250}
+              className={`w-full py-2 rounded border font-black text-[9px] uppercase tracking-wider transition-all
+                ${isGodMode || money >= 250 ? 'bg-amber-500/10 border-amber-500/40 text-amber-400 hover:bg-amber-500/30' : 'bg-white/5 border-white/5 text-slate-700 cursor-not-allowed opacity-50'}
+              `}
+            >
+              {node.health <= 0 ? (
+                isGodMode ? 'RECONSTRUCT // FREE' : money >= 250 ? 'RECONSTRUCT // $250' : 'INSUFFICIENT FUNDS'
+              ) : (
+                isGodMode ? 'RESTORE_INTEGRITY // FREE' : money >= 250 ? 'MAINTENANCE // $250' : 'INSUFFICIENT FUNDS'
+              )}
+            </button>
+          </div>
+        )}
+
         <div className="pt-4 border-t border-white/5 flex flex-col gap-2">
             <label className="text-[8px] font-black text-slate-600 uppercase">Interaction Protocol</label>
             <div className="bg-white/5 p-2 rounded text-[8px] font-mono text-slate-400">
@@ -144,15 +337,113 @@ const Sidebar = () => {
         </div>
       </div>
 
-      <button 
-        onClick={() => upgradeNode(node.id)}
-        disabled={!isGodMode && money < cost}
-        className={`w-full py-3 rounded border font-black text-[10px] uppercase tracking-widest transition-all
-          ${isGodMode || money >= cost ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.1)]' : 'bg-white/5 border-white/5 text-slate-700 cursor-not-allowed opacity-50'}
-        `}
-      >
-        {isGodMode ? `God Upgrade // FREE` : money >= cost ? `Upgrade // $${cost.toLocaleString()}` : `Insufficient Funds // $${cost.toLocaleString()}`}
-      </button>
+      <div className="flex flex-col gap-2">
+        <button
+          onClick={() => upgradeNode(node.id)}
+          disabled={!isGodMode && money < cost}
+          className={`w-full py-3 rounded border font-black text-[10px] uppercase tracking-widest transition-all
+            ${isGodMode || money >= cost ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.1)]' : 'bg-white/5 border-white/5 text-slate-700 cursor-not-allowed opacity-50'}
+          `}
+        >
+          {isGodMode ? `God Upgrade // FREE` : money >= cost ? `Upgrade // $${cost.toLocaleString()}` : `Insufficient Funds // $${cost.toLocaleString()}`}
+        </button>
+
+        {!node.isCore && (
+          <button
+            onClick={() => sellNode(node.id)}
+            className="w-full py-2 rounded border bg-red-500/10 border-red-500/30 text-red-400 font-black text-[9px] uppercase tracking-wider hover:bg-red-500/20 transition-all"
+          >
+            SELL NODE // $150
+          </button>
+        )}
+        {node.isCore && (
+          <div className="w-full py-2 rounded border bg-white/5 border-white/5 text-center text-[8px] text-slate-600 font-mono uppercase cursor-not-allowed" title="Core infrastructure cannot be sold">
+            CORE — NOT FOR SALE
+          </div>
+        )}
+
+        {(() => {
+          const nodeLinks = links.filter(l => l.sourceId === node.id || l.targetId === node.id);
+          const sellableLinks = nodeLinks.filter(l => {
+            const src = nodes.find(n => n.id === l.sourceId);
+            const tgt = nodes.find(n => n.id === l.targetId);
+            return !(src?.isCore && tgt?.isCore);
+          });
+          if (sellableLinks.length === 0) return null;
+          return (
+            <div className="pt-1">
+              <span className="text-[8px] text-slate-600 font-mono uppercase block mb-1">Sell Links</span>
+              {sellableLinks.map(l => (
+                <button
+                  key={l.id}
+                  onClick={() => sellLink(l.id)}
+                  className="w-full py-1 mb-1 rounded border bg-red-500/5 border-red-500/20 text-red-400/80 text-[8px] font-mono hover:bg-red-500/15 transition-all"
+                >
+                  {(() => {
+                    const src = nodes.find(n => n.id === l.sourceId)
+                    const tgt = nodes.find(n => n.id === l.targetId)
+                    const srcName = src ? abbreviateNodeName(src) : l.sourceId.slice(-4)
+                    const tgtName = tgt ? abbreviateNodeName(tgt) : l.targetId.slice(-4)
+                    return `${srcName} → ${tgtName} // $75`
+                  })()}
+                </button>
+              ))}
+            </div>
+          );
+        })()}
+      </div>
+    </div>
+  );
+};
+
+const NetworkStatsPanel = () => {
+  const { nodes, links, money, networkHealth, techPoints } = useISPStore();
+  const { getAggregateModifiers } = useTechStore();
+  const multipliers = getAggregateModifiers();
+
+  const totalBandwidth = nodes.reduce((sum, n) => sum + (n.bandwidth * multipliers.bandwidthMultiplier), 0);
+  const totalTraffic = nodes.reduce((sum, n) => sum + n.traffic, 0);
+  const avgLatency = multipliers.latencyMultiplier * 100; // Simulated base
+
+  return (
+    <div className="grid grid-cols-2 gap-8 p-8 h-full max-w-4xl mx-auto items-center">
+      <div className="space-y-6">
+        <div>
+          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Network Integrity</span>
+          <div className="flex items-center gap-4">
+            <span className="text-3xl font-mono font-bold text-emerald-400">{Math.floor(networkHealth)}%</span>
+            <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+              <div className="h-full bg-emerald-500" style={{ width: `${networkHealth}%` }} />
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Active Nodes</span>
+            <span className="text-xl font-mono text-white">{nodes.length}</span>
+          </div>
+          <div>
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Active Links</span>
+            <span className="text-xl font-mono text-white">{links.length}</span>
+          </div>
+        </div>
+      </div>
+      <div className="space-y-6">
+        <div>
+          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Avg Network Latency</span>
+          <span className="text-3xl font-mono font-bold text-cyan-400">{avgLatency.toFixed(1)}ms</span>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Total Capacity</span>
+            <span className="text-xl font-mono text-white">{(totalBandwidth / 1000).toFixed(1)} GB</span>
+          </div>
+          <div>
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Research Progress</span>
+            <span className="text-xl font-mono text-amber-500">{techPoints.toLocaleString()} TP</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
@@ -169,7 +460,7 @@ const LogPanel = () => {
     <div className="h-[120px] w-full border-t border-white/10 bg-black/60 p-4 font-mono overflow-y-auto glass-panel" ref={scrollRef}>
       <div className="space-y-1">
         {logs.map((log, i) => (
-          <div key={i} className={`text-[10px] ${log.includes('!!!') || log.includes('ERROR') || log.includes('ISOLATED') ? 'text-red-400' : i === 0 ? 'text-emerald-400' : 'text-slate-500'}`}>
+          <div key={i} className={`text-[10px] ${log.includes('!!!') || log.includes('ERROR') || log.includes('ISOLATED') ? 'text-red-400' : log.includes('[DEBT]') || log.includes('[LOAN]') || log.includes('[SELL]') ? 'text-amber-400' : i === 0 ? 'text-emerald-400' : 'text-slate-500'}`}>
             <span className="mr-2 text-slate-700">{'>'}</span>
             {log}
           </div>
@@ -186,13 +477,158 @@ const LogisticMap = () => {
     nodes, links, rangeLevel, selectNode, selectedNodeId, 
     setRange, dragSourceId, dragPos, 
     startDragging, setDragPos, endDragging, validateLink,
-    money, addNode, addLog
+    money, addNode, addLog, isHubCreationEnabled, isHubDeletionEnabled, removeNode,
+    activeDevNodeType
   } = useISPStore();
   
   const currentRange = RANGE_PRESETS[rangeLevel];
   const maxTier = rangeLevel;
   const svgRef = useRef<SVGSVGElement>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const [zoomLevel, setZoomLevel] = useState(1.5)
+  const [svgViewBox, setSvgViewBox] = useState('0 0 800 800')
+  const zoomRef = useRef(1.5)
+  const [isPanning, setIsPanning] = useState(false);
+  const isPanningRef = useRef(false)
+  const panStartRef = useRef({ x: 0, y: 0 })
+  const panOffsetRef = useRef({ x: 0, y: 0 })
+  const snapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const viewBoxRef = useRef('0 0 800 800')
+  const pointerDownTimeRef = useRef(0)
+  const pointerDownPosRef = useRef({ x: 0, y: 0 })
   const eraConfig = useISPStore(state => state.getCurrentEraConfig());
+  
+  const vw = Number(svgViewBox.split(' ')[2] || 800);
+  const absoluteZoom = (800 / vw) * zoomLevel;
+
+  useEffect(() => {
+    const parent = mapContainerRef.current?.parentElement
+    if (!parent) return
+    panOffsetRef.current = { x: 0, y: 0 }
+    if (mapContainerRef.current) {
+      mapContainerRef.current.style.transform = `translate(0px, 0px) scale(1)`
+    }
+    setZoomLevel(1)
+    zoomRef.current = 1
+    
+    // Snap initial load to crisp vectors
+    if (snapTimerRef.current) clearTimeout(snapTimerRef.current)
+    snapTimerRef.current = setTimeout(snapViewBox, 150)
+  }, [])
+
+  const snapViewBox = () => {
+    const container = mapContainerRef.current
+    const parent = container?.parentElement
+    const svg = svgRef.current
+    if (!container || !parent || !svg) return
+    
+    const rect = parent.getBoundingClientRect()
+    const ctm = svg.getScreenCTM()
+    if (!ctm) return
+    const inv = ctm.inverse()
+    
+    const ptTL = svg.createSVGPoint()
+    ptTL.x = rect.left
+    ptTL.y = rect.top
+    const svgTL = ptTL.matrixTransform(inv)
+    
+    const ptBR = svg.createSVGPoint()
+    ptBR.x = rect.right
+    ptBR.y = rect.bottom
+    const svgBR = ptBR.matrixTransform(inv)
+    
+    const newViewBox = `${svgTL.x} ${svgTL.y} ${svgBR.x - svgTL.x} ${svgBR.y - svgTL.y}`
+    viewBoxRef.current = newViewBox
+
+    svg.setAttribute('viewBox', newViewBox)
+    container.style.transform = 'translate(0px, 0px) scale(1)'
+    
+    panOffsetRef.current = { x: 0, y: 0 }
+    setZoomLevel(1)
+    zoomRef.current = 1
+    setSvgViewBox(newViewBox)
+  }
+
+  const renderNodeShape = (node: ISPNode, r: number, strokeColor: string, stateClass: string) => {
+    const isGateway = node.isCore && node.type === 'hub_local';
+    
+    // Node Status Logic
+    const isFailed = node.health <= 0;
+    const isWarning = node.health < 30 && !isFailed;
+    
+    const finalStateClass = isFailed ? 'node-failed' : isWarning ? 'node-warning' : stateClass;
+    const finalStrokeColor = isFailed ? '#ef4444' : isWarning ? '#f97316' : strokeColor;
+
+    const commonProps = {
+      className: `transition-all duration-300 ${finalStateClass} ${isGateway ? 'stroke-[2.5px] opacity-100' : 'stroke-1 opacity-80'}`,
+      stroke: finalStrokeColor,
+      fill: "none",
+    };
+
+    const icons = [
+      // HIT AREA: Invisible larger circle to capture pointers accurately 
+      <circle key="hit-area" cx={node.x} cy={node.y} r={r * 1.5} fill="transparent" pointerEvents="all" className="cursor-pointer" />
+    ];
+    
+    switch (node.type) {
+      case 'terminal': {
+        // Concept: Triangular roof + Rectangular body
+        const w = r;
+        const bh = r * 0.6;
+        const rh = r * 0.6;
+        icons.push(
+          <g key="terminal-icon" {...commonProps}>
+            <rect x={node.x - w/2} y={node.y} width={w} height={bh} />
+            <path d={`M ${node.x - w*0.6} ${node.y} L ${node.x} ${node.y - rh} L ${node.x + w*0.6} ${node.y} Z`} />
+          </g>
+        );
+        break;
+      }
+      case 'hub_local': {
+        // Concept: Minimal switch/router (horizontal capsule)
+        const w = r * 1.6;
+        const h = r * 0.5;
+        icons.push(
+          <g key="hub-local-icon" {...commonProps}>
+            <rect x={node.x - w/2} y={node.y - h/2} width={w} height={h} rx={1} />
+            {/* Port indicators (small vertical lines) */}
+            <line x1={node.x - w*0.2} y1={node.y + h/2} x2={node.x - w*0.2} y2={node.y + h/2 + r*0.2} />
+            <line x1={node.x + w*0.2} y1={node.y + h/2} x2={node.x + w*0.2} y2={node.y + h/2 + r*0.2} />
+            {isGateway && <circle cx={node.x} cy={node.y} r={r*0.8} className="stroke-white/20 animate-pulse" />}
+          </g>
+        );
+        break;
+      }
+      case 'hub_regional': {
+        // Concept: Antenna tower (pole + arcs)
+        const ph = r * 1.4;
+        icons.push(
+          <g key="hub-regional-icon" {...commonProps}>
+            <line x1={node.x} y1={node.y - ph/2} x2={node.x} y2={node.y + ph/2} />
+            <path d={`M ${node.x - r*0.4} ${node.y - r*0.2} Q ${node.x} ${node.y - r*0.7} ${node.x + r*0.4} ${node.y - r*0.2}`} />
+            <path d={`M ${node.x - r*0.25} ${node.y} Q ${node.x} ${node.y - r*0.3} ${node.x + r*0.25} ${node.y}`} />
+          </g>
+        );
+        break;
+      }
+      case 'backbone': {
+        // Concept: Server unit (two horizontal lines + indicator LEDs)
+        const w = r * 1.4;
+        icons.push(
+          <g key="backbone-icon" {...commonProps}>
+            <line x1={node.x - w/2} y1={node.y - r*0.2} x2={node.x + w/2} y2={node.y - r*0.2} />
+            <line x1={node.x - w/2} y1={node.y + r*0.2} x2={node.x + w/2} y2={node.y + r*0.2} />
+            <circle cx={node.x + w*0.4} cy={node.y - r*0.2} r={0.5} fill={strokeColor} stroke="none" />
+            <circle cx={node.x + w*0.4} cy={node.y + r*0.2} r={0.5} fill={strokeColor} stroke="none" />
+          </g>
+        );
+        break;
+      }
+    }
+
+    return <g className="node-icon-group">{icons}</g>;
+  };
+
 
   const getSVGPoint = (e: React.PointerEvent) => {
     if (!svgRef.current) return { x: 0, y: 0 };
@@ -200,6 +636,12 @@ const LogisticMap = () => {
     pt.x = e.clientX;
     pt.y = e.clientY;
     return pt.matrixTransform(svgRef.current.getScreenCTM()?.inverse());
+  };
+
+  const getEraMaxDist = () => {
+    const eraId = useISPStore.getState().currentEra;
+    const eraIndex = ERAS_CONFIG.findIndex((e: EraConfig) => e.id === eraId);
+    return 150 + (eraIndex * 100);
   };
 
   const handlePointerDown = (e: React.PointerEvent, nodeId?: string) => {
@@ -211,13 +653,37 @@ const LogisticMap = () => {
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
+    if (isPanningRef.current) {
+      const movedX = Math.abs(e.clientX - panStartRef.current.x)
+      const movedY = Math.abs(e.clientY - panStartRef.current.y)
+      if (movedX < 3 && movedY < 3) return
+
+      const dx = e.clientX - panStartRef.current.x
+      const dy = e.clientY - panStartRef.current.y
+      panOffsetRef.current = {
+        x: panOffsetRef.current.x + dx,
+        y: panOffsetRef.current.y + dy
+      }
+      panStartRef.current = { x: e.clientX, y: e.clientY }
+      if (mapContainerRef.current) {
+        mapContainerRef.current.style.transform =
+          `translate(${panOffsetRef.current.x}px, ${panOffsetRef.current.y}px) scale(${zoomLevel})`
+      }
+      return
+    }
     if (dragSourceId) {
       const p = getSVGPoint(e);
       if (p) setDragPos(p.x, p.y);
     }
   };
-
   const handlePointerUp = (e: React.PointerEvent, nodeId?: string) => {
+    if (isPanningRef.current) {
+      isPanningRef.current = false
+      if (isPanning) setIsPanning(false)
+      if (snapTimerRef.current) clearTimeout(snapTimerRef.current)
+      snapTimerRef.current = setTimeout(snapViewBox, 200)
+      return
+    }
     if (dragSourceId) {
       if (nodeId) (e as any).stopPropagation();
       endDragging(nodeId);
@@ -231,64 +697,127 @@ const LogisticMap = () => {
   };
 
   const handleWheel = (e: React.WheelEvent) => {
-    if (e.deltaY > 0 && rangeLevel < 4) setRange((rangeLevel + 1) as RangeLevel);
-    else if (e.deltaY < 0 && rangeLevel > 1) setRange((rangeLevel - 1) as RangeLevel);
-  };
+    e.preventDefault()
+    const container = mapContainerRef.current
+    if (!container) return
+
+    const delta = e.deltaY > 0 ? 0.87 : 1.15
+    const rect = container.parentElement!.getBoundingClientRect()
+    const cursorX = e.clientX - rect.left
+    const cursorY = e.clientY - rect.top
+
+    const prev = zoomRef.current
+    const [vx, vy, vw, vh] = viewBoxRef.current.split(' ').map(Number)
+    
+    // Enforce global max zoom (since next resets to 1 on snap)
+    const absoluteZoom = (800 / vw) * prev * delta
+    let next = prev * delta
+    if (absoluteZoom > 40) next = 40 / (800 / vw)
+    if (absoluteZoom < 0.25) next = 0.25 / (800 / vw)
+
+    zoomRef.current = next
+
+    const ratioX = vw / rect.width
+    const ratioY = vh / rect.height
+
+    const worldX = vx + ((cursorX - panOffsetRef.current.x) / prev) * ratioX
+    const worldY = vy + ((cursorY - panOffsetRef.current.y) / prev) * ratioY
+
+    panOffsetRef.current = {
+      x: cursorX - (worldX - vx) * (next / ratioX),
+      y: cursorY - (worldY - vy) * (next / ratioY),
+    }
+
+    container.style.transform =
+      `translate(${panOffsetRef.current.x}px, ${panOffsetRef.current.y}px) scale(${next})`
+
+    setZoomLevel(next)
+    
+    if (snapTimerRef.current) clearTimeout(snapTimerRef.current)
+    snapTimerRef.current = setTimeout(snapViewBox, 200)
+  }
 
   const handleMapClick = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (dragSourceId) return; // Ignore click if dragging
+    const elapsed = Date.now() - pointerDownTimeRef.current
+    const dx = Math.abs(e.clientX - pointerDownPosRef.current.x)
+    const dy = Math.abs(e.clientY - pointerDownPosRef.current.y)
+    if (elapsed > 200 || dx > 5 || dy > 5) return // was a pan
+
+    if (dragSourceId) return;
+
+    // --- Interaction Guard ---
+    if (selectedNodeId) {
+      selectNode(null); // Click map to deselect
+      return;
+    }
+    
+    if (isHubDeletionEnabled) return; // Don't create when deleting
+    
     const svg = e.currentTarget;
     const pt = svg.createSVGPoint();
     pt.x = e.clientX;
     pt.y = e.clientY;
     const svgP = pt.matrixTransform(svg.getScreenCTM()?.inverse());
     
-    if (!selectedNodeId) {
-        const cost = 500;
-        const coverageRange = 250;
-        const isWithinRange = nodes.some(n => {
-            const d = Math.sqrt(Math.pow(n.x - svgP.x, 2) + Math.pow(n.y - svgP.y, 2));
-            return d < coverageRange && (n.traffic > 0 || n.id === '0');
-        });
+    const coverageRange = 250;
+    const isWithinRange = nodes.some(n => {
+        const d = Math.sqrt(Math.pow(n.x - svgP.x, 2) + Math.pow(n.y - svgP.y, 2));
+        return d < coverageRange && (n.traffic > 0 || n.id === '0');
+    });
 
-        if (!isWithinRange && nodes.length > 0) {
-            addLog("Area outside network coverage range", true);
+    if (!isHubCreationEnabled && !isWithinRange && nodes.length > 0) {
+        addLog("Area outside network coverage range", true);
+        return;
+    }
+
+    if (isHubCreationEnabled) {
+        const template = NODE_TEMPLATES.find(t => t.type === activeDevNodeType);
+        
+        if (!template) {
+            addLog(`[WARNING] Invalid activeDevNodeType: ${activeDevNodeType}`, true);
             return;
         }
 
-        if (money >= cost) {
-            const nodeTypeLookup: Record<RangeLevel, any> = {
-                1: 'hub_local',
-                2: 'hub_regional',
-                3: 'backbone',
-                4: 'backbone'
-            };
-
-            const newNode = {
-                id: `node-${Date.now()}`,
-                name: `New Hub ${nodes.length}`,
-                bandwidth: 50,
-                traffic: 0,
-                level: 1,
-                layer: maxTier,
-                type: nodeTypeLookup[rangeLevel as RangeLevel],
-                health: 100,
-                x: Math.round(svgP.x),
-                y: Math.round(svgP.y)
-            };
-            addNode(newNode);
-            addLog(`Built ${newNode.type} at [${newNode.x}, ${newNode.y}]`, false);
-        } else {
-            addLog(`Insufficient funds to build new node ($${cost} required)`, true);
-        }
+        const newNode: ISPNode = {
+            id: `node-${Date.now()}`,
+            name: `New Hub ${nodes.length}`,
+            bandwidth: template.baseBandwidth,
+            baseBandwidth: template.baseBandwidth,
+            traffic: 0,
+            level: 1,
+            layer: template.hierarchyLevel,
+            type: template.type,
+            health: 100,
+            x: Math.round(svgP.x),
+            y: Math.round(svgP.y),
+            isDevSpawned: true
+        };
+        addNode(newNode);
+        addLog(`[DEV] Built ${template.displayName} at [${newNode.x}, ${newNode.y}]`, false);
     }
   };
 
+
+
   return (
-    <div className="flex-1 relative flex flex-col min-h-0 min-w-0" onWheel={handleWheel}>
+    <div
+      className="flex-1 relative flex flex-col min-h-0 min-w-0 bg-[#040d1a]"
+      onWheel={handleWheel}
+      onPointerDown={(e) => {
+        pointerDownTimeRef.current = Date.now()
+        pointerDownPosRef.current = { x: e.clientX, y: e.clientY }
+        if (e.button === 0 && !dragSourceId) {
+          isPanningRef.current = true
+          setIsPanning(true)
+          panStartRef.current = { x: e.clientX, y: e.clientY }
+        }
+      }}
+      onPointerMove={handlePointerMove}
+      onPointerUp={(e) => handlePointerUp(e)}
+    >
       <style>{`
-        @keyframes pulse-steady { 0%, 100% { opacity: 1; r: 4; } 50% { opacity: 0.7; r: 5; } }
-        @keyframes pulse-fast { 0%, 100% { opacity: 1; r: 4; } 50% { opacity: 0.5; r: 6; } }
+        @keyframes pulse-steady { 0%, 100% { opacity: 1; r: 5; } 50% { opacity: 0.7; r: 6; } }
+        @keyframes pulse-soft { 0%, 100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.1); opacity: 0.4; } }
         @keyframes glitch-flicker { 
           0%, 100% { opacity: 1; transform: translate(0); } 
           10%, 30% { opacity: 0; transform: translate(-2px, 1px); } 
@@ -296,83 +825,170 @@ const LogisticMap = () => {
           80% { opacity: 0.2; transform: translate(1px, 1px); }
         }
         .node-healthy { animation: pulse-steady 2s infinite ease-in-out; stroke: #22d3ee; }
-        .node-saturated { animation: pulse-fast 1s infinite ease-in-out; stroke: #fbbf24; }
-        .node-critical { animation: glitch-flicker 0.4s infinite linear; stroke: #ef4444; }
-        .node-circle { transform-box: fill-box; transform-origin: center; }
+        .node-saturated { animation: pulse-steady 1s infinite ease-in-out; stroke: #fbbf24; }
+        .node-warning { animation: pulse-steady 0.5s infinite ease-in-out; stroke: #f97316; }
+        .node-failed { animation: glitch-flicker 0.2s infinite linear; stroke: #ef4444; }
+        .node-circle, .node-rect { 
+          transform-box: fill-box; 
+          transform-origin: center; 
+        }
+        .selection-glow {
+          animation: pulse-soft 2s infinite ease-in-out;
+          transform-box: fill-box;
+          transform-origin: center;
+          }
         @keyframes dash { to { stroke-dashoffset: -20; } }
         .link-flow { animation: dash 1s linear infinite; }
-        .map-svg { transition: view-box 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+        .map-svg { transition: none; }
         .ghost-line { pointer-events: none; stroke-dasharray: 4,4; transition: stroke 0.2s; }
         .range-overlay { pointer-events: none; fill: rgba(16, 185, 129, 0.03); stroke: rgba(16, 185, 129, 0.1); stroke-dasharray: 2,2; }
       `}</style>
       
       {/* HUD Layer */}
-      <div className="absolute top-4 left-6 z-50 p-3 bg-black/60 backdrop-blur-xl rounded-lg border border-white/10 shadow-2xl">
-        <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest block mb-2">Network Focus // {currentRange.name}</label>
-        <div className="flex gap-1">
-          {([1, 2, 3, 4] as const).map(level => (
-            <button 
-              key={level}
-              onClick={() => setRange(level)}
-              className={`px-3 py-1.5 text-[9px] font-black border transition-all duration-300 ${rangeLevel === level ? 'bg-emerald-500 border-emerald-400 text-black shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'bg-white/5 border-white/5 text-slate-500 hover:bg-white/10 hover:text-slate-300'}`}
-            >
-              LEVEL {level}
-            </button>
-          ))}
+      <div className="absolute top-2 left-2 z-10">
+        <div className="bg-black/60 border border-white/10 px-2 py-1 rounded text-[8px] font-mono text-slate-500">
+          {Math.round(zoomLevel * 100)}%
         </div>
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-4">
-        <svg 
+      <div className="flex-1 relative overflow-hidden" style={{ padding: 0 }}>
+        <div
+          ref={mapContainerRef}
+          style={{
+            position: 'absolute',
+            top: 0, left: 0,
+            width: '100%',
+            height: '100%',
+            transformOrigin: '0 0',
+            willChange: 'transform',
+            transform: `translate(${panOffsetRef.current.x}px, ${panOffsetRef.current.y}px) scale(${zoomLevel})`,
+          }}
+        >
+        <svg
           ref={svgRef}
-          viewBox={currentRange.viewBox} 
-          preserveAspectRatio="xMidYMid slice" 
-          className="w-full h-full max-h-[85vh] aspect-square drop-shadow-2xl overflow-visible rounded-lg border border-white/10 shadow-inner bg-[#040d1a] map-svg"
-          onPointerMove={handlePointerMove}
-          onPointerUp={() => handlePointerUp({} as any)}
+          viewBox={svgViewBox}
+          preserveAspectRatio="xMidYMid slice"
+          width="100%"
+          height="100%"
+          className="block bg-[#040d1a] map-svg"
           onClick={handleMapClick}
         >
           <defs>
             <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
               <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="0.5"/>
             </pattern>
-            <filter id="glow">
-               <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
-               <feMerge>
-                   <feMergeNode in="coloredBlur"/>
-                   <feMergeNode in="SourceGraphic"/>
-               </feMerge>
-            </filter>
           </defs>
           
-          <image href="/assets/world-map.png" width="800" height="800" opacity="0.4" preserveAspectRatio="xMidYMid slice" />
+          <image
+            href="/assets/usa-all-counties.svg"
+            x="0"
+            y="146"
+            width="800"
+            height="507"
+            opacity="0.18"
+            preserveAspectRatio="xMidYMid slice"
+            style={{ filter: 'brightness(0.35) saturate(0.2) hue-rotate(180deg)', pointerEvents: 'none' }}
+          />
           <rect width="800" height="800" fill="url(#grid)" pointerEvents="none" />
 
-          {links.map(link => {
-            const src = nodes.find(n => n.id === link.sourceId);
-            const tgt = nodes.find(n => n.id === link.targetId);
-            if (!src || !tgt || src.layer > maxTier || tgt.layer > maxTier) return null;
-            const load = (tgt.traffic / tgt.bandwidth);
-            const strokeColor = getLoadColor(load);
-            const dx = tgt.x - src.x;
-            const dy = tgt.y - src.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            const offset = dist * 0.15;
-            const angle = Math.atan2(dy, dx);
-            const controlX = (src.x + tgt.x) / 2 + offset * Math.cos(angle - Math.PI / 2);
-            const controlY = (src.y + tgt.y) / 2 + offset * Math.sin(angle - Math.PI / 2);
-            return (
-              <path 
-                key={link.id}
-                d={`M ${src.x} ${src.y} Q ${controlX} ${controlY} ${tgt.x} ${tgt.y}`}
-                fill="none"
-                className="transition-all duration-1000 opacity-60 link-flow thematic-link"
-                stroke={strokeColor}
-                strokeWidth={1 + (link.bandwidth / 1000) * 1.5}
-                filter={eraConfig.id === 'modern' ? "url(#glow)" : "none"}
-                strokeDasharray={eraConfig.id === '70s' ? "2,2" : "none"}
-              />
-            );
+          {zoomLevel > 6 && (
+            <g opacity={Math.min((zoomLevel - 6) / 4, 0.4)}>
+              <defs>
+                <pattern id="cityblock" width="8" height="8" patternUnits="userSpaceOnUse">
+                  <rect width="8" height="8" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="0.3"/>
+                </pattern>
+              </defs>
+              <rect width="800" height="800" fill="url(#cityblock)" pointerEvents="none"/>
+            </g>
+          )}
+
+          {/* PRE-CALCULATE ACTIVE LINKS (O(N) Optimization) */}
+          {(() => {
+            const activePaths = useISPStore.getState().activePaths;
+            const activeLinkKeys = new Set<string>();
+            Object.values(activePaths).forEach(sessions => {
+              sessions.forEach(session => {
+                const path = session.path;
+                for (let i = 0; i < path.length - 1; i++) {
+                  const key = [path[i], path[i+1]].sort().join('-');
+                  activeLinkKeys.add(key);
+                }
+              });
+            });
+
+            return links.map(link => {
+              const src = nodes.find(n => n.id === link.sourceId);
+              const tgt = nodes.find(n => n.id === link.targetId);
+              if (!src || !tgt || src.layer > maxTier || tgt.layer > maxTier) return null;
+
+              const linkKey = [link.sourceId, link.targetId].sort().join('-');
+              const isActive = activeLinkKeys.has(linkKey);
+
+              const load = (tgt.traffic / tgt.bandwidth);
+              const strokeColor = getLoadColor(load);
+              
+              const dx = tgt.x - src.x;
+              const dy = tgt.y - src.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              const offset = dist * 0.15;
+              const angle = Math.atan2(dy, dx);
+              const controlX = (src.x + tgt.x) / 2 + offset * Math.cos(angle - Math.PI / 2);
+              const controlY = (src.y + tgt.y) / 2 + offset * Math.sin(angle - Math.PI / 2);
+
+              return (
+                <path 
+                  key={link.id}
+                  d={`M ${src.x} ${src.y} Q ${controlX} ${controlY} ${tgt.x} ${tgt.y}`}
+                  fill="none"
+                  className={`transition-all duration-1000 thematic-link ${isActive ? 'opacity-100' : 'opacity-20'}`}
+                  stroke={strokeColor}
+                  strokeWidth={0.5 + (link.bandwidth / 1000) * 0.8}
+                  filter="none"
+                />
+              );
+            });
+          })()}
+
+          {/* PACKET VISUALIZATION (Cull at low zoom) */}
+          {absoluteZoom >= 0.8 && Object.entries(useISPStore.getState().activePaths).map(([nodeId, sessions]) => {
+            const sourceNode = nodes.find(n => n.id === nodeId);
+            if (!sourceNode || sourceNode.layer > maxTier) return null;
+
+            return sessions.map((session, sIndex) => {
+              const { pathD } = session;
+
+              if (!pathD) return null;
+
+              // Fix: Guard against short/invalid paths (M x y with no Q)
+              const isValidPath = pathD && pathD.trim().split(' ').length > 3;
+              if (!isValidPath) return null;
+
+              // Dot speed proportional to path latency & era technology
+              const signal = sourceNode.signalStrength || 100;
+              const currentEraId = useISPStore.getState().currentEra;
+              
+              const baseDuration = currentEraId === '70s' ? 9 : 
+                                   currentEraId === '80s' ? 6 : 4;
+              
+              const signalFactor = signal > 70 ? 1.0 : signal > 40 ? 1.4 : 2.0;
+              const duration = Math.round(baseDuration * signalFactor * 100) / 100;
+              const packetColor = signal > 70 ? "#22d3ee" : signal > 40 ? "#fbbf24" : "#ef4444";
+
+              return (
+                <g key={`${session.sessId}-${pathD.slice(0, 20)}`}>
+                  <circle r="1.2" fill={packetColor} className="drop-shadow-[0_0_2px_rgba(255,255,255,0.4)] pointer-events-none">
+                    <animateMotion 
+                      path={pathD} 
+                      dur={`${duration}s`} 
+                      repeatCount="indefinite"
+                      rotate="auto"
+                      begin="0s"
+                      restart="always"
+                    />
+                  </circle>
+                </g>
+              );
+            });
           })}
 
           {/* DRAG FEEDBACK */}
@@ -387,12 +1003,11 @@ const LogisticMap = () => {
 
             return (
               <g className="animate-in fade-in duration-300">
-                <circle cx={src.x} cy={src.y} r={350} className="range-overlay" />
                 <line 
                   x1={src.x} y1={src.y} 
                   x2={dragPos.x} y2={dragPos.y} 
                   stroke={!targetNode ? '#475569' : (isValid ? '#10b981' : '#f43f5e')}
-                  className="ghost-line" strokeWidth="2"
+                  className="ghost-line" strokeWidth="1.5"
                   strokeDasharray={isValid ? "none" : "4,4"}
                 />
               </g>
@@ -413,43 +1028,75 @@ const LogisticMap = () => {
                    const isFilterActive = dragSourceId !== null && dragSourceId !== node.id;
                    const isValidTarget = dragSourceId ? validateLink(dragSourceId, node.id).valid : true;
                    
-                   const baseR = layerNum === 1 ? 14 : 9;
-                   const rangeScale = 1.0 - (rangeLevel - 1) * 0.15;
-                   const r = baseR * rangeScale;
-                   return (
-                     <g key={node.id} className="cursor-pointer" 
-                        onPointerDown={(e) => handlePointerDown(e, node.id)}
-                        onPointerUp={(e) => handlePointerUp(e, node.id)}
-                        onClick={(e) => e.stopPropagation()}
-                     >
-                       {isSelected && <circle cx={node.x} cy={node.y} r={r + 6} className="fill-none stroke-emerald-500/40 stroke-1 animate-[ping_3s_infinite]" />}
-                       <circle 
-                         cx={node.x} cy={node.y} r={r}
-                         className={`node-circle transition-all duration-300 stroke-2 fill-slate-900 
-                          ${isSelected ? 'stroke-white scale-110 shadow-lg' : stateClass}
-                          ${isFilterActive && !isValidTarget ? 'opacity-20' : 'opacity-100'}`}
-                       />
-                       <text 
-                         x={node.x} y={node.y + r + 14} 
-                         textAnchor="middle"
-                         className={`text-[8px] font-black font-mono select-none pointer-events-none uppercase transition-all ${isFilterActive && !isValidTarget ? 'opacity-10' : 'fill-slate-300'}`}
-                       >
-                         {rangeLevel < 4 ? node.name : ''} 
-                       </text>
-                     </g>
-                   );
-                })}
-              </g>
-            );
-          })}
-        </svg>
+                    const baseR = node.type === 'terminal' ? 4 : 
+                                 node.type === 'hub_local' || node.isCore ? 6 :
+                                 node.type === 'hub_regional' ? 8 :
+                                 node.type === 'backbone' ? 10 : 6;
+
+                    const rangeScale = 1.0 - (rangeLevel - 1) * 0.15;
+                    const r = baseR * rangeScale;
+                    const strokeColor = node.uiColor || '#22d3ee';
+
+                    return (
+                      <g key={node.id} className={`cursor-${isHubDeletionEnabled ? 'crosshair' : 'pointer'}`} 
+                         onPointerDown={(e) => handlePointerDown(e, node.id)}
+                         onPointerUp={(e) => handlePointerUp(e, node.id)}
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           if (isHubDeletionEnabled) {
+                             removeNode(node.id);
+                           } else {
+                             selectNode(node.id);
+                           }
+                         }}
+                      >
+                        {isSelected && (
+                          <g transform={`translate(${node.x}, ${node.y})`}>
+                            <circle r={r * 1.2} className="fill-none stroke-emerald-500/40 stroke-1 selection-glow" />
+                          </g>
+                        )}
+                        
+                        {renderNodeShape(node, r, strokeColor, stateClass)}
+                        
+                        {/* Fix 2: Reduced label size/opacity on unconnected nodes */}
+                        {(node.traffic > 0 || node.isCore || isSelected) && (
+                          <text 
+                            x={node.x} y={node.y + r + 8} 
+                            textAnchor="middle"
+                            className={`text-[7px] font-black font-mono select-none pointer-events-none uppercase transition-all 
+                              ${isSelected ? 'opacity-100 fill-white' : (node.traffic > 0 || node.isCore) ? 'opacity-50 fill-slate-400' : 'opacity-20 fill-slate-500'}`}
+                          >
+                            {rangeLevel < 4 ? abbreviateNodeName(node) : ''} 
+                          </text>
+                        )}
+                      </g>
+                    );
+                 })}
+               </g>
+             );
+           })}
+         </svg>
+        </div>
       </div>
     </div>
   );
 };
 
 const App = () => {
-  const { tick, tickRate } = useISPStore();
+  const { tick, tickRate, links } = useISPStore();
+  const [activeTab, setActiveTab] = useState<'map' | 'research' | 'network' | 'log'>('map');
+
+  const [showDragHint, setShowDragHint] = useState(() => {
+    return !localStorage.getItem('hasBuiltFirstLink');
+  });
+
+  // Dismiss when first link is created
+  useEffect(() => {
+    if (links.length > 0 && showDragHint) {
+      setShowDragHint(false);
+      localStorage.setItem('hasBuiltFirstLink', 'true');
+    }
+  }, [links.length, showDragHint]);
 
   useEffect(() => {
     const timer = setInterval(() => tick(), tickRate);
@@ -458,26 +1105,80 @@ const App = () => {
 
   return (
     <EraWrapper>
-      <TopBar />
+      <TopBar onOpenResearch={() => setActiveTab('research')} />
       
       <div className="flex-1 flex pt-14 relative min-h-0">
         <div className="flex-1 flex flex-col min-h-0">
-          <LogisticMap />
-          <LogPanel />
+          <div
+            className="flex-1 relative flex flex-col min-h-0"
+          >
+            <LogisticMap />
+            
+            {showDragHint && links.length === 0 && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 pointer-events-none">
+                <div className="bg-black/70 border border-emerald-500/30 text-emerald-400 font-mono text-[9px] uppercase tracking-widest px-4 py-2 rounded">
+                  ← drag from any node to connect infrastructure →
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Bottom Taskbar Area */}
+          {activeTab !== 'map' && (
+            <div
+              className="h-[280px] border-t border-white/10 bg-black/60 overflow-hidden animate-in slide-in-from-bottom duration-300 pointer-events-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-3 py-1 border-b border-white/5">
+                <span className="text-[8px] font-mono text-slate-500 uppercase tracking-widest">
+                  {activeTab === 'research' && 'Research & Development'}
+                  {activeTab === 'network' && 'Network Statistics'}
+                  {activeTab === 'log' && 'System Log'}
+                </span>
+                <button
+                  onClick={() => setActiveTab('map')}
+                  className="text-slate-600 hover:text-white text-xs leading-none"
+                >
+                  ×
+                </button>
+              </div>
+              {activeTab === 'research' && <TechTreePanel />}
+              {activeTab === 'network' && <NetworkStatsPanel />}
+              {activeTab === 'log' && <LogPanel />}
+            </div>
+          )}
+
+          {/* Taskbar Tabs */}
+          <div 
+            className="h-9 bg-black/80 border-t border-white/10 flex items-center px-4 gap-1 z-50 pointer-events-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {(['map', 'research', 'network', 'log'] as const).map(tab => (
+              <button 
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-3 py-1 text-[9px] font-mono uppercase tracking-widest transition-all
+                  ${activeTab === tab
+                    ? 'text-emerald-400 border-b border-emerald-500 bg-emerald-500/5'
+                    : 'text-slate-600 hover:text-slate-400 hover:bg-white/5'
+                  }`}
+              >
+                {tab}
+              </button>
+            ))}
+            <div className="flex-1" />
+            <span className="text-[8px] font-mono text-slate-700 tracking-wider">PROTOCOL_VX // TOPOLOGY_SYNCED</span>
+          </div>
         </div>
-        <Sidebar />
+        <div 
+          className="pointer-events-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Sidebar />
+        </div>
       </div>
 
       {import.meta.env.DEV && <DebugConsole />}
-
-      <footer className="h-6 bg-black border-t border-white/5 px-4 flex items-center justify-between z-50">
-        <span className="text-[8px] font-mono text-slate-700 tracking-wider">PROTOCOL_VX // TOPOLOGY_SYNCED</span>
-        <div className="flex gap-2">
-            {[...Array(6)].map((_, i) => (
-                <div key={i} className="w-1 h-1 rounded-full bg-slate-800" />
-            ))}
-        </div>
-      </footer>
     </EraWrapper>
   );
 };

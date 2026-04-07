@@ -1,0 +1,11 @@
+commit 70f6457f07172d8a153a3ffe9ebcef38228feb54
+Author: walace.peng <dev.mailwls@gmail.com>
+Date:   Fri Apr 3 20:14:01 2026 -0300
+
+    chore(ci): remove obsolete board-sync.yml
+    
+    SPRINT.md is deleted; sprint board now lives in GitHub issue #27 via
+    sprint-board-sync.yml. board-sync.yml was crashing on `git add SPRINT.md`
+    (exit 128) since the file no longer exists.
+    
+    Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>

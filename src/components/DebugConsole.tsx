@@ -1,24 +1,44 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useISPStore, ERAS_CONFIG } from '../store/useISPStore';
+import { useTechStore } from '../store/useTechStore';
+import { NODE_TEMPLATES } from '../config/nodeRegistry';
+import techTreeData from '../config/techTreeConfig.json';
 
 const DebugConsole: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
-  const [position, setPosition] = useState({ x: 24, y: window.innerHeight - 450 });
+  const [position, setPosition] = useState({ x: 24, y: 80 });
+  const consoleRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
-  const { 
-    money, 
-    addMoney, 
-    resetTopology, 
-    isGodMode, 
-    toggleGodMode, 
-    tickRate, 
-    setTickRate, 
-    currentEra, 
+  const {
+    money,
+    addMoney,
+    techPoints,
+    addTechPoints,
+    resetTopology,
+    isGodMode,
+    toggleGodMode,
+    tickRate,
+    setTickRate,
+    currentEra,
     setEra,
-    addLog
+    addLog,
+    isHubCreationEnabled,
+    toggleHubCreation,
+    isHubDeletionEnabled,
+    toggleHubDeletion,
+    activeDevNodeType,
+    setActiveDevNodeType,
+    rangeLevel,
+    syncNodeMarkers,
+    forceEraUpgrade,
+    getNextEraConfig
   } = useISPStore();
+
+  const { unlockedTechIds, unlockAllTechs, resetTechs, getAggregateModifiers } = useTechStore();
+  const mods = getAggregateModifiers();
+  const totalTechs = techTreeData.technologies.length;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -29,9 +49,14 @@ const DebugConsole: React.FC = () => {
 
     const handleMouseMove = (e: MouseEvent) => {
       if (isDragging) {
+        const el = consoleRef.current;
+        const w = el ? el.offsetWidth : 288;
+        const h = el ? el.offsetHeight : 450;
+        const rawX = e.clientX - dragOffset.x;
+        const rawY = e.clientY - dragOffset.y;
         setPosition({
-          x: e.clientX - dragOffset.x,
-          y: e.clientY - dragOffset.y
+          x: Math.max(0, Math.min(rawX, window.innerWidth - w)),
+          y: Math.max(0, Math.min(rawY, window.innerHeight - h))
         });
       }
     };
@@ -67,8 +92,9 @@ const DebugConsole: React.FC = () => {
   if (!isVisible) return null;
 
   return (
-    <div 
-      className={`fixed z-[100] w-72 bg-black/80 backdrop-blur-xl border border-emerald-500/30 p-4 rounded-lg shadow-[0_0_30px_rgba(16,185,129,0.1)] font-mono ${!isDragging ? 'animate-in fade-in slide-in-from-bottom-4 duration-300' : ''}`}
+    <div
+      ref={consoleRef}
+      className={`fixed z-100 w-72 bg-black/80 backdrop-blur-xl border border-emerald-500/30 p-4 rounded-lg shadow-[0_0_30px_rgba(16,185,129,0.1)] font-mono ${!isDragging ? 'animate-in fade-in slide-in-from-bottom-4 duration-300' : ''}`}
       style={{ 
         left: 0, 
         top: 0, 
@@ -104,6 +130,50 @@ const DebugConsole: React.FC = () => {
             >
               God Mode: {isGodMode ? 'ON' : 'OFF'}
             </button>
+            <button 
+              onClick={() => { addTechPoints(50); addLog('[DEV] Added 50 TP (total: ' + (techPoints + 50) + ')', false); }}
+              className="py-1.5 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[9px] uppercase hover:bg-cyan-500/20 transition-all font-bold"
+            >
+              Add 50 TP
+            </button>
+            <button 
+              onClick={() => { addTechPoints(999999); addLog('[DEV] Tech Points set to maximum', false); }}
+              className="py-1.5 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[9px] uppercase hover:bg-cyan-500/20 transition-all font-bold"
+            >
+              Set Max TP
+            </button>
+            <div className="flex gap-1 w-full col-span-2">
+              <button 
+                onClick={() => { toggleHubCreation(); addLog(`DEBUG: Create Hub Mode ${!isHubCreationEnabled ? 'ON' : 'OFF'}`, false); }}
+                className={`flex-1 py-1.5 border text-[9px] uppercase transition-all ${isHubCreationEnabled ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-400' : 'bg-white/5 border-white-10 text-slate-400 hover:bg-white/10'}`}
+              >
+                Create Hub: {isHubCreationEnabled ? 'ON' : 'OFF'}
+              </button>
+              <select 
+                value={activeDevNodeType}
+                onChange={(e) => setActiveDevNodeType(e.target.value)}
+                className="flex-1 bg-black/60 border border-white/10 text-slate-300 text-[9px] uppercase px-1 outline-none relative z-100"
+              >
+                {NODE_TEMPLATES.map(t => {
+                  const isValidScope = t.availableInScopes.includes(rangeLevel);
+                  const eraIndex = ERAS_CONFIG.findIndex(e => e.id === currentEra);
+                  const unlockIndex = ERAS_CONFIG.findIndex(e => e.id === t.unlocksAtEra);
+                  const isUnlocked = unlockIndex <= eraIndex;
+                  return (
+                    <option key={t.type} value={t.type}>
+                      {!isValidScope ? '🔒 ' : !isUnlocked ? '⏳ ' : ''}
+                      {t.displayName}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+            <button 
+              onClick={() => { toggleHubDeletion(); addLog(`DEBUG: Delete Hub Mode ${!isHubDeletionEnabled ? 'ON' : 'OFF'}`, false); }}
+              className={`col-span-2 py-1.5 border text-[9px] uppercase transition-all ${isHubDeletionEnabled ? 'bg-red-500/20 border-red-500/40 text-red-400' : 'bg-white/5 border-white-10 text-slate-400 hover:bg-white/10'}`}
+            >
+              Delete Hub: {isHubDeletionEnabled ? 'ON' : 'OFF'}
+            </button>
           </div>
         </div>
 
@@ -120,6 +190,53 @@ const DebugConsole: React.FC = () => {
                 {era.id}
               </button>
             ))}
+          </div>
+          <button 
+            onClick={() => {
+              const next = getNextEraConfig();
+              if (next) {
+                forceEraUpgrade();
+              } else {
+                addLog("[DEV] Already at final era", true);
+              }
+            }}
+            disabled={!getNextEraConfig()}
+            className={`w-full py-2 mt-2 border rounded font-black text-[9px] uppercase tracking-widest transition-all
+              ${getNextEraConfig() ? 'bg-amber-500/10 border-amber-500/20 text-amber-400 hover:bg-amber-500/20 shadow-[0_0_10px_rgba(245,158,11,0.1)]' : 'bg-white/5 border-white/5 text-slate-700 cursor-not-allowed'}
+            `}
+          >
+            {getNextEraConfig() ? 'FORCE ERA ADVANCE' : '[DEV] Already at final era'}
+          </button>
+        </div>
+
+        {/* Tech Tree Controls */}
+        <div>
+          <div className="flex justify-between items-center mb-2">
+            <label className="text-[8px] font-black text-slate-500 uppercase tracking-tighter">Tech Tree</label>
+            <div className="text-right">
+              <span className="text-[8px] text-cyan-400 font-bold block">UNLOCKED: {unlockedTechIds.length}/{totalTechs}</span>
+              <span className="text-[8px] text-emerald-400 font-bold block">ACTIVE: {useTechStore.getState().activeTechIds.length}</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-1 text-[7px] text-slate-500 mb-2">
+            <span>BW ×{mods.bandwidthMultiplier.toFixed(2)}</span>
+            <span>LAT ×{mods.latencyMultiplier.toFixed(2)}</span>
+            <span>CAP ×{mods.capacityMultiplier.toFixed(2)}</span>
+            <span>DIST {mods.maxDistance}km</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => { unlockAllTechs(); addLog('[DEV] All techs force-unlocked', false); }}
+              className="py-1.5 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[9px] uppercase hover:bg-cyan-500/20 transition-all font-bold"
+            >
+              Unlock All
+            </button>
+            <button
+              onClick={() => { resetTechs(); addLog('[DEV] Tech tree reset to baseline', false); }}
+              className="py-1.5 bg-red-500/10 border border-red-500/20 text-red-400 text-[9px] uppercase hover:bg-red-500/20 transition-all font-bold"
+            >
+              Reset Techs
+            </button>
           </div>
         </div>
 
@@ -141,8 +258,14 @@ const DebugConsole: React.FC = () => {
           </div>
         </div>
 
-        {/* Destructive Tools */}
-        <div className="pt-2 border-t border-white/5">
+        {/* Utilities */}
+        <div className="pt-2 border-t border-white/5 space-y-2">
+          <button 
+            onClick={() => syncNodeMarkers()}
+            className="w-full py-1.5 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[9px] uppercase hover:bg-cyan-500/20 transition-all font-bold"
+          >
+            Rescue Broken Nodes
+          </button>
           <button 
             onClick={() => { if(confirm("Reset entire topology?")) { resetTopology(); addLog("DEBUG: Topology wiped", true); } }}
             className="w-full py-1.5 bg-red-500/10 border border-red-500/20 text-red-400 text-[9px] uppercase hover:bg-red-500/20 transition-all font-bold"

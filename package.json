@@ -1,6 +1,6 @@
 {
-  "name": "isp-game",
-  "version": "1.0.0",
+  "name": "logistic-map",
+  "version": "0.2.0",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -29,11 +29,9 @@
     "@vitest/coverage-v8": "^3.0.0",
     "@vitest/ui": "^3.0.0",
     "autoprefixer": "^10.4.27",
-    "jest": "^30.3.0",
     "jsdom": "^26.0.0",
     "postcss": "^8.5.8",
     "tailwindcss": "^4.2.2",
-    "ts-jest": "^29.4.6",
     "tsx": "^4.21.0",
     "typescript": "^5.7.3",
     "vite": "^8.0.2",

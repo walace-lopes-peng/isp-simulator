@@ -9,9 +9,10 @@
       "unlockedHardware": ["copper-v1", "acoustic-coupler"],
       "modifiers": {
         "signalAttenuation": 1.5,
-        "revenueMultiplier": 1.0,
+        "revenueMultiplier": 0.05,
         "maintenanceCost": 0.5
       },
+      "maxLinkBandwidth": 300,
       "unlockCondition": { "totalData": 0, "money": 0 }
     },
     {
@@ -23,10 +24,11 @@
       "unlockedHardware": ["coaxial", "dns-v1"],
       "modifiers": {
         "signalAttenuation": 1.2,
-        "revenueMultiplier": 1.2,
+        "revenueMultiplier": 0.08,
         "maintenanceCost": 0.8
       },
-      "unlockCondition": { "totalData": 5000, "money": 20000 }
+      "maxLinkBandwidth": 2000,
+      "unlockCondition": { "totalData": 5120000000, "money": 20000 }
     },
     {
       "id": "90s",
@@ -37,10 +39,11 @@
       "unlockedHardware": ["fiber-v1", "dial-up"],
       "modifiers": {
         "signalAttenuation": 0.8,
-        "revenueMultiplier": 1.5,
+        "revenueMultiplier": 0.15,
         "maintenanceCost": 1.2
       },
-      "unlockCondition": { "totalData": 50000, "money": 100000 }
+      "maxLinkBandwidth": 10000,
+      "unlockCondition": { "totalData": 51200000000, "money": 100000 }
     },
     {
       "id": "00s",
@@ -51,10 +54,11 @@
       "unlockedHardware": ["adsl", "fiber-home"],
       "modifiers": {
         "signalAttenuation": 0.5,
-        "revenueMultiplier": 2.0,
+        "revenueMultiplier": 0.25,
         "maintenanceCost": 2.0
       },
-      "unlockCondition": { "totalData": 250000, "money": 300000 }
+      "maxLinkBandwidth": 100000,
+      "unlockCondition": { "totalData": 256000000000, "money": 300000 }
     },
     {
       "id": "2010s",
@@ -65,10 +69,11 @@
       "unlockedHardware": ["4g", "cdn-edge"],
       "modifiers": {
         "signalAttenuation": 0.2,
-        "revenueMultiplier": 3.0,
+        "revenueMultiplier": 0.45,
         "maintenanceCost": 3.5
       },
-      "unlockCondition": { "totalData": 1000000, "money": 1500000 }
+      "maxLinkBandwidth": 1000000,
+      "unlockCondition": { "totalData": 1024000000000, "money": 1500000 }
     },
     {
       "id": "modern",
@@ -79,10 +84,11 @@
       "unlockedHardware": ["5g", "quantum-link"],
       "modifiers": {
         "signalAttenuation": 0.05,
-        "revenueMultiplier": 5.0,
+        "revenueMultiplier": 0.90,
         "maintenanceCost": 5.0
       },
-      "unlockCondition": { "totalData": 5000000, "money": 5000000 }
+      "maxLinkBandwidth": 10000000,
+      "unlockCondition": { "totalData": 5120000000000, "money": 5000000 }
     }
   ]
 }
