@@ -72,6 +72,15 @@ export const RANGE_PRESETS = {
   4: { name: 'GLOBAL', viewBox: '0 0 800 800', tier: 4 },
 } as const;
 
+export type DebtTier = 0 | 1 | 2 | 3;
+
+export function getDebtTier(money: number): DebtTier {
+  if (money < -5000) return 3;
+  if (money < -2000) return 2;
+  if (money < 0) return 1;
+  return 0;
+}
+
 interface ISPStore {
   money: number;
   techPoints: number;
@@ -90,7 +99,7 @@ interface ISPStore {
   networkHealth: number;
   avgLatency: number;
   activePaths: Record<string, { path: string[], destination: string, pathD: string, sessId: string }[]>;
-  
+
   dragSourceId: string | null;
   dragPos: { x: number, y: number } | null;
 
@@ -102,6 +111,12 @@ interface ISPStore {
   toggleHubCreation: () => void;
   isHubDeletionEnabled: boolean;
   toggleHubDeletion: () => void;
+
+  // Debt escalation
+  debtTier: DebtTier;
+  emergencyLoanUsed: boolean;
+  emergencyLoanActive: boolean;
+  emergencyLoanTicksRemaining: number;
 
   tick: () => Promise<void>;
   removeNode: (id: string) => void;
@@ -119,7 +134,7 @@ interface ISPStore {
   selectNode: (id: string | null) => void;
   connectNodes: (sourceId: string, targetId: string) => void;
   toggleLinking: () => void;
-  
+
   startDragging: (id: string) => void;
   setDragPos: (x: number, y: number) => void;
   endDragging: (targetId?: string) => void;
@@ -133,6 +148,12 @@ interface ISPStore {
   resetTopology: () => void;
   toggleGodMode: () => void;
   setTickRate: (rate: number) => void;
+
+  // Debt recovery actions
+  sellLink: (linkId: string) => void;
+  sellNode: (nodeId: string) => void;
+  takeEmergencyLoan: () => void;
+  isNonCore: (id: string) => boolean;
 }
 
 export const useISPStore = create<ISPStore>((set, get) => ({
@@ -162,6 +183,10 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   activeDevNodeType: NODE_TEMPLATES[0].type,
   isHubCreationEnabled: false,
   isHubDeletionEnabled: false,
+  debtTier: 0 as DebtTier,
+  emergencyLoanUsed: false,
+  emergencyLoanActive: false,
+  emergencyLoanTicksRemaining: 0,
 
   setActiveDevNodeType: (type: string) => {
     if (NODE_TEMPLATES.some(t => t.type === type)) {
@@ -234,16 +259,79 @@ export const useISPStore = create<ISPStore>((set, get) => ({
         ? deadNodes.map((n: ISPNode) => `!!! [CRITICAL] HARDWARE_FAILURE: ${n.name} OFFLINE !!!`)
         : [];
 
-      set({ 
-        nodes, 
-        money: state.isGodMode ? state.money : (state.money + revenue - totalMaintenanceCost), 
+      // Debt escalation: apply penalties to revenue/OPEX
+      const prevTier = state.debtTier;
+      let effectiveRevenue = revenue;
+      let effectiveOPEX = totalMaintenanceCost;
+      if (!state.isGodMode && prevTier >= 1) {
+        effectiveOPEX *= 1.2;   // +20% OPEX
+        effectiveRevenue *= 0.9; // -10% revenue
+      }
+
+      let newMoney = state.isGodMode ? state.money : (state.money + effectiveRevenue - effectiveOPEX);
+
+      // Emergency loan repayment: 500/min = ~8.33/sec
+      let loanTicks = state.emergencyLoanTicksRemaining;
+      let loanActive = state.emergencyLoanActive;
+      if (loanActive && !state.isGodMode) {
+        const loanCostPerSec = 500 / 60;
+        newMoney -= loanCostPerSec * dT;
+        loanTicks = Math.max(0, loanTicks - 1);
+        if (loanTicks <= 0) loanActive = false;
+      }
+
+      const newTier = state.isGodMode ? 0 : getDebtTier(newMoney);
+      const debtLogs: string[] = [];
+
+      // Log threshold crossings
+      if (newTier >= 1 && prevTier < 1) debtLogs.push('[DEBT] Operating costs rising. Cash flow negative.');
+      if (newTier >= 2 && prevTier < 2) debtLogs.push('[DEBT] Hardware stress increasing. Node degrading.');
+      if (newTier >= 3 && prevTier < 3) debtLogs.push('!!! [DEBT] Link severed due to missed payments. !!!');
+
+      // Tier 2: random non-core node bandwidth -20%
+      let debtNodes: ISPNode[] = nodes;
+      if (!state.isGodMode && newTier >= 2) {
+        const nonCoreNodes = debtNodes.filter((n: ISPNode) => !n.isCore);
+        if (nonCoreNodes.length > 0) {
+          const victim = nonCoreNodes[Math.floor(Math.random() * nonCoreNodes.length)];
+          debtNodes = debtNodes.map((n: ISPNode) => n.id === victim.id
+            ? { ...n, bandwidth: Math.floor(n.bandwidth * 0.998), baseBandwidth: Math.floor(n.baseBandwidth * 0.998) }
+            : n
+          );
+        }
+      }
+
+      // Tier 3: sever a random non-core link (once per threshold crossing)
+      let debtLinks = state.links;
+      if (!state.isGodMode && newTier >= 3 && prevTier < 3) {
+        const nonCoreLinks = debtLinks.filter((l: ISPLink) => {
+          const src = debtNodes.find((n: ISPNode) => n.id === l.sourceId);
+          const tgt = debtNodes.find((n: ISPNode) => n.id === l.targetId);
+          return !(src?.isCore && tgt?.isCore);
+        });
+        if (nonCoreLinks.length > 0) {
+          const victim = nonCoreLinks[Math.floor(Math.random() * nonCoreLinks.length)];
+          debtLinks = debtLinks.filter(l => l.id !== victim.id);
+          debtLogs.push(`[DEBT] Link ${victim.id} severed — missed payments.`);
+        }
+      }
+
+      const allLogs = [...debtLogs, ...newLogs];
+
+      set({
+        nodes: debtNodes,
+        links: debtLinks,
+        money: newMoney,
+        debtTier: newTier,
+        emergencyLoanActive: loanActive,
+        emergencyLoanTicksRemaining: loanTicks,
         totalData: state.totalData + Math.floor(totalLoad * (state.tickRate / 1000) * 125),
         techPoints: state.techPoints + tpToAdd,
         tpAccumulator: newTpAccumulator - tpToAdd,
         networkHealth,
         avgLatency,
         activePaths: e.data.activePaths || {},
-        logs: newLogs.length > 0 ? [...newLogs, ...state.logs].slice(0, 20) : state.logs
+        logs: allLogs.length > 0 ? [...allLogs, ...state.logs].slice(0, 20) : state.logs
       });
     };
     set({ worker });
@@ -458,12 +546,69 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   addTechPoints: (amount) => set((state) => ({ 
     techPoints: Math.max(0, state.techPoints + amount) 
   })),
+  isNonCore: (id: string) => {
+    const state = get();
+    const node = state.nodes.find(n => n.id === id);
+    if (node) return !node.isCore;
+    const link = state.links.find(l => l.id === id);
+    if (link) {
+      const src = state.nodes.find(n => n.id === link.sourceId);
+      const tgt = state.nodes.find(n => n.id === link.targetId);
+      return !(src?.isCore && tgt?.isCore);
+    }
+    return false;
+  },
+
+  sellLink: (linkId: string) => set((state) => {
+    const link = state.links.find(l => l.id === linkId);
+    if (!link) return state;
+    const src = state.nodes.find(n => n.id === link.sourceId);
+    const tgt = state.nodes.find(n => n.id === link.targetId);
+    if (src?.isCore && tgt?.isCore) return state; // can't sell core links
+    const refund = Math.floor(50 + 25); // ~50% of avg build cost
+    return {
+      links: state.links.filter(l => l.id !== linkId),
+      money: state.money + refund,
+      logs: [`[SELL] Link sold for $${refund}`, ...state.logs].slice(0, 20)
+    };
+  }),
+
+  sellNode: (nodeId: string) => set((state) => {
+    const node = state.nodes.find(n => n.id === nodeId);
+    if (!node || node.isCore) return state;
+    const refund = Math.floor(150); // ~30% of avg build cost
+    return {
+      nodes: state.nodes.filter(n => n.id !== nodeId),
+      links: state.links.filter(l => l.sourceId !== nodeId && l.targetId !== nodeId),
+      money: state.money + refund,
+      selectedNodeId: state.selectedNodeId === nodeId ? null : state.selectedNodeId,
+      logs: [`[SELL] ${node.name} sold for $${refund}. Connected links removed.`, ...state.logs].slice(0, 20)
+    };
+  }),
+
+  takeEmergencyLoan: () => set((state) => {
+    if (state.emergencyLoanUsed) return state;
+    // 5000 cash, costs 500/min for 5 minutes. At 16ms tick rate: 5 * 60 * 1000 / 16 = 18750 ticks
+    const loanTicks = Math.floor(5 * 60 * 1000 / state.tickRate);
+    return {
+      money: state.money + 5000,
+      emergencyLoanUsed: true,
+      emergencyLoanActive: true,
+      emergencyLoanTicksRemaining: loanTicks,
+      logs: ['[LOAN] Emergency loan: +$5,000. Repayment: $500/min for 5 minutes.', ...state.logs].slice(0, 20)
+    };
+  }),
+
   toggleGodMode: () => set((state) => ({ isGodMode: !state.isGodMode })),
   setTickRate: (rate) => set({ tickRate: rate }),
   resetTopology: () => set((state) => ({
     links: [],
     canUpgradeEra: false,
     tpAccumulator: 0,
+    debtTier: 0 as DebtTier,
+    emergencyLoanUsed: false,
+    emergencyLoanActive: false,
+    emergencyLoanTicksRemaining: 0,
     nodes: [
       { id: '0', name: 'CORE GATEWAY', x: DEFAULT_START.x, y: DEFAULT_START.y, bandwidth: 300, baseBandwidth: 300, traffic: 0, level: 1, layer: 1, type: 'hub_local', health: 100, isCore: true },
       { id: 'l1-a', name: 'LOCAL TERMINAL A', x: DEFAULT_START.x + 15, y: DEFAULT_START.y - 15, bandwidth: 56, baseBandwidth: 56, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100, isCore: true },

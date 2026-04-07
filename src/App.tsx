@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useISPStore, RANGE_PRESETS, RangeLevel, ERAS_CONFIG, EraConfig, ISPNode, ISPNodeType } from './store/useISPStore';
+import { useISPStore, RANGE_PRESETS, RangeLevel, ERAS_CONFIG, EraConfig, ISPNode, ISPNodeType, getDebtTier } from './store/useISPStore';
 import { useTechStore } from './store/useTechStore';
 import { NODE_TEMPLATES } from './config/nodeRegistry';
 import DebugConsole from './components/DebugConsole';
@@ -110,7 +110,11 @@ const TopBar = ({ onOpenResearch }: { onOpenResearch: () => void }) => {
   const canUpgradeEra = useISPStore(state => state.canUpgradeEra);
   const isGodMode = useISPStore(state => state.isGodMode);
   const currentEraId = useISPStore(state => state.currentEra);
-  
+  const debtTier = useISPStore(state => state.debtTier);
+  const emergencyLoanUsed = useISPStore(state => state.emergencyLoanUsed);
+  const emergencyLoanActive = useISPStore(state => state.emergencyLoanActive);
+  const takeEmergencyLoan = useISPStore(state => state.takeEmergencyLoan);
+
   const purchaseEraUpgrade = useISPStore(state => state.purchaseEraUpgrade);
   const { getAggregateModifiers } = useTechStore();
 
@@ -146,13 +150,18 @@ const TopBar = ({ onOpenResearch }: { onOpenResearch: () => void }) => {
           <div className="w-40 flex-shrink-0">
             <span className="text-[9px] text-slate-500 uppercase font-bold block">Available Capital</span>
             <div className="flex items-baseline gap-2">
-              <span className="text-sm font-mono tabular-nums text-emerald-400 font-bold block truncate">
+              <span className={`text-sm font-mono tabular-nums font-bold block truncate ${debtTier > 0 ? 'text-red-500 animate-pulse' : 'text-emerald-400'}`}>
                 ${formatCurrency(money)}
               </span>
               <span className={`text-[9px] font-mono ${netRate >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                 {netRate >= 0 ? '+' : ''}${netRate.toFixed(2)}/t
               </span>
             </div>
+            {debtTier > 0 && !isGodMode && (
+              <span className="text-[7px] font-mono text-red-400 uppercase tracking-wider">
+                DEBT T{debtTier} {emergencyLoanActive ? '// LOAN ACTIVE' : ''}
+              </span>
+            )}
           </div>
           <div className="group relative flex flex-col w-32 flex-shrink-0">
             <span className="text-[9px] text-slate-500 uppercase font-bold block">Research Insight</span>
@@ -192,6 +201,19 @@ const TopBar = ({ onOpenResearch }: { onOpenResearch: () => void }) => {
         <div className="flex gap-2 items-center">
           <MilestoneMonitor />
 
+          {money < -1000 && !isGodMode && !emergencyLoanUsed && (
+            <button
+              onClick={takeEmergencyLoan}
+              className="px-2 py-1 bg-red-500/20 text-red-400 border border-red-500/50 rounded font-black text-[9px] uppercase tracking-wider hover:bg-red-500/40 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.2)]"
+            >
+              EMERGENCY LOAN
+            </button>
+          )}
+          {money < -1000 && !isGodMode && emergencyLoanUsed && (
+            <div className="px-2 py-1 bg-white/5 border border-white/10 rounded text-[9px] text-slate-600 font-mono uppercase cursor-not-allowed">
+              LOAN USED
+            </div>
+          )}
           {isGodMode && (
             <div className="px-2 py-1 bg-amber-500 text-black rounded font-black text-[9px] uppercase tracking-wider animate-pulse shadow-[0_0_10px_rgba(245,158,11,0.5)]">
               GOD MODE ACTIVE
@@ -215,7 +237,7 @@ const TopBar = ({ onOpenResearch }: { onOpenResearch: () => void }) => {
 };
 
 const Sidebar = () => {
-  const { selectedNodeId, nodes, links, upgradeNode, money, selectNode, isLinking, toggleLinking, isGodMode } = useISPStore();
+  const { selectedNodeId, nodes, links, upgradeNode, money, selectNode, isLinking, toggleLinking, isGodMode, sellNode, sellLink } = useISPStore();
   const node = nodes.find(n => n.id === selectedNodeId);
 
   if (!node) return (
@@ -315,15 +337,61 @@ const Sidebar = () => {
         </div>
       </div>
 
-      <button 
-        onClick={() => upgradeNode(node.id)}
-        disabled={!isGodMode && money < cost}
-        className={`w-full py-3 rounded border font-black text-[10px] uppercase tracking-widest transition-all
-          ${isGodMode || money >= cost ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.1)]' : 'bg-white/5 border-white/5 text-slate-700 cursor-not-allowed opacity-50'}
-        `}
-      >
-        {isGodMode ? `God Upgrade // FREE` : money >= cost ? `Upgrade // $${cost.toLocaleString()}` : `Insufficient Funds // $${cost.toLocaleString()}`}
-      </button>
+      <div className="flex flex-col gap-2">
+        <button
+          onClick={() => upgradeNode(node.id)}
+          disabled={!isGodMode && money < cost}
+          className={`w-full py-3 rounded border font-black text-[10px] uppercase tracking-widest transition-all
+            ${isGodMode || money >= cost ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.1)]' : 'bg-white/5 border-white/5 text-slate-700 cursor-not-allowed opacity-50'}
+          `}
+        >
+          {isGodMode ? `God Upgrade // FREE` : money >= cost ? `Upgrade // $${cost.toLocaleString()}` : `Insufficient Funds // $${cost.toLocaleString()}`}
+        </button>
+
+        {!node.isCore && (
+          <button
+            onClick={() => sellNode(node.id)}
+            className="w-full py-2 rounded border bg-red-500/10 border-red-500/30 text-red-400 font-black text-[9px] uppercase tracking-wider hover:bg-red-500/20 transition-all"
+          >
+            SELL NODE // $150
+          </button>
+        )}
+        {node.isCore && (
+          <div className="w-full py-2 rounded border bg-white/5 border-white/5 text-center text-[8px] text-slate-600 font-mono uppercase cursor-not-allowed" title="Core infrastructure cannot be sold">
+            CORE — NOT FOR SALE
+          </div>
+        )}
+
+        {(() => {
+          const nodeLinks = links.filter(l => l.sourceId === node.id || l.targetId === node.id);
+          const sellableLinks = nodeLinks.filter(l => {
+            const src = nodes.find(n => n.id === l.sourceId);
+            const tgt = nodes.find(n => n.id === l.targetId);
+            return !(src?.isCore && tgt?.isCore);
+          });
+          if (sellableLinks.length === 0) return null;
+          return (
+            <div className="pt-1">
+              <span className="text-[8px] text-slate-600 font-mono uppercase block mb-1">Sell Links</span>
+              {sellableLinks.map(l => (
+                <button
+                  key={l.id}
+                  onClick={() => sellLink(l.id)}
+                  className="w-full py-1 mb-1 rounded border bg-red-500/5 border-red-500/20 text-red-400/80 text-[8px] font-mono hover:bg-red-500/15 transition-all"
+                >
+                  {(() => {
+                    const src = nodes.find(n => n.id === l.sourceId)
+                    const tgt = nodes.find(n => n.id === l.targetId)
+                    const srcName = src ? abbreviateNodeName(src) : l.sourceId.slice(-4)
+                    const tgtName = tgt ? abbreviateNodeName(tgt) : l.targetId.slice(-4)
+                    return `${srcName} → ${tgtName} // $75`
+                  })()}
+                </button>
+              ))}
+            </div>
+          );
+        })()}
+      </div>
     </div>
   );
 };
@@ -392,7 +460,7 @@ const LogPanel = () => {
     <div className="h-[120px] w-full border-t border-white/10 bg-black/60 p-4 font-mono overflow-y-auto glass-panel" ref={scrollRef}>
       <div className="space-y-1">
         {logs.map((log, i) => (
-          <div key={i} className={`text-[10px] ${log.includes('!!!') || log.includes('ERROR') || log.includes('ISOLATED') ? 'text-red-400' : i === 0 ? 'text-emerald-400' : 'text-slate-500'}`}>
+          <div key={i} className={`text-[10px] ${log.includes('!!!') || log.includes('ERROR') || log.includes('ISOLATED') ? 'text-red-400' : log.includes('[DEBT]') || log.includes('[LOAN]') || log.includes('[SELL]') ? 'text-amber-400' : i === 0 ? 'text-emerald-400' : 'text-slate-500'}`}>
             <span className="mr-2 text-slate-700">{'>'}</span>
             {log}
           </div>
