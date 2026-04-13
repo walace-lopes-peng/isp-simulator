@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import techTreeData from '../config/techTreeConfig.json';
 
 export interface TechModifiers {
@@ -52,7 +53,9 @@ interface TechStore {
   resetTechs: () => void;
 }
 
-export const useTechStore = create<TechStore>((set, get) => ({
+export const useTechStore = create<TechStore>()(
+  persist(
+    (set, get) => ({
   unlockedTechIds: ['copper_standard', 'manual_switching'], 
   activeTechIds: ['copper_standard'], 
 
@@ -151,7 +154,16 @@ export const useTechStore = create<TechStore>((set, get) => ({
       activeTechIds: ['copper_standard']
     });
   }
-}));
+}),
+    {
+      name: 'isp-tech-v1',
+      partialize: (state) => ({
+        unlockedTechIds: state.unlockedTechIds,
+        activeTechIds: state.activeTechIds,
+      }),
+    }
+  )
+);
 
 // Helper selector for nodes
 export const getEffectiveBandwidth = (node: { bandwidth: number }) => {

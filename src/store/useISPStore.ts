@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import eraConfigData from '../config/eraConfig.json';
 import { NODE_TEMPLATES } from '../config/nodeRegistry';
 import type { ISPNodeType } from '../config/nodeRegistry';
@@ -96,6 +97,7 @@ interface ISPStore {
   selectedNodeId: string | null;
   isLinking: boolean;
   isGodMode: boolean;
+  claimedMilestones: string[];
   tickRate: number;
   networkHealth: number;
   avgLatency: number;
@@ -155,9 +157,12 @@ interface ISPStore {
   sellNode: (nodeId: string) => void;
   takeEmergencyLoan: () => void;
   isNonCore: (id: string) => boolean;
+  awardMilestone: (milestoneId: string, bonus: number, message: string) => void;
 }
 
-export const useISPStore = create<ISPStore>((set, get) => ({
+export const useISPStore = create<ISPStore>()(
+  persist(
+    (set, get) => ({
   money: 5000,
   techPoints: 50,
   tpAccumulator: 0,
@@ -188,6 +193,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
   emergencyLoanUsed: false,
   emergencyLoanActive: false,
   emergencyLoanTicksRemaining: 0,
+  claimedMilestones: [],
 
   setActiveDevNodeType: (type: string) => {
     if (NODE_TEMPLATES.some(t => t.type === type)) {
@@ -318,6 +324,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
       }
 
       const allLogs = [...debtLogs, ...newLogs];
+      const newTotalData = state.totalData + Math.floor(totalLoad * (state.tickRate / 1000) * 125);
 
       set({
         nodes: debtNodes,
@@ -326,7 +333,7 @@ export const useISPStore = create<ISPStore>((set, get) => ({
         debtTier: newTier,
         emergencyLoanActive: loanActive,
         emergencyLoanTicksRemaining: loanTicks,
-        totalData: state.totalData + Math.floor(totalLoad * (state.tickRate / 1000) * 125),
+        totalData: newTotalData,
         techPoints: state.techPoints + tpToAdd,
         tpAccumulator: newTpAccumulator - tpToAdd,
         networkHealth,
@@ -334,6 +341,13 @@ export const useISPStore = create<ISPStore>((set, get) => ({
         activePaths: e.data.activePaths || {},
         logs: allLogs.length > 0 ? [...allLogs, ...state.logs].slice(0, 20) : state.logs
       });
+
+      if (revenue > 0) {
+        get().awardMilestone('first_revenue', 100, 'First paying customer. Keep the packets flowing.');
+      }
+      if (newTotalData >= 1024) {
+        get().awardMilestone('first_kb', 500, 'First kilobyte delivered. Your network is working.');
+      }
     };
     set({ worker });
   },
@@ -476,6 +490,8 @@ export const useISPStore = create<ISPStore>((set, get) => ({
       links: [...s.links, newLink],
       logs: [`SYS_LINK: NEW_LINK ${type.toUpperCase()} [BW: ${bandwidth}] [COST: $${cost}]`, ...s.logs].slice(0, 15)
     }));
+
+    get().awardMilestone('first_link', 250, 'First connection established. Revenue coming online.');
   },
 
   removeNode: (id: string) => {
@@ -611,6 +627,17 @@ export const useISPStore = create<ISPStore>((set, get) => ({
     };
   }),
 
+  awardMilestone: (milestoneId: string, bonus: number, message: string) => {
+    const state = get();
+    if (state.claimedMilestones.includes(milestoneId)) return;
+    if (state.isGodMode) return;
+    set({
+      claimedMilestones: [...state.claimedMilestones, milestoneId],
+      money: state.money + bonus,
+      logs: [`[MILESTONE] ${message} +$${bonus}`, ...state.logs].slice(0, 20),
+    });
+  },
+
   toggleGodMode: () => set((state) => ({ isGodMode: !state.isGodMode })),
   setTickRate: (rate) => set({ tickRate: rate }),
   resetTopology: () => set((state) => ({
@@ -627,4 +654,23 @@ export const useISPStore = create<ISPStore>((set, get) => ({
       { id: 'l1-b', name: 'LOCAL TERMINAL B', x: DEFAULT_START.x - 15, y: DEFAULT_START.y + 15, bandwidth: 56, baseBandwidth: 56, traffic: 0, level: 1, layer: 1, type: 'terminal', health: 100, isCore: true },
     ]
   })),
-}));
+  }),
+    {
+      name: 'isp-game-v1',
+      partialize: (state) => ({
+        nodes: state.nodes,
+        links: state.links,
+        money: state.money,
+        techPoints: state.techPoints,
+        tpAccumulator: state.tpAccumulator,
+        totalData: state.totalData,
+        currentEra: state.currentEra,
+        debtTier: state.debtTier,
+        emergencyLoanUsed: state.emergencyLoanUsed,
+        emergencyLoanActive: state.emergencyLoanActive,
+        emergencyLoanTicksRemaining: state.emergencyLoanTicksRemaining,
+        claimedMilestones: state.claimedMilestones,
+      }),
+    }
+  )
+);

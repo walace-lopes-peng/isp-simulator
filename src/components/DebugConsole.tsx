@@ -272,6 +272,18 @@ const DebugConsole: React.FC = () => {
           >
             Reset Topology
           </button>
+          <button 
+            onClick={() => {
+              if(confirm("Clear all saved data and reload?")) {
+                localStorage.removeItem('isp-game-v1')
+                localStorage.removeItem('isp-tech-v1')
+                window.location.reload()
+              }
+            }}
+            className="w-full py-1.5 bg-red-900/20 border border-red-900/40 text-red-600 text-[9px] uppercase hover:bg-red-900/30 transition-all font-bold"
+          >
+            Clear Save Data
+          </button>
         </div>
       </div>
 

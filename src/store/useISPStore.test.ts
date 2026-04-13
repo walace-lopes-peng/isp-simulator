@@ -172,3 +172,53 @@ describe('Debt Escalation System', () => {
         expect(state.emergencyLoanTicksRemaining).toBe(0);
     });
 });
+
+describe('awardMilestone', () => {
+    beforeEach(() => {
+        useISPStore.getState().resetTopology();
+        useISPStore.setState({ isGodMode: false, claimedMilestones: [], money: 5000 });
+    });
+
+    it('should award milestone once and add bonus to money', () => {
+        useISPStore.getState().awardMilestone('test_ms', 100, 'Test milestone');
+        const state = useISPStore.getState();
+        expect(state.claimedMilestones).toContain('test_ms');
+        expect(state.money).toBe(5100);
+    });
+
+    it('should add a log entry when milestone is awarded', () => {
+        useISPStore.getState().awardMilestone('test_ms', 100, 'Test milestone');
+        const state = useISPStore.getState();
+        expect(state.logs[0]).toContain('[MILESTONE]');
+        expect(state.logs[0]).toContain('Test milestone');
+    });
+
+    it('should not award milestone twice', () => {
+        useISPStore.getState().awardMilestone('test_ms', 100, 'Test milestone');
+        const moneyAfterFirst = useISPStore.getState().money;
+        useISPStore.getState().awardMilestone('test_ms', 100, 'Test milestone');
+        expect(useISPStore.getState().money).toBe(moneyAfterFirst);
+    });
+
+    it('should skip milestone in God Mode', () => {
+        useISPStore.setState({ isGodMode: true });
+        useISPStore.getState().awardMilestone('test_ms', 100, 'Test milestone');
+        const state = useISPStore.getState();
+        expect(state.claimedMilestones).not.toContain('test_ms');
+        expect(state.money).toBe(5000);
+    });
+
+    it('first_link milestone fires after connectNodes', () => {
+        useISPStore.setState({ isGodMode: true, claimedMilestones: [] });
+        // God Mode — milestone should NOT fire
+        useISPStore.getState().connectNodes('0', 'l1-a');
+        expect(useISPStore.getState().claimedMilestones).not.toContain('first_link');
+
+        // Normal mode — milestone fires on first link
+        useISPStore.getState().resetTopology();
+        useISPStore.setState({ isGodMode: false, claimedMilestones: [], money: 5000 });
+        useISPStore.getState().connectNodes('0', 'l1-a');
+        expect(useISPStore.getState().claimedMilestones).toContain('first_link');
+        expect(useISPStore.getState().money).toBeGreaterThan(5000 - 500 /* cost */ + 250 /* bonus */ - 50 /* tolerance */);
+    });
+});
