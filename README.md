@@ -46,10 +46,10 @@ This repository follows a clean, modular structure. Key systems are isolated in 
 - **[Git Workflow](docs/workflow.md)**: Explore our branch strategies and commit conventions.
 
 ### Folder Structure Overview
-- `src/components/`: Reusable, simple UI elements.
-- `src/features/`: Smart components (Map, HUD).
+- `src/components/`: React UI components.
 - `src/systems/`: Pure game mechanics (Engine, Economy).
-- `src/store/`: Zustand state management.
+- `src/store/`: Zustand state (includes type definitions).
+- `src/utils/`: Configuration and helpers.
 
 ---
 
@@ -71,7 +71,7 @@ This repository contains an **ISP Simulation Engine** built with **React**, **Ty
 ```bash
 # Clone the repo (if you haven't already)
 git clone <repo‑url>
-cd "c:\Users\walac\Documents\Projetos\ISP Game"
+cd isp-simulator  # Or your clone directory
 
 # Install dependencies
 npm ci
@@ -94,17 +94,14 @@ npx tailwindcss init -p
 ---
 
 ### Testing
-The project currently ships a lightweight verification script (`verifyStore.ts`). For a proper test suite:
-1. **Add Jest & React Testing Library**
-   ```bash
-   npm install -D jest @testing-library/react @testing-library/jest-dom ts-jest
-   ```
-2. **Create a `jest.config.ts`** and write unit tests under `src/__tests__/`.
-3. **Run tests**
-   ```bash
-   npm test
-   ```
-   (The `test` script in `package.json` can be repurposed for Jest.)
+Run tests with Vitest:
+```bash
+npm test              # Run all tests
+npm test -- --watch   # Watch mode
+npm test -- --coverage # Coverage report
+```
+
+Tests are colocated with source files (e.g., `useISPStore.test.ts`).
 
 ---
 

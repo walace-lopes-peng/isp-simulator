@@ -7,7 +7,7 @@
 - Ask for permission before structural repo scans.
 
 ## 2. Pre-Flight & Governance
-- Read `PROJECT_BLUEPRINT.md`, `_agent/git_steward_protocol.md`, and `.github/PULL_REQUEST_TEMPLATE.md` before acting.
+- Read `PROJECT_BLUEPRINT.md`, `.agent/git_steward_protocol.md`, and `.github/PULL_REQUEST_TEMPLATE.md` before acting.
 - Verify active branch (`feat/` or `fix/`). Do not work on `main` or `dev` unless explicitly instructed.
 - Anchor all work to specific Issue IDs or Milestones (e.g., `#11`).
 - Require explicit "Implement" prompt before making architectural pivots or introducing major systems.
