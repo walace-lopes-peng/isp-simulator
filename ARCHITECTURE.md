@@ -17,4 +17,4 @@ The ISP Simulator is a state-driven network simulation engine with a React-based
 ## What Must Never Change
 - **State Isolation**: The separation between the simulation engine (store) and the rendering layer (React).
 - **Coordinate System**: Nodes must use absolute coordinates for deterministic map positioning.
-- **Tick Integrity**: The simulation must remain synchronized to the 1s `tick()` pulse.
+- **Tick Integrity**: The simulation runs on a configurable tick rate (default: 16ms for 60 FPS, adjustable via Debug Console).

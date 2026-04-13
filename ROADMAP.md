@@ -7,26 +7,13 @@ Simulador de gerenciamento de infraestrutura de internet evolutivo. O jogador in
 
 ## **2. Fases de Progressão (Eras)**
 
-### **Fase 1: O Alicerce (Anos 70 - Local)**
-*   **Escala:** Bairro/Cidade.
-*   **Tecnologia:** IMPs, Mainframes, Linhas de Cobre Dedicadas.
-*   **Interface:** Terminal/Prompt de comando (Fóssil).
-*   **Desafio:** **Ruído de Sinal** e **Latência de Chaveamento**.
-*   **Economia:** Contratos governamentais e acadêmicos.
-
-### **Fase 2: A Expansão (Anos 90 - Regional/Nacional)**
-*   **Escala:** Estado/País.
-*   **Tecnologia:** Modems Dial-up, DSL, Roteadores Primitivos.
-*   **Interface:** GUI inspirada em Windows 95/Classic OS (Bevel edges).
-*   **Desafio:** **Saturação de Linha** e **Carga Térmica** em Hubs.
-*   **Economia:** Assinaturas residenciais em massa.
-
-### **Fase 3: A Dominação (Atualidade - Global)**
-*   **Escala:** Continental/Transoceânica.
-*   **Tecnologia:** Fibra Óptica (FTTH), Cabos Submarinos, Satélites.
-*   **Interface:** Dashboard moderno, minimalista e dark mode.
-*   **Desafio:** **Latência Física (ms)** e **Congestionamento de Backbone**.
-*   **Economia:** Venda de trânsito IP e acordos de Peering.
+O jogo abrange seis eras tecnológicas:
+*   **1970s** — Fundações da ARPANET (Modems 300 bps)
+*   **1980s** — Primeiras redes comerciais (2400 bps)
+*   **1990s** — Boom da Internet (Modems 56K, início do DSL)
+*   **2000s** — Expansão da Banda Larga (Cable, DSL)
+*   **2010s** — Mobile e Fibra (LTE, FTTH)
+*   **Modern** — Fibra Gigabit e 5G
 
 ---
 
